@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
 const workDir = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.resolve(workDir, "..", "outputs", "01a04fdf-3751-72e2-88f1-daf19b8b9d1d");
+const outDir = process.env.BUDGET_OUTPUT_DIR
+  ? path.resolve(process.env.BUDGET_OUTPUT_DIR)
+  : path.resolve(workDir, "..", "outputs", "01a04fdf-3751-72e2-88f1-daf19b8b9d1d");
 await fs.mkdir(outDir, { recursive: true });
 const wb = Workbook.create();
 // Sheet creation order is the product-style navigation order.
@@ -506,6 +508,9 @@ dash.getRange("A1:H17").format.wrapText=true;dash.getRange("A1:H17").format.font
 
 // Final presentation pass: visual-only refinements for the Codex workbook viewer.
 // This block intentionally changes no values, formulas, validations, source data, or workflow states.
+dash.tabColor=operations;tuesday.tabColor=operations;scorecard.tabColor=operations;weekly.tabColor=planning;savings.tabColor=reserves;history.tabColor=audit;
+const supportSheetsMuted=[importSheet,budget,funding,bills,payplan,cash,pending,rules,sources];
+supportSheetsMuted.forEach(sheet=>sheet.tabColor="#CBD5E1");
 const polishBody=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:10,color:"#243447"};r.format.verticalAlignment="center";};
 const polishTitle=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:15,bold:true,color:"#FFFFFF"};r.format.rowHeight=27;};
 const polishIntro=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:10,italic:true,color:gray};r.format.rowHeight=28;};
