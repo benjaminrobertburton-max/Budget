@@ -1,7 +1,10 @@
 import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
-const outDir = "C:/Users/Home/Documents/Codex/2026-08-29/help/outputs/01a04fdf-3751-72e2-88f1-daf19b8b9d1d";
+const workDir = path.dirname(fileURLToPath(import.meta.url));
+const outDir = path.resolve(workDir, "..", "outputs", "01a04fdf-3751-72e2-88f1-daf19b8b9d1d");
 await fs.mkdir(outDir, { recursive: true });
 
 const wb = Workbook.create();
