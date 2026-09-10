@@ -43,7 +43,7 @@ sec(budget,"A4:F4","Income");
 budget.getRange("A5:D5").values=[["Income source","Frequency","Amount","Weekly amount"]]; headers(budget,"A5:D5");
 budget.getRange("A6:C6").values=[["Kiewit payroll (net)","Weekly",1343.37]];
 budget.getRange("D6").formulas=[["=C6"]];
-budget.getRange("A7:D7").values=[["Wife income (personal safe — Sep 9 actual)","Weekly",160,null]]; budget.getRange("D7").formulas=[["=IF(B7=\"Weekly\",C7,C7*12/52)"]];
+budget.getRange("A7:D7").values=[["Wife income (personal safe — Sep 9 total)","Weekly",220,null]]; budget.getRange("D7").formulas=[["=IF(B7=\"Weekly\",C7,C7*12/52)"]];
 budget.getRange("A8:D8").values=[["Total net income",null,null,null]]; budget.getRange("D8").formulas=[["=SUM(D6:D7)"]];
 sec(budget,"A10:F10","Known weekly bills and targets");
 budget.getRange("A11:F11").values=[["Category","Bill / target","Frequency","Amount","Weekly amount","Status"]]; headers(budget,"A11:F11");
@@ -153,7 +153,7 @@ widths(pending,[["A:A",14],["B:B",26],["C:C",16],["D:D",22],["E:E",24],["F:F",58
 title(sources,"A1:E1","Sources & Notes",audit);
 sources.getRange("A3:E3").values=[["Source","What was used","Period / date","Recorded items","Notes"]];headers(sources,"A3:E3");
 sources.getRange("A4:E13").values=[
- ["Wells Fargo checking","Sep. 9 balance + operating history", "Sep 9, 2026", "Available Wells $1,227.78 after pending Fidelity debit; pending payroll $1,343.38; wife’s $160 income is held in the personal safe", "The earlier Jul–Aug account history establishes the $1,343.37 recurring-payroll baseline and $75 weekly Fidelity transfer. The Sep. 9 balance controls this live review. Rent funding is limited to verified Wells capacity after required actions, not a forced $300 deposit."],
+ ["Wells Fargo checking","Sep. 9 balance + operating history", "Sep 9, 2026", "Available Wells $1,227.78 after pending Fidelity debit; pending payroll $1,343.38; wife’s $220 total income is held in the personal safe", "The earlier Jul–Aug account history establishes the $1,343.37 recurring-payroll baseline and $75 weekly Fidelity transfer. The Sep. 9 balance controls this live review. Rent funding is limited to verified Wells capacity after required actions, not a forced $300 deposit."],
  ["Capital One statement","Card balance", "Jul 3-Aug 2, 2026", "$0.00 balance; $238.76 spending in period", "Current balance should be refreshed if new charges occurred"],
  ["Discover statement","Card balance", "Aug 9, 2026", "$48.27 balance; $20 minimum due Sep 6", ""],
  ["PayPal Credit statement","Promo debt", "Aug 18, 2026", "$1,618.58 balance; $30 minimum; four deferred-interest promos", "Payoff plan tab prioritizes deadlines"],
@@ -400,7 +400,7 @@ history.getRange("D6:F6").values=[[1227.78,0,1226.78]];history.getRange("H6").va
 title(cash,"A1:J1","Account Snapshots & Source Control",audit);
 cash.getRange("A2:J2").merge();cash.getRange("A2").values=[["Cash snapshots are point-in-time values. The source-control section is the import gate: an independent screenshot count and total must match the ledger before Start can show Verified."]];cash.getRange("A2:J2").format={font:{italic:true,color:gray},wrapText:true};
 cash.getRange("A4:G4").values=[["As-of date","Account","Available balance","Pending credits","Pending debits","Usable cash now","Source / note"]];headers(cash,"A4:G4");
-cash.getRange("A5:E7").values=[[new Date("2026-09-09"),"Wells Fargo checking",1227.78,1343.38,75],[new Date("2026-09-09"),"Wealthfront savings",11847.64,0,0],[new Date("2026-09-09"),"Personal safe cash",160,0,0]];cash.getRange("F5:F7").values=[[1227.78],[11847.64],[160]];cash.getRange("G5:G7").values=[["Available balance from Sep. 9 screenshot; posted balance was −$40.60 before pending payroll and Fidelity activity"],["Sep. 9 screenshot; no activity after the Sep. 2 Wells transfer is visible"],["Wife’s Sep. 9 income held as cash; excluded from Wells/Wealthfront funding"]];
+cash.getRange("A5:E7").values=[[new Date("2026-09-09"),"Wells Fargo checking",1227.78,1343.38,75],[new Date("2026-09-09"),"Wealthfront savings",11847.64,0,0],[new Date("2026-09-09"),"Personal safe cash",220,0,0]];cash.getRange("F5:F7").values=[[1227.78],[11847.64],[220]];cash.getRange("G5:G7").values=[["Available balance from Sep. 9 screenshot; posted balance was −$40.60 before pending payroll and Fidelity activity"],["Sep. 9 screenshot; no activity after the Sep. 2 Wells transfer is visible"],["Wife’s Sep. 9 income held as cash; $160 added to the prior $60. Excluded from Wells/Wealthfront funding."]];
 cash.getRange("A4:G7").format.wrapText=true;cash.getRange("A5:A7").format.numberFormat="mmm d, yyyy";cash.getRange("C5:F7").format.numberFormat=usd;cash.getRange("A5:G7").format.rowHeight=45;
 sec(cash,"A10:J10","Screenshot source control");
 cash.getRange("A11:J11").values=[["Account","Capture","Ledger scope","Expected entries","Entered","Expected visible total","Ledger visible total","Anchor reached?","Control status","Next action"]];headers(cash,"A11:J11");
