@@ -1,0 +1,8 @@
+# Generated previews and inspection artifacts can be recreated from the builder.
+outputs/**/*.png
+outputs/**/*.ndjson
+
+# Do not publish raw screenshots or local attachments.
+sources/
+work/node_modules/
+*.tmp
