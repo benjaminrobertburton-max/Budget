@@ -472,7 +472,7 @@ tuesday.getRange("E21:E24").format={fill:pale,font:{bold:true,size:14},numberFor
 title(dash,"A1:C1","Start — Weekly Cash Plan",operations);
 dash.getRange("A2:C2").merge();dash.getRange("A2").values=[["Open this page first. It answers whether this week’s plan can be funded from Wells and the exact transfer needed. Use Tuesday Review to complete the actions; use This Week only for spending analysis."]];dash.getRange("A2:C2").format={font:{italic:true,color:gray},wrapText:true};
 sec(dash,"A4:C4","Today’s cash plan — Sep 9");
-dash.getRange("A5:C8").values=[["Wells available now",null,"After pending Fidelity debit"],["Cash required today",null,"Rent uses only Wells capacity after required actions"],["Move from Wealthfront",null,"Only if still short after net rent funding; retain $1 in Wells"],["Wells left after plan",null,"This must match Tuesday Review"]];
+dash.getRange("A5:C8").values=[["Wells available now",null,"After pending Fidelity debit"],["Cash required today",null,"Rent uses only Wells capacity after required actions"],["Move from Wealthfront",null,"Only if still short after net rent funding; retain $1 in Wells"],["Wells left after plan",null,"Next action: complete the open items in Tuesday Review"]];
 dash.getRange("B5").formulas=[["='2. Tuesday Review'!E22"]];dash.getRange("B6").formulas=[["='2. Tuesday Review'!E21"]];dash.getRange("B7").formulas=[["='2. Tuesday Review'!E24"]];dash.getRange("B8").formulas=[["=B5+B7-B6"]];
 dash.getRange("A5:C8").format={fill:pale,borders:{preset:"inside",style:"thin",color:"#D9E5E7"},wrapText:true};dash.getRange("B5:B8").format={fill:"#FFFFFF",font:{bold:true,size:14},numberFormat:usd};dash.getRange("A6:C6").format={fill:yellow,font:{bold:true}};dash.getRange("A7:C7").format={fill:yellow,font:{bold:true}};dash.getRange("A8:C8").format={fill:mint,font:{bold:true}};
 // Spending analysis, funding detail, and historical workflow remain on their dedicated sheets.
@@ -503,6 +503,29 @@ dash.getRange("H6").format={fill:yellow,font:{bold:true,color:"#7C5E10"}};
 dash.getRange("E16:H17").merge();dash.getRange("E16").values=[["Fidelity is verified through Wells Fargo transfers. PayPal Credit is reviewed weekly because its promotional balances have payment deadlines."]];dash.getRange("E16:H17").format={fill:"#E8EEF5",font:{italic:true,color:gray},wrapText:true,verticalAlignment:"center"};
 
 dash.getRange("A1:H17").format.wrapText=true;dash.getRange("A1:H17").format.font={size:12};dash.getRange("A5:C8").format.rowHeight=29;dash.getRange("E6:H14").format.rowHeight=30;dash.getRange("E16:H17").format.rowHeight=28;widths(dash,[["A:A",29],["B:B",22],["C:C",28],["D:D",3],["E:E",12],["F:F",19],["G:G",33],["H:H",21]]);dash.showGridLines=false;dash.freezePanes.freezeRows(4);
+
+// Final presentation pass: visual-only refinements for the Codex workbook viewer.
+// This block intentionally changes no values, formulas, validations, source data, or workflow states.
+const polishBody=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:10,color:"#243447"};r.format.verticalAlignment="center";};
+const polishTitle=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:15,bold:true,color:"#FFFFFF"};r.format.rowHeight=27;};
+const polishIntro=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:10,italic:true,color:gray};r.format.rowHeight=28;};
+const polishSection=(sheet,range)=>{const r=sheet.getRange(range);r.format.font={name:"Arial",size:10,bold:true,color:"#FFFFFF"};r.format.rowHeight=22;};
+const polish=(sheet,used,titleRange,introRange,sectionRanges)=>{polishBody(sheet,used);polishTitle(sheet,titleRange);polishIntro(sheet,introRange);sectionRanges.forEach(r=>polishSection(sheet,r));};
+
+polish(dash,"A1:H17","A1:C1","A2:C2",["A4:C4","E1:H1","E4:H4"]);dash.getRange("E5:H5").format.font={name:"Arial",size:10,bold:true,color:"#243447"};dash.getRange("A5:C8").format.rowHeight=28;dash.getRange("A8:C8").format.rowHeight=40;dash.getRange("E6:H14").format.rowHeight=28;dash.getRange("E16:H17").format.rowHeight=25;dash.getRange("B5:B8").format.font={name:"Arial",size:14,bold:true,color:"#172B4D"};
+polish(tuesday,"A1:G24","A1:G1","A2:G2",["A4:G4"]);tuesday.getRange("A5:G6").format.rowHeight=24;tuesday.getRange("A8:G8").format.rowHeight=23;tuesday.getRange("A9:G19").format.rowHeight=28;tuesday.getRange("D9:D19").format.font={name:"Arial",size:11,bold:true,color:"#243447"};tuesday.getRange("F9:F19").format.horizontalAlignment="center";tuesday.getRange("E21:E24").format.font={name:"Arial",size:13,bold:true,color:"#172B4D"};
+polish(scorecard,"A1:G26","A1:G1","A2:G2",[]);scorecard.getRange("A3:G3").format.rowHeight=24;scorecard.getRange("A5:G5").format.rowHeight=23;scorecard.getRange("A6:G21").format.rowHeight=24;scorecard.getRange("A23:G23").format.rowHeight=27;
+polish(weekly,"A1:F42","A1:F1","A2:F2",["A30:F30"]);weekly.getRange("A4:D4").format.rowHeight=23;weekly.getRange("A5:D22").format.rowHeight=23;weekly.getRange("A5:D5").format.rowHeight=38;weekly.getRange("A19:D19").format.rowHeight=30;weekly.getRange("A21:D21").format.rowHeight=38;weekly.getRange("A23:D23").format.rowHeight=26;weekly.getRange("A25:D28").format.rowHeight=25;weekly.getRange("B23:B28").format.font={name:"Arial",size:12,bold:true,color:"#172B4D"};
+polish(savings,"A1:F39","A1:F1","A2:F2",["A4:F4","A11:D11","A19:D19","A24:F24","A32:F32"]);savings.getRange("A5:F9").format.rowHeight=27;savings.getRange("A12:F17").format.rowHeight=24;savings.getRange("A25:F30").format.rowHeight=25;savings.getRange("A34:F39").format.rowHeight=25;savings.getRange("B5:B9").format.font={name:"Arial",size:13,bold:true,color:"#172B4D"};savings.getRange("D5:D9").format.font={name:"Arial",size:13,bold:true,color:"#172B4D"};
+polish(history,"A1:M30","A1:M1","A2:M2",[]);history.getRange("A4:M4").format.rowHeight=36;history.getRange("A5:M5").format.rowHeight=58;history.getRange("A6:M6").format.rowHeight=58;history.getRange("A7:M30").format.rowHeight=22;
+
+const supportSheets=[
+  [importSheet,"A1:M304","A1:M1","A2:M2"],[budget,"A1:F41","A1:F1","A2:F2"],[funding,"A1:H29","A1:H1","A2:H2"],
+  [bills,"A1:G15","A1:G1","A2:G2"],[payplan,"A1:G12","A1:G1","A2:G2"],[cash,"A1:J21","A1:J1","A2:J2"],
+  [pending,"A1:F26","A1:F1","A2:F2"],[rules,"A1:F31","A1:F1","A2:F2"],[sources,"A1:E13","A1:E1",null]
+];
+supportSheets.forEach(([sheet,used,titleRange,introRange])=>{polishBody(sheet,used);polishTitle(sheet,titleRange);if(introRange)polishIntro(sheet,introRange);sheet.getRange("A1").format.rowHeight=27;});
+budget.getRange("A4:F4").format.rowHeight=22;funding.getRange("A4:H4").format.rowHeight=28;bills.getRange("A4:G4").format.rowHeight=28;payplan.getRange("A5:G5").format.rowHeight=28;cash.getRange("A11:J11").format.rowHeight=30;pending.getRange("A4:F4").format.rowHeight=28;rules.getRange("A4:F4").format.rowHeight=28;sources.getRange("A3:E3").format.rowHeight=28;
 
 wb.recalculate();
 const check=await wb.inspect({kind:"table",range:"1. Start!A1:H17",include:"values,formulas",tableMaxRows:17,tableMaxCols:8});console.log(check.ndjson);
