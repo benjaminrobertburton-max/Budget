@@ -27,14 +27,14 @@ Copy-Item -LiteralPath $SourcePath -Destination $destination
 function Escape-Csv([string]$value) { '"' + ($value -replace '"','""') + '"' }
 $register = Join-Path $archiveRoot "screenshot-register.csv"
 $row = @(
-    Escape-Csv (Join-Path (Join-Path (Get-Date -Format 'yyyy') (Get-Date -Format 'yyyy-MM')) $archiveName),
-    Escape-Csv $Institution,
-    Escape-Csv $View,
-    Escape-Csv $receivedDate,
-    Escape-Csv $VisibleTransactionRange,
-    Escape-Csv $LatestTransactionVisible,
-    Escape-Csv $Cycle,
-    Escape-Csv $Notes
+    $(Escape-Csv (Join-Path (Join-Path (Get-Date -Format 'yyyy') (Get-Date -Format 'yyyy-MM')) $archiveName)),
+    $(Escape-Csv $Institution),
+    $(Escape-Csv $View),
+    $(Escape-Csv $receivedDate),
+    $(Escape-Csv $VisibleTransactionRange),
+    $(Escape-Csv $LatestTransactionVisible),
+    $(Escape-Csv $Cycle),
+    $(Escape-Csv $Notes)
 ) -join ','
 Add-Content -LiteralPath $register -Value $row
 Write-Output "Archived $destination"
