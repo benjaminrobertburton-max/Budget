@@ -606,8 +606,11 @@ const check=await wb.inspect({kind:"table",range:"1. Start!A1:H17",include:"valu
 const tuesdayCheck=await wb.inspect({kind:"table",range:"2. Tuesday Review!A1:G26",include:"values,formulas",tableMaxRows:26,tableMaxCols:7});console.log(tuesdayCheck.ndjson);
 const historyCheck=await wb.inspect({kind:"table",range:"6. History!A4:M7",include:"values,formulas",tableMaxRows:4,tableMaxCols:13});console.log(historyCheck.ndjson);
 const errors=await wb.inspect({kind:"match",searchTerm:"#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A",options:{useRegex:true,maxResults:100},summary:"formula error scan"});console.log(errors.ndjson);
-// Weekly execution needs only the two operational pages. Supporting sheets still refresh in
-// the workbook, but are rendered only when their contents change or a closeout review is requested.
-const renderRanges={"1. Start":"A1:H17","2. Tuesday Review":"A1:G26","3. This Week":"A1:G26","4. Money Plan":"A1:F42","5. Savings & Debt":"A1:F39","6. History":"A1:M18","Support - Debt Detail":"A1:G15","Support - Sources":"A1:E13"};
+// The normal import/payment run renders only operational pages. Supporting sheets remain
+// formula-current in the workbook and are rendered at closeout with --phase=closeout.
+const workflowPhase=process.argv.find(arg=>arg.startsWith("--phase="))?.slice("--phase=".length) ?? "import";
+const renderRanges=workflowPhase==="closeout"
+ ? {"1. Start":"A1:H17","2. Tuesday Review":"A1:G26","3. This Week":"A1:G26","4. Money Plan":"A1:F42","5. Savings & Debt":"A1:F39","6. History":"A1:M18","Support - Debt Detail":"A1:G15","Support - Sources":"A1:E13"}
+ : {"1. Start":"A1:H17","2. Tuesday Review":"A1:G26"};
 for(const [sheetName,range] of Object.entries(renderRanges)){const image=await wb.render({sheetName,range,scale:1,format:"png"});await fs.writeFile(`${outDir}/${sheetName.replaceAll(" ","_")}.png`,new Uint8Array(await image.arrayBuffer()));}
 const file=await SpreadsheetFile.exportXlsx(wb);await file.save(`${outDir}/comprehensive_budget.xlsx`);
