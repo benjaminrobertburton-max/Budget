@@ -344,8 +344,8 @@ const ledgerRows=[
  ["Citi",new Date("2026-09-10"),"EXXON CHECKOUT #70 ROCKPORT",10.01,"Posted","Fuel","Include","citi-2026-09-10-exxon-1001","Fuel purchase visible in Sep. 15 Citi activity"],
  ["Citi",new Date("2026-09-10"),"ONLINE PAYMENT, THANK YOU",-132.09,"Posted","Credit-card payment","Exclude","citi-2026-09-10-payment-13209","Card payment confirmed by Citi and Wells; excluded from spending"],
  ["Citi",new Date("2026-09-11"),"PCC 9394 INGLESIDE TX",72.78,"Posted","Fuel","Include","citi-2026-09-11-pcc-7278","Same merchant as the prior verified Citi fuel purchase"],
- ["Citi",new Date("2026-09-12"),"WM SUPERCENTER #440 ROCKPORT",23.47,"Posted","Unclassified","Needs classification","citi-2026-09-12-walmart-2347","Merchant and amount verified; waiting for user category"],
- ["Citi",new Date("2026-09-14"),"SE40845 INGLESIDE USA",63.79,"Pending","Unclassified","Needs classification","citi-2026-09-14-se40845-6379","Merchant and amount verified; waiting for user category"]
+ ["Citi",new Date("2026-09-12"),"WM SUPERCENTER #440 ROCKPORT",23.47,"Posted","Car supplies","Include","citi-2026-09-12-walmart-2347","User classified as car supplies"],
+ ["Citi",new Date("2026-09-14"),"SE40845 INGLESIDE USA",63.79,"Pending","Fuel","Include","citi-2026-09-14-se40845-6379","User classified as fuel"]
 ];
 const ledgerEnd=4+ledgerRows.length;
 const sourceForRow=(r)=>{
