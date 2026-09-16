@@ -90,9 +90,9 @@ widths(budget,[["A:A",18],["B:B",34],["C:C",13],["D:E",16],["F:F",19]]); budget.
 // PayPal promotional payoff planning. Reference date makes assumptions visible and editable.
 title(payplan,"A1:G1","PayPal Promotional Payoff Plan",debt);
 payplan.getRange("A2:G2").merge();payplan.getRange("A2").values=[["Stage 1 funds only promos due by the Stage 1 deadline. After that date, the weekly target automatically switches to the later promos. Update balances before each payoff; every deferred-interest balance must be $0 by its deadline."]];payplan.getRange("A2:G2").format={font:{italic:true,color:gray},wrapText:true};
-payplan.getRange("A3:B3").values=[["Reference date",new Date("2026-09-09")]];payplan.getRange("D3:E3").values=[["Stage 1 deadline",new Date("2026-10-10")]];input(payplan,"B3");input(payplan,"E3");payplan.getRange("B3").format.numberFormat="mmm d, yyyy";payplan.getRange("E3").format.numberFormat="mmm d, yyyy";
+payplan.getRange("A3:B3").values=[["Reference date",new Date("2026-09-15")]];payplan.getRange("D3:E3").values=[["Stage 1 deadline",new Date("2026-10-10")]];input(payplan,"B3");input(payplan,"E3");payplan.getRange("B3").format.numberFormat="mmm d, yyyy";payplan.getRange("E3").format.numberFormat="mmm d, yyyy";
 payplan.getRange("A5:G5").values=[["Merchant","Deadline","Balance","Accrued deferred interest","Weeks remaining","Weekly payoff target","Priority"]];headers(payplan,"A5:G5");
-payplan.getRange("A6:D9").values=[["Progressive car insurance","2026-10-10",169.37,105.51],["Best Buy","2026-10-10",573.71,69.30],["eBay","2027-01-10",406.05,20.70],["Plaud.ai","2027-01-10",169.80,8.37]];
+payplan.getRange("A6:D9").values=[["Progressive car insurance","2026-10-10",20.75,105.51],["Best Buy","2026-10-10",573.71,69.30],["eBay","2027-01-10",406.05,20.70],["Plaud.ai","2027-01-10",169.80,8.37]];
 payplan.getRange("B6:B9").values=[[new Date("2026-10-10")],[new Date("2026-10-10")],[new Date("2027-01-10")],[new Date("2027-01-10")]];
 payplan.getRange("E6").formulas=[["=MAX(1,ROUNDUP((B6-$B$3)/7,0))"]];payplan.getRange("E6:E9").fillDown();payplan.getRange("F6").formulas=[["=IF($B$3>B6,0,IF(B6<=$E$3,C6/E6,IF($B$3>$E$3,C6/E6,0)))"]];payplan.getRange("F6:F9").fillDown();payplan.getRange("G6").formulas=[["=IF(B6<=$E$3,\"Stage 1 - pay now\",IF($B$3<=$E$3,\"Stage 2 - begins after Oct. 10\",\"Stage 2 - pay now\"))"]];payplan.getRange("G6:G9").fillDown();
 payplan.getRange("A11:G11").values=[["Total",null,null,null,null,null,null]];payplan.getRange("C11").formulas=[["=SUM(C6:C9)"]];payplan.getRange("D11").formulas=[["=SUM(D6:D9)"]];payplan.getRange("F11").formulas=[["=SUM(F6:F9)"]];
@@ -105,12 +105,12 @@ title(bills,"A1:G1","Debt Detail",debt);
 bills.getRange("A2:G2").merge();bills.getRange("A2").values=[["Statement figures are a starting point. On payday, update the yellow balance, minimum, and due-date cells directly from each account app—no new statement needed."]];bills.getRange("A2:G2").format={font:{italic:true,color:gray},wrapText:true};
 bills.getRange("A4:G4").values=[["Account / bill","Balance","Minimum / required payment","Due date","APR / terms","Currency","Source / status"]];headers(bills,"A4:G4");
 const billRows=[
- ["Chase card",266.96,0,null,"27.49% purchases (statement)","USD","Current balance from Sep. 9 Chase screenshot. $500.33 pending activity is tracked separately. No payment due was shown."],
+ ["Chase card",786.38,0,new Date("2026-09-24"),"27.49% purchases (statement)","USD","Current balance from Sep. 15 Chase screenshot. No payment is currently due; $159.54 of current activity is pending and tracked separately."],
  ["Citi card",106.26,0,new Date("2026-10-03"),"APR not rechecked","USD","Current balance from Sep. 15 Citi screenshot. Pending $63.79 is tracked separately; app shows $0.00 statement balance and $0.00 minimum payment."],
  ["Discover card",48.27,48.27,null,"26.49% purchases","USD","User-confirmed carried-forward amount to pay. Latest screenshot showed Nationwide Pet $48.27 pending; verify it has posted before submitting payment."],
- ["Capital One card",0,0,null,"28.99% purchases","USD","Current balance $0 in Sep. 9 app screenshot"],
+ ["Capital One card",0,0,null,"28.99% purchases","USD","Current balance $0 in Sep. 15 app screenshot"],
  ["Prime Visa card",0,0,null,"27.49% purchases","USD","Current balance $0 in Sep. 9 app screenshot; no payment due"],
- ["PayPal Credit",1318.93,0,null,"Promos: 29.64% deferred interest if not paid by deadlines","USD","Sep. 9 app screenshot; Sep. 2 payment of $148.65 reduced Progressive to $169.37. App warns displayed amounts may be delayed."],
+ ["PayPal Credit",1170.31,0,null,"Promos: 29.64% deferred interest if not paid by deadlines","USD","Sep. 15 active-promo list totals $1,170.31. The Sep. 10 $148.62 payment reduced Progressive to $20.75."],
  ["Genesis G70 auto loan",21784.21,746.47,new Date("2026-09-27"),"6.70% APR","USD","User-confirmed recurring due date; August payment complete. Fund $172.26/week in a reserve, then pay the exact $746.47 on the 27th."],
  ["RBC Canada student loan",null,80,null,"Balance and terms pending","CAD","Monthly payment confirmed; balance unknown"],
  ["Life insurance",null,102.33,null,"Monthly premium","CAD","Monthly amount confirmed"],
@@ -327,10 +327,10 @@ const ledgerRows=[
  ["Chase",new Date("2026-09-05"),"CSC Serviceworks",3.00,"Posted","Automotive","Include","chase-2026-09-05-csc-300","Tire air; user-confirmed"],
  ["Chase",new Date("2026-09-06"),"Payment Thank You",-1141.57,"Posted","Credit-card payment","Exclude","chase-2026-09-06-payment-114157","Card payment; excluded from spending"],
  ["Chase",new Date("2026-09-06"),"H-E-B",165.54,"Posted","H-E-B / groceries","Include","chase-2026-09-06-heb-16554","Visible in Sep. 9 Chase activity"],
- ["Chase",new Date("2026-09-08"),"MCWHORTER SERVICE",471.61,"Pending","Emergency car repair","Exclude","chase-2026-09-08-mcwhorter-47161","Emergency expense; tracked separately from core scorecard"],
- ["Chase",new Date("2026-09-08"),"Starbucks",12.45,"Pending","Starbucks","Include","chase-2026-09-08-starbucks-1245","Pending in Sep. 9 Chase activity"],
- ["Chase",new Date("2026-09-09"),"Starbucks",7.22,"Pending","Starbucks","Include","chase-2026-09-09-starbucks-722","Pending in Sep. 9 Chase activity"],
- ["Chase",new Date("2026-09-09"),"Starbucks",6.55,"Pending","Starbucks","Include","chase-2026-09-09-starbucks-655","Pending in Sep. 9 Chase activity"],
+ ["Chase",new Date("2026-09-08"),"MCWHORTER SERVICE",471.61,"Posted","Emergency car repair","Exclude","chase-2026-09-08-mcwhorter-47161","Posted Sep. 15; emergency repair excluded from core scorecard"],
+ ["Chase",new Date("2026-09-08"),"Starbucks",12.45,"Posted","Starbucks","Include","chase-2026-09-08-starbucks-1245","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-09"),"Starbucks",7.22,"Posted","Starbucks","Include","chase-2026-09-09-starbucks-722","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-09"),"Starbucks",6.55,"Posted","Starbucks","Include","chase-2026-09-09-starbucks-655","Posted in Sep. 15 Chase activity"],
  ["Chase",new Date("2026-09-05"),"CSC Serviceworks",2.50,"Pending","Automotive","Include","chase-2026-09-05-csc-250","Tire air; pending in Sep. 9 Chase activity"],
  ["Discover",new Date("2026-09-08"),"NATIONWIDE PET",48.27,"Pending","Pet costs","Include","discover-2026-09-08-nationwidepet-4827","Monthly pet insurance; confirmed by user from Sep. 9 Discover screenshot"],
  ["Wells Fargo",new Date("2026-09-09"),"FID BKG SVC LLC MONEYLINE",75,"Posted","Fidelity Roth IRA","Transfer / verify","wells-2026-09-09-fidelity-7500","Posted weekly Roth IRA transfer; was pending in the Sep. 9 review"],
@@ -345,7 +345,30 @@ const ledgerRows=[
  ["Citi",new Date("2026-09-10"),"ONLINE PAYMENT, THANK YOU",-132.09,"Posted","Credit-card payment","Exclude","citi-2026-09-10-payment-13209","Card payment confirmed by Citi and Wells; excluded from spending"],
  ["Citi",new Date("2026-09-11"),"PCC 9394 INGLESIDE TX",72.78,"Posted","Fuel","Include","citi-2026-09-11-pcc-7278","Same merchant as the prior verified Citi fuel purchase"],
  ["Citi",new Date("2026-09-12"),"WM SUPERCENTER #440 ROCKPORT",23.47,"Posted","Car supplies","Include","citi-2026-09-12-walmart-2347","User classified as car supplies"],
- ["Citi",new Date("2026-09-14"),"SE40845 INGLESIDE USA",63.79,"Pending","Fuel","Include","citi-2026-09-14-se40845-6379","User classified as fuel"]
+ ["Citi",new Date("2026-09-14"),"SE40845 INGLESIDE USA",63.79,"Pending","Fuel","Include","citi-2026-09-14-se40845-6379","User classified as fuel"],
+ ["Chase",new Date("2026-09-10"),"365 MARKET N 888 432-3299",2.82,"Posted","Work snacks","Include","chase-2026-09-10-365-282","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-10"),"PAYMENT THANK YOU",-266.96,"Posted","Credit-card payment","Exclude","chase-2026-09-10-payment-26696","Payment also confirmed by Wells; excluded from spending"],
+ ["Chase",new Date("2026-09-10"),"INVINCIBLE APPCHARGE",27.53,"Posted","Invincibles + other Apple","Include","chase-2026-09-10-invincible-2753","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-10"),"APPLE DIGITAL SERVICES",16.21,"Posted","Invincibles + other Apple","Include","chase-2026-09-10-apple-1621","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-10"),"INVINCIBLE APPCHARGE",13.76,"Posted","Invincibles + other Apple","Include","chase-2026-09-10-invincible-1376","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-10"),"INVINCIBLE APPCHARGE",4.58,"Posted","Invincibles + other Apple","Include","chase-2026-09-10-invincible-458","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-11"),"EXXON",27.05,"Posted","Fuel","Include","chase-2026-09-11-exxon-2705","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-11"),"INVINCIBLE APPCHARGE",18.35,"Posted","Invincibles + other Apple","Include","chase-2026-09-11-invincible-1835","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-11"),"Starbucks",6.22,"Posted","Starbucks","Include","chase-2026-09-11-starbucks-622","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-12"),"Starbucks",6.98,"Posted","Starbucks","Include","chase-2026-09-12-starbucks-698","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-12"),"INVINCIBLE APPCHARGE",13.76,"Posted","Invincibles + other Apple","Include","chase-2026-09-12-invincible-1376","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-13"),"INVINCIBLE APPCHARGE",13.76,"Posted","Invincibles + other Apple","Include","chase-2026-09-13-invincible-1376","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-13"),"INVINCIBLE APPCHARGE",27.53,"Posted","Invincibles + other Apple","Include","chase-2026-09-13-invincible-2753","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-13"),"ARKPERFORMA",11.99,"Posted","Automotive","Include","chase-2026-09-13-arkperforma-1199","Same merchant previously classified as automotive"],
+ ["Chase",new Date("2026-09-13"),"INVINCIBLE APPCHARGE",91.79,"Posted","Invincibles + other Apple","Include","chase-2026-09-13-invincible-9179","Posted in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-13"),"DOORDASH MCCONALD'S",20.91,"Pending","DoorDash","Include","chase-2026-09-13-doordash-2091","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-13"),"Starbucks",6.55,"Pending","Starbucks","Include","chase-2026-09-13-starbucks-655","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-14"),"365 MARKET N 888 432-3299",2.82,"Pending","Work snacks","Include","chase-2026-09-14-365-282","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-14"),"Starbucks",12.45,"Pending","Starbucks","Include","chase-2026-09-14-starbucks-1245","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-15"),"EXXON",39.41,"Pending","Fuel","Include","chase-2026-09-15-exxon-3941","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-15"),"Target",25.29,"Pending","Shopping / personal care","Include","chase-2026-09-15-target-2529","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-15"),"INVINCIBLE APPCHARGE",45.89,"Pending","Invincibles + other Apple","Include","chase-2026-09-15-invincible-4589","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-15"),"Starbucks",6.22,"Pending","Starbucks","Include","chase-2026-09-15-starbucks-622","Pending in Sep. 15 Chase activity"]
 ];
 const ledgerEnd=4+ledgerRows.length;
 const sourceForRow=(r)=>{
@@ -353,6 +376,7 @@ const sourceForRow=(r)=>{
  if(r[7]==="chase-2026-09-02-royalcaribbean-net-018") return ["Cross-account reconciliation — Sep 9","Chase charge less Wells reimbursement","Verified"];
  if(r[0]==="Wells Fargo" && dateKey>="2026-09-09") return ["Wells activity — Sep 15","Posted activity","Verified"];
  if(r[0]==="Citi" && dateKey>="2026-09-10") return ["Citi activity — Sep 15",r[4]==="Pending" ? "Pending list" : "Posted activity",r[6]==="Needs classification" ? "Needs verification" : "Verified"];
+ if(r[0]==="Chase" && dateKey>="2026-09-08") return r[4]==="Pending" ? ["Chase pending — Sep 15","Pending list","Verified"] : ["Chase activity — Sep 15","Posted activity","Verified"];
  if(r[0]==="Chase" && dateKey>="2026-09-01") return r[4]==="Pending" ? ["Chase pending — Sep 9","Pending list","Verified"] : ["Chase activity — Sep 9","Posted activity","Verified"];
  if(r[0]==="Citi" && dateKey>="2026-09-01") return ["2026-09-09 Citi activity","Posted activity","Verified"];
  if(r[0]==="Discover" && dateKey>="2026-09-01") return ["2026-09-09 Discover balance / activity","Recent activity","Verified"];
@@ -374,7 +398,7 @@ widths(importSheet,[["A:A",14],["B:B",15],["C:C",30],["D:D",14],["E:E",15],["F:F
 // Weekly Scorecard: a selectable Tuesday–Monday view of actual, pending, and committed spending.
 title(scorecard,"A1:G1","This Week — Spending Analysis",operations);
 scorecard.getRange("A2:G2").merge();scorecard.getRange("A2").values=[["Review new purchases against their weekly category limits here. Pending charges count so the week cannot look safer than it is. This is analysis, not the cash decision for today; payments and transfers do not belong here. Only source-verified ledger rows are counted."]];scorecard.getRange("A2:G2").format={font:{italic:true,color:gray},wrapText:true};
-scorecard.getRange("A3:B3").values=[["Week beginning (Tuesday)",new Date("2026-09-01")]];input(scorecard,"B3");scorecard.getRange("B3").format.numberFormat="mmm d, yyyy";
+scorecard.getRange("A3:B3").values=[["Week beginning (Tuesday)",new Date("2026-09-08")]];input(scorecard,"B3");scorecard.getRange("B3").format.numberFormat="mmm d, yyyy";
 scorecard.getRange("D3:G3").values=[["Week ends",null,"Budget status",null]];scorecard.getRange("E3").formulas=[["=B3+6"]];scorecard.getRange("G3").formulas=[["=IF(COUNTIFS('Support - Ledger'!$H$5:$H$304,$B$3,'Support - Ledger'!$G$5:$G$304,\"Include\",'Support - Ledger'!$M$5:$M$304,\"<>Verified\")>0,\"Source check needed\",IF(F23<0,\"Over plan\",\"Within plan\"))"]];scorecard.getRange("E3").format.numberFormat="mmm d, yyyy";
 scorecard.getRange("A5:G5").values=[["Category","Weekly target","Posted actual","Pending","Committed","Remaining / over","Status"]];headers(scorecard,"A5:G5");
 const scoreRows=[
@@ -417,20 +441,20 @@ history.getRange("D6:F6").values=[[1227.78,0,1226.78]];history.getRange("H6").va
 title(cash,"A1:J1","Account Snapshots & Source Control",audit);
 cash.getRange("A2:J2").merge();cash.getRange("A2").values=[["Cash snapshots are point-in-time values. The source-control section is the import gate: an independent screenshot count and total must match the ledger before Start can show Verified."]];cash.getRange("A2:J2").format={font:{italic:true,color:gray},wrapText:true};
 cash.getRange("A4:G4").values=[["As-of date","Account","Available balance","Pending credits","Pending debits","Usable cash now","Source / note"]];headers(cash,"A4:G4");
-cash.getRange("A5:E7").values=[[new Date("2026-09-15"),"Wells Fargo checking",1392.72,1343.36,0],[new Date("2026-09-09"),"Wealthfront savings",11847.64,0,0],[new Date("2026-09-09"),"Personal safe cash",220,0,0]];cash.getRange("F5:F7").values=[[1392.72],[11847.64],[220]];cash.getRange("G5:G7").values=[["Available balance from Sep. 15 screenshot. It includes pending Kiewit payroll of $1,343.36; the prior-cycle rent movements netted to $178.49."],["Sep. 9 screenshot; no activity after the Sep. 2 Wells transfer is visible"],["Wife’s Sep. 9 income held as cash; $160 added to the prior $60. Excluded from Wells/Wealthfront funding."]];
+cash.getRange("A5:E7").values=[[new Date("2026-09-15"),"Wells Fargo checking",1392.72,1343.36,0],[new Date("2026-09-15"),"Wealthfront savings",12026.13,0,0],[new Date("2026-09-09"),"Personal safe cash",220,0,0]];cash.getRange("F5:F7").values=[[1392.72],[12026.13],[220]];cash.getRange("G5:G7").values=[["Available balance from Sep. 15 screenshot. It includes pending Kiewit payroll of $1,343.36; the prior-cycle rent movements netted to $178.49."],["Sep. 15 balance and activity captured; latest visible activity is the Sep. 14 $300 Wells Fargo IFI transfer."],["Wife’s Sep. 9 income held as cash; $160 added to the prior $60. Excluded from Wells/Wealthfront funding."]];
 cash.getRange("A4:G7").format.wrapText=true;cash.getRange("A5:A7").format.numberFormat="mmm d, yyyy";cash.getRange("C5:F7").format.numberFormat=usd;cash.getRange("A5:G7").format.rowHeight=45;
 sec(cash,"A10:J10","Screenshot source control");
 cash.getRange("A11:J11").values=[["Account","Capture","Ledger scope","Expected entries","Entered","Expected visible total","Ledger visible total","Anchor reached?","Control status","Next action"]];headers(cash,"A11:J11");
 cash.getRange("A12:J21").values=[
  ["Wells Fargo","Wells activity — Sep 15","New cash actions after Sep. 8 anchor",8,null,1253.42,null,"Yes",null,"Verified: balance, activity, and new source anchor captured"],
- ["Wealthfront","Wealthfront activity — Sep 15","Balance + activity","","","","","","Needed","Capture the new balance and activity if it changed"],
- ["Chase Sapphire","Chase activity — Sep 15","Posted ledger rows","",null,"",null,"",null,"Capture posted activity through the saved anchor"],
- ["Chase Sapphire","Chase pending — Sep 15","Pending ledger rows","",null,"",null,"",null,"Capture all current pending activity"],
- ["Citi AAdvantage","Citi activity — Sep 15","Posted + pending ledger rows",5,null,37.96,null,"Yes",null,"Two transactions need category confirmation"],
+ ["Wealthfront","Wealthfront activity — Sep 15","Balance + activity","","","","","","Verified","Balance and latest activity captured"],
+ ["Chase Sapphire","Chase activity — Sep 15","Posted ledger rows",19,null,513.20,null,"Yes",null,"Posted activity reconciled through Sep. 13"],
+ ["Chase Sapphire","Chase pending — Sep 15","Pending ledger rows",8,null,159.54,null,"Yes",null,"Eight current pending charges reconciled"],
+ ["Citi AAdvantage","Citi activity — Sep 15","Posted + pending ledger rows",5,null,37.96,null,"Yes",null,"All five current rows classified"],
  ["Prime Visa","Prime balance / activity — Sep 15","Balance + activity","","","","","","Needed","Capture current balance and any activity"],
  ["Discover","Discover balance / activity — Sep 15","Balance + activity","",null,"",null,"",null,"Capture current balance and activity"],
- ["Capital One","Capital One balance / activity — Sep 15","Balance + activity","","","","","","Needed","Capture current balance and activity"],
- ["PayPal Credit","PayPal balance + promos — Sep 15","Debt / promo detail","","","","","","Needed","Capture current balance, activity, and active promo list"],
+ ["Capital One","Capital One balance / activity — Sep 15","Balance + activity","","","","","","Verified","Current balance $0.00 captured"],
+ ["PayPal Credit","PayPal balance + promos — Sep 15","Debt / promo detail","","","","","","Verified","All active promo balances captured"],
  ["RBC Canada","Month-end","Not due","","","","","","Not due","Review at month-end"]
 ];
 cash.getRange("E12").formulas=[["=COUNTIF('Support - Ledger'!$K$5:$K$304,B12)"]];cash.getRange("G12").formulas=[["=SUMIF('Support - Ledger'!$K$5:$K$304,B12,'Support - Ledger'!$D$5:$D$304)"]];cash.getRange("I12").formulas=[["=IF(E12<>D12,\"Missing entry\",IF(ABS(G12-F12)>0.005,\"Total mismatch\",IF(H12<>\"Yes\",\"Anchor not reached\",\"Verified\")))"]];
@@ -528,13 +552,13 @@ sec(dash,"E4:H4","Source checkpoints");
 dash.getRange("E5:H5").values=[["Import status","Account","Latest posted anchor","Next statement check"]];headers(dash,"E5:H5");
 dash.getRange("E6:H14").values=[
   [null,"Wells Fargo","Sep 14 · Zelle to Virginia · $280.00","Captured Sep 15"],
-  [null,"Wealthfront","Sep 2 · Wells transfer · $631.34","Needed"],
-  [null,"Chase Sapphire","Sep 6 · Card payment · $1,141.57","Needed"],
+  [null,"Wealthfront","Sep 14 · Wells Fargo IFI · +$300.00","Needed"],
+  [null,"Chase Sapphire","Sep 13 · Invincible AppCharge · $91.79","Needed"],
   [null,"Citi AAdvantage","Sep 3 · PCC Ingleside · $68.75","Needed"],
   [null,"Prime Visa","No activity shown · $0 balance","Needed"],
   [null,"Discover","Aug 11 · internet payment · $48.27","Needed"],
   [null,"Capital One","No activity shown · $0 balance","Needed"],
-  [null,"PayPal Credit","Sep 2 · payment · $148.65","Needed"],
+  [null,"PayPal Credit","Sep 10 · payment · $148.62","Needed"],
   ["Not due","RBC Canada","Month-end loan + insurance","Check at month-end"]
 ];
 dash.getRange("E6").formulas=[["='Support - Account Snapshots'!I12"]];dash.getRange("E7").formulas=[["='Support - Account Snapshots'!I13"]];dash.getRange("E8").formulas=[["=IF(AND('Support - Account Snapshots'!I14=\"Verified\",'Support - Account Snapshots'!I15=\"Verified\"),\"Verified\",\"Source check needed\")"]];dash.getRange("E9").formulas=[["='Support - Account Snapshots'!I16"]];dash.getRange("E10").formulas=[["='Support - Account Snapshots'!I17"]];dash.getRange("E11").formulas=[["='Support - Account Snapshots'!I18"]];dash.getRange("E12").formulas=[["='Support - Account Snapshots'!I19"]];dash.getRange("E13").formulas=[["='Support - Account Snapshots'!I20"]];
