@@ -105,7 +105,7 @@ title(bills,"A1:G1","Debt Detail",debt);
 bills.getRange("A2:G2").merge();bills.getRange("A2").values=[["Statement figures are a starting point. On payday, update the yellow balance, minimum, and due-date cells directly from each account app—no new statement needed."]];bills.getRange("A2:G2").format={font:{italic:true,color:gray},wrapText:true};
 bills.getRange("A4:G4").values=[["Account / bill","Balance","Minimum / required payment","Due date","APR / terms","Currency","Source / status"]];headers(bills,"A4:G4");
 const billRows=[
- ["Chase card",786.38,0,new Date("2026-09-24"),"27.49% purchases (statement)","USD","Current balance from Sep. 15 Chase screenshot. No payment is currently due; $159.54 of current activity is pending and tracked separately."],
+ ["Chase card",786.38,0,new Date("2026-09-24"),"27.49% purchases (statement)","USD","Pre-payment balance from Sep. 15 Chase screenshot. No payment is currently due; the later Sep. 15 capture shows $132.08 of current activity pending."],
  ["Citi card",106.26,0,new Date("2026-10-03"),"APR not rechecked","USD","Current balance from Sep. 15 Citi screenshot. Pending $63.79 is tracked separately; app shows $0.00 statement balance and $0.00 minimum payment."],
  ["Discover card",0,0,null,"26.49% purchases","USD","User-reported current balance $0.00 on Sep. 15; activity was not captured, so any new charges still need review."],
  ["Capital One card",0,0,null,"28.99% purchases","USD","Current balance $0 in Sep. 15 app screenshot"],
@@ -361,8 +361,8 @@ const ledgerRows=[
  ["Chase",new Date("2026-09-13"),"INVINCIBLE APPCHARGE",27.53,"Posted","Invincibles + other Apple","Include","chase-2026-09-13-invincible-2753","Posted in Sep. 15 Chase activity"],
  ["Chase",new Date("2026-09-13"),"ARKPERFORMA",11.99,"Posted","Automotive","Include","chase-2026-09-13-arkperforma-1199","Same merchant previously classified as automotive"],
  ["Chase",new Date("2026-09-13"),"INVINCIBLE APPCHARGE",91.79,"Posted","Invincibles + other Apple","Include","chase-2026-09-13-invincible-9179","Posted in Sep. 15 Chase activity"],
- ["Chase",new Date("2026-09-13"),"DOORDASH MCCONALD'S",20.91,"Pending","DoorDash","Include","chase-2026-09-13-doordash-2091","Pending in Sep. 15 Chase activity"],
- ["Chase",new Date("2026-09-13"),"Starbucks",6.55,"Pending","Starbucks","Include","chase-2026-09-13-starbucks-655","Pending in Sep. 15 Chase activity"],
+ ["Chase",new Date("2026-09-13"),"DOORDASH MCCONALD'S",20.91,"Posted","DoorDash","Include","chase-2026-09-13-doordash-2091","No longer pending in the later Sep. 15 capture; $20.91 is part of the exact $27.46 Chase-payment delta"],
+ ["Chase",new Date("2026-09-13"),"Starbucks",6.55,"Posted","Starbucks","Include","chase-2026-09-13-starbucks-655","No longer pending in the later Sep. 15 capture; $6.55 is part of the exact $27.46 Chase-payment delta"],
  ["Chase",new Date("2026-09-14"),"365 MARKET N 888 432-3299",2.82,"Pending","Work snacks","Include","chase-2026-09-14-365-282","Pending in Sep. 15 Chase activity"],
  ["Chase",new Date("2026-09-14"),"Starbucks",12.45,"Pending","Starbucks","Include","chase-2026-09-14-starbucks-1245","Pending in Sep. 15 Chase activity"],
  ["Chase",new Date("2026-09-15"),"EXXON",39.41,"Pending","Fuel","Include","chase-2026-09-15-exxon-3941","Pending in Sep. 15 Chase activity"],
@@ -448,8 +448,8 @@ cash.getRange("A11:J11").values=[["Account","Capture","Ledger scope","Expected e
 cash.getRange("A12:J21").values=[
  ["Wells Fargo","Wells activity — Sep 15","New cash actions after Sep. 8 anchor",8,null,1253.42,null,"Yes",null,"Verified: balance, activity, and new source anchor captured"],
  ["Wealthfront","Wealthfront activity — Sep 15","Balance + activity","","","","","","Verified","Balance and latest activity captured"],
- ["Chase Sapphire","Chase activity — Sep 15","Posted ledger rows",19,null,513.20,null,"Yes",null,"Posted activity reconciled through Sep. 13"],
- ["Chase Sapphire","Chase pending — Sep 15","Pending ledger rows",8,null,159.54,null,"Yes",null,"Eight current pending charges reconciled"],
+ ["Chase Sapphire","Chase activity — Sep 15","Posted ledger rows",21,null,540.66,null,"Yes",null,"Posted activity and exact payment-delta transition reconciled"],
+ ["Chase Sapphire","Chase pending — Sep 15","Pending ledger rows",6,null,132.08,null,"Yes",null,"Six current pending charges reconciled"],
  ["Citi AAdvantage","Citi activity — Sep 15","Posted + pending ledger rows",5,null,37.96,null,"Yes",null,"All five current rows classified"],
  ["Prime Visa","Prime balance / activity — Sep 15","Balance + activity","","","","","","Verified","User confirmed $0.00 balance and no pending charges"],
  ["Discover","Discover balance / activity — Sep 15","Balance + activity",0,null,0,null,"Yes",null,"User confirmed $0.00 balance and no pending charges"],
