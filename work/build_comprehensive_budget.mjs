@@ -35,6 +35,9 @@ const usd='$#,##0.00;[Red]($#,##0.00);-'; const cad='CA$#,##0.00;[Red](CA$#,##0.
 const personalSafePriorBalance=220;
 const personalSafeSep15Addition=510;
 const personalSafeBalance=personalSafePriorBalance+personalSafeSep15Addition;
+const wealthfrontSep15ScreenshotBalance=12026.13;
+const wealthfrontSep15TransferToWells=252.61730769230803;
+const wealthfrontWorkingBalance=wealthfrontSep15ScreenshotBalance-wealthfrontSep15TransferToWells;
 const title=(s,r,t,fill=navy)=>{s.getRange(r).merge();s.getRange(r.split(":")[0]).values=[[t]];s.getRange(r).format={fill,font:{bold:true,color:"#FFFFFF",size:16},verticalAlignment:"center"};s.getRange(r).format.rowHeight=30};
 const sec=(s,r,t)=>{s.getRange(r).merge();s.getRange(r.split(":")[0]).values=[[t]];s.getRange(r).format={fill:teal,font:{bold:true,color:"#FFFFFF"},verticalAlignment:"center"}};
 const input=(s,r)=>s.getRange(r).format={fill:yellow,font:{color:"#0000FF"}};
@@ -447,7 +450,7 @@ history.getRange("G7").values=[["Needs review"]];history.getRange("M7").values=[
 title(cash,"A1:J1","Account Snapshots & Source Control",audit);
 cash.getRange("A2:J2").merge();cash.getRange("A2").values=[["Cash snapshots are point-in-time values. The source-control section is the import gate: an independent screenshot count and total must match the ledger before Start can show Verified."]];cash.getRange("A2:J2").format={font:{italic:true,color:gray},wrapText:true};
 cash.getRange("A4:G4").values=[["As-of date","Account","Available balance","Pending credits","Pending debits","Usable cash now","Source / note"]];headers(cash,"A4:G4");
-cash.getRange("A5:E7").values=[[new Date("2026-09-15"),"Wells Fargo checking",1392.72,1343.36,0],[new Date("2026-09-15"),"Wealthfront savings",12026.13,0,0],[new Date("2026-09-15"),"Personal safe cash",personalSafeBalance,0,0]];cash.getRange("F5:F7").values=[[1392.72],[12026.13],[personalSafeBalance]];cash.getRange("G5:G7").values=[["Available balance from Sep. 15 screenshot. It includes pending Kiewit payroll of $1,343.36; the prior-cycle rent movements netted to $178.49."],["Sep. 15 balance and activity captured; latest visible activity is the Sep. 14 $300 Wells Fargo IFI transfer."],["Additive balance: $220 prior safe cash + $510 Sep. 15 addition = $730. Savings-only and excluded from Wells/Wealthfront funding and spending-capacity calculations."]];
+cash.getRange("A5:E7").values=[[new Date("2026-09-15"),"Wells Fargo checking",1392.72,1343.36,0],[new Date("2026-09-15"),"Wealthfront savings",wealthfrontSep15ScreenshotBalance,0,0],[new Date("2026-09-15"),"Personal safe cash",personalSafeBalance,0,0]];cash.getRange("F5:F7").values=[[1392.72],[wealthfrontWorkingBalance],[personalSafeBalance]];cash.getRange("G5:G7").values=[["Available balance from Sep. 15 screenshot. It includes pending Kiewit payroll of $1,343.36; the prior-cycle rent movements netted to $178.49."],["Screenshot balance was $12,026.13. Less the user-confirmed $252.62 transfer to Wells after capture, working Wealthfront balance is $11,773.51."],["Additive balance: $220 prior safe cash + $510 Sep. 15 addition = $730. Savings-only and excluded from Wells/Wealthfront funding and spending-capacity calculations."]];
 cash.getRange("A4:G7").format.wrapText=true;cash.getRange("A5:A7").format.numberFormat="mmm d, yyyy";cash.getRange("C5:F7").format.numberFormat=usd;cash.getRange("A5:G7").format.rowHeight=45;
 sec(cash,"A10:J10","Screenshot source control");
 cash.getRange("A11:J11").values=[["Account","Capture","Ledger scope","Expected entries","Entered","Expected visible total","Ledger visible total","Anchor reached?","Control status","Next action"]];headers(cash,"A11:J11");
