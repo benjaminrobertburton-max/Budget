@@ -45,7 +45,7 @@ def main():
     old_results = openpyxl.load_workbook(before, data_only=True)
     new_results = openpyxl.load_workbook(after, data_only=True)
     issues, additions, errors = [], [], []
-    formula_count = value_count = input_count = 0
+    formula_count = value_count = input_count = link_count = 0
     if old.sheetnames != new.sheetnames:
         issues.append("Sheet order or names changed")
     for name in old.sheetnames:
@@ -56,6 +56,11 @@ def main():
             for cell in row:
                 other = b[cell.coordinate]
                 label = f"{name}!{cell.coordinate}"
+                if cell.hyperlink:
+                    link_count += 1
+                    properties = ("target", "location", "display", "tooltip")
+                    if not other.hyperlink or any(getattr(cell.hyperlink, key) != getattr(other.hyperlink, key) for key in properties):
+                        issues.append(f"Navigation changed: {label}")
                 if cell.value is not None:
                     if cell.value != other.value or cell.data_type != other.data_type:
                         issues.append(f"Content changed: {label}")
@@ -90,6 +95,7 @@ def main():
     output = {
         "sheets": len(old.sheetnames), "preserved_content_cells": value_count,
         "preserved_formulas": formula_count, "preserved_yellow_cells": input_count,
+        "preserved_navigation_links": link_count,
         "new_navigation_links": additions, "formula_errors": errors, "issue_count": len(issues), "issues": issues[:30],
         "key_outputs": {name: {address: new_results[name][address].value for address in addresses} for name, addresses in KEYS.items()},
     }

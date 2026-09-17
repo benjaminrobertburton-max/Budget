@@ -69,3 +69,17 @@ Run `work/verify_ui_preservation.py BEFORE.xlsx AFTER.xlsx` with the bundled Pyt
 - Existing long instructions and source notes were retained to preserve their meaning. This pass did not rewrite financial guidance or resolve the pre-existing inconsistencies listed above.
 - All changed sheets were checked in generated previews. Native internal-link targets and workbook structure were checked, but interactive link behavior and recalculation in desktop Excel or the Codex workbook viewer were not independently exercised.
 - Formula equality and matching cached outputs establish preservation, not a new audit of the underlying financial assumptions or screenshot evidence.
+
+## App-style revision following visual feedback
+
+Baseline: commit 6bd4368. The user found the first design too white and visually flat and authorized the stronger navy-and-slate direction. This revision supersedes the unfilled-title styling above; the workflow/input map and financial limitations are unchanged.
+
+- Replaced the white title treatment with compact navy app headers. Support tabs use smaller, muted slate headers.
+- Added bounded white content panels, visibly contrasting section headers, horizontal row separators, and smooth slate gutters. No full-sheet background fills or floating shapes were introduced.
+- Restyled the 22 existing native links as blue navigation buttons without changing their labels or destinations.
+- Emphasized Wells cash on Start and the existing payment/funding totals on Tuesday Review. Automatic-payment rows have their own subtle background, with their original statuses intact.
+- Gave Savings & Debt identifiable savings, rent, automatic-transfer, promotional-debt and forecast panels. This Week remains purchase analysis; Money Plan retains savings-only safe cash treatment.
+- Kept the existing cell layout, input colors, validations, conditional formatting, freeze panes, formulas, source values, dates and historical records. No worksheet content or financial assumptions were added or replaced.
+- Baseline build and preservation checks passed before editing. Post-edit comparisons preserve 3,166 populated cells (including existing navigation), all 719 formulas and cached results, all 3,955 yellow input cells, and all 22 native links. The existing formula-error scan and independent error-cell inspection report zero errors.
+- Preview review covers all 15 sheets and all populated ledger rows. Wider audit sheets still require horizontal scrolling, and Savings & Debt remains vertically long because existing sections and addresses are preserved.
+- Desktop Excel recalculation and interactive link navigation in the Codex viewer were not tested. Existing completion-status, AT&T-reference and rent-exposure inconsistencies remain documented above and unchanged.

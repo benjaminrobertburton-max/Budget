@@ -7,7 +7,8 @@ import { xml2js } from "xml-js";
 
 export function applyBudgetUi(s) {
   const navigation = [];
-  const ink = "#243447", muted = "#64748B", line = "#D9E2EA", soft = "#F4F7FA";
+  const ink = "#243447", muted = "#64748B", line = "#AEBFD2", soft = "#E5EDF7";
+  const navy = "#172D49", section = "#304F70", canvas = "#EEF2F7", accent = "#285A91";
   const money = '$#,##0.00"  ";[Red]($#,##0.00)"  ";"-  "';
   const row = (sheet, range, height) => { sheet.getRange(range).format.rowHeight = height; };
   const fill = (sheet, range, color) => { sheet.getRange(range).format.fill = color; };
@@ -16,13 +17,15 @@ export function applyBudgetUi(s) {
     sheet.getCell(0, i).format.columnWidth = width;
   });
   const band = (sheet, range) => {
-    fill(sheet, range, soft);
-    font(sheet, range, {name:"Arial", size:10, bold:true, color:ink});
+    fill(sheet, range, section);
+    font(sheet, range, {name:"Arial", size:11, bold:true, color:"#FFFFFF"});
     sheet.getRange(range).format.borders = {bottom:{style:"thin", color:line}};
     row(sheet, range, 24);
   };
   const head = (sheet, range, height=30) => {
     band(sheet, range);
+    fill(sheet, range, soft);
+    font(sheet, range, {size:10, color:ink});
     sheet.getRange(range).format.horizontalAlignment = "left";
     row(sheet, range, height);
   };
@@ -53,9 +56,9 @@ export function applyBudgetUi(s) {
     sheet.getRange(used).format.verticalAlignment = "center";
     sheet.getRange(used).format.wrapText = true;
     font(sheet, used, {name:"Arial", size:index < 6 ? 11 : 10});
-    fill(sheet, title, "#FFFFFF");
-    font(sheet, title, {name:"Arial", size:index < 6 ? 16 : 14, bold:true, color:ink});
-    row(sheet, title, 34);
+    fill(sheet, title, index < 6 ? navy : "#415A73");
+    font(sheet, title, {name:"Arial", size:index < 6 ? 20 : 14, bold:true, color:"#FFFFFF"});
+    row(sheet, title, index < 6 ? 44 : 34);
     sheet.showGridLines = false;
     // Short return link above each supporting table; selectors keep their original rows.
     if (index > 0 && sheet !== s.scorecard && sheet !== s.payplan && sheet !== s.sources) {
@@ -65,8 +68,8 @@ export function applyBudgetUi(s) {
 
   // Start: a compact two-column command center with an explicit path into the workflow.
   cols(s.dash,[25,22,32,3,12,18,28,18]);
-  fill(s.dash,"E1:H1","#FFFFFF");
-  font(s.dash,"E1:H1",{size:14,bold:true,color:ink});
+  fill(s.dash,"D1:H1",navy);
+  font(s.dash,"E1:H1",{size:16,bold:true,color:"#FFFFFF"});
   row(s.dash,"A2:H2",48);
   font(s.dash,"A2:H2",{size:10,italic:false,color:muted});
   ["A4:C4","A10:C10","E4:H4"].forEach(r=>band(s.dash,r));
@@ -192,6 +195,102 @@ export function applyBudgetUi(s) {
    [s.budget,["C6:D8","D12:E34","C40:C41"]],[s.funding,["C5:C14","D19:E29"]],
    [s.bills,["B5:C15"]],[s.payplan,["C6:D11","F6:F12"]],[s.cash,["C5:F7","F12:G18"]],
    [s.pending,["C5:C26"]]].forEach(([sheet,ranges])=>ranges.forEach(range=>{sheet.getRange(range).format.numberFormat=money;}));
+
+  // App-style surfaces: visible panels and navigation, without relocating any cells.
+  // Input fills and conditional status rules are deliberately excluded from body painting.
+  const outline = (sheet, range, color=line) => {
+    sheet.getRange(range).format.borders = {preset:"outside",style:"thin",color};
+  };
+  const divider = (sheet, range, strong=false) => {
+    const edge={style:strong?"medium":"thin",color:strong?line:"#D6DFEA"};
+    sheet.getRange(range).format.borders = {top:edge,bottom:edge};
+  };
+  const backdrop = (sheet, range) => {
+    fill(sheet,range,canvas);
+    sheet.getRange(range).format.borders={preset:"all",style:"thin",color:canvas};
+  };
+  const ruled = (sheet, first, last, endColumn) => {
+    for(let r=first;r<=last;r++) divider(sheet,`A${r}:${endColumn}${r}`);
+  };
+  specs.forEach(([sheet,used,title],index)=>{
+    const lastColumn=used.split(":")[1].replace(/\d+/g,"");
+    if(sheet!==s.sources) backdrop(sheet,`A2:${lastColumn}2`);
+    if(sheet!==s.scorecard && sheet!==s.payplan && sheet!==s.sources) backdrop(sheet,`A3:${lastColumn}3`);
+    sheet.getRange(title).format.numberFormat='"  "@';
+    sheet.getRange(title).format.borders={bottom:{style:"medium",color:accent}};
+    if(index<6) sheet.tabColor=navy;
+  });
+
+  // Start: cash overview, import checklist and readiness each have a clear boundary.
+  backdrop(s.dash,"D2:D17");backdrop(s.dash,"A9:C9");backdrop(s.dash,"E15:H15");
+  s.dash.getRange("D1:H1").format.borders={preset:"all",style:"thin",color:navy};
+  s.dash.getRange("E1:H1").format.numberFormat='"  "@';
+  fill(s.dash,"A5:C5","#E5EDF7");font(s.dash,"A5",{bold:true});font(s.dash,"B5",{size:22,bold:true});
+  row(s.dash,"A5:H5",44);row(s.dash,"A8:H8",40);
+  fill(s.dash,"A8:C8","#EAF1F9");font(s.dash,"A8:B8",{bold:true});
+  ruled(s.dash,5,8,"C");ruled(s.dash,12,17,"C");
+  for(let r=6;r<=14;r++){
+    divider(s.dash,`E${r}:H${r}`);
+    if(r%2===1) fill(s.dash,`F${r}:H${r}`,"#F4F7FB");
+  }
+  for(const range of ["A4:C8","A10:C17","E4:H14"]) outline(s.dash,range);
+  backdrop(s.dash,"E16:H17");outline(s.dash,"E16:H17");
+
+  // Tuesday: light separators, a distinct automatic-payment group and a strong cash footer.
+  row(s.tuesday,"A3:G3",32);backdrop(s.tuesday,"A7:G7");
+  outline(s.tuesday,"A4:G6");outline(s.tuesday,"A8:G22");ruled(s.tuesday,9,22,"G");
+  for(const r of [10,12,14,16]){
+    fill(s.tuesday,`A${r}:D${r}`,"#F5F8FC");fill(s.tuesday,`F${r}:G${r}`,"#F5F8FC");
+  }
+  fill(s.tuesday,"A17:D21","#EAF0F7");fill(s.tuesday,"F17:G21","#EAF0F7");
+  for(const r of [14,17,22]) s.tuesday.getRange(`A${r}:G${r}`).format.borders={top:{style:"medium",color:line}};
+  outline(s.tuesday,"A24:E27",accent);ruled(s.tuesday,24,27,"E");
+  fill(s.tuesday,"A27:E27",navy);font(s.tuesday,"A27:E27",{color:"#FFFFFF",bold:true});
+  row(s.tuesday,"A24:G27",34);font(s.tuesday,"E24:E25",{size:18});font(s.tuesday,"E27",{size:20});
+  backdrop(s.tuesday,"F23:G27");
+
+  // Analysis and allocation retain their original sections and existing warning rules.
+  backdrop(s.scorecard,"C3:G3");backdrop(s.scorecard,"A4:G4");
+  for(let r=6;r<=21;r+=2) fill(s.scorecard,`A${r}:F${r}`,"#F4F7FB");
+  ruled(s.scorecard,6,21,"G");outline(s.scorecard,"A5:G23");
+  fill(s.scorecard,"A23:E23",navy);font(s.scorecard,"A23:E23",{color:"#FFFFFF",bold:true});
+  row(s.scorecard,"A23:G23",37);
+  for(let r=6;r<=22;r+=2) fill(s.weekly,`A${r}:D${r}`,"#F4F7FB");
+  ruled(s.weekly,5,22,"D");outline(s.weekly,"A4:D23");outline(s.weekly,"A25:D28");
+  fill(s.weekly,"A23:D23",navy);font(s.weekly,"A23:D23",{color:"#FFFFFF",bold:true});
+  backdrop(s.weekly,"A24:F24");backdrop(s.weekly,"A29:F29");
+  backdrop(s.weekly,"E4:F29");outline(s.weekly,"A30:F34");
+
+  // Savings: bounded savings, rent and debt panels with slate gutters between sections.
+  for(const range of ["E5:F23","A10:F10","A18:F18","A23:F23","A31:F31","A33:F33"]) backdrop(s.savings,range);
+  for(const range of ["A5:B9","C5:D9","A11:D17","A19:D22","A24:F30","A32:F39"]) outline(s.savings,range);
+  for(let r=5;r<=9;r++){divider(s.savings,`A${r}:B${r}`);divider(s.savings,`C${r}:D${r}`);}
+  font(s.savings,"B5:B9",{size:17});font(s.savings,"D5:D9",{size:17});
+  row(s.savings,"A5:F9",34);font(s.savings,"B20:B22",{size:16});
+  ruled(s.savings,13,17,"D");ruled(s.savings,26,30,"F");
+  fill(s.savings,"A17:D17",soft);fill(s.savings,"A30:F30",soft);
+  for(const range of ["A34:B38","D34:E38"]) outline(s.savings,range);
+
+  // History and supporting detail stay compact, with readable row boundaries.
+  outline(s.history,"A4:M30");ruled(s.history,5,30,"M");
+  const supportPanels=[
+    [s.importSheet,"A4:M304",5,304,"M"],[s.budget,"A5:D8",6,8,"D"],
+    [s.budget,"A11:F32",12,32,"F"],[s.funding,"A4:H14",5,14,"H"],
+    [s.funding,"A18:G29",19,29,"G"],[s.bills,"A4:G15",5,15,"G"],
+    [s.payplan,"A5:G12",6,12,"G"],[s.cash,"A4:G7",5,7,"G"],
+    [s.cash,"A11:J21",12,21,"J"],[s.pending,"A4:F20",5,20,"F"],
+    [s.rules,"A4:F31",5,31,"F"],[s.sources,"A3:E13",4,13,"E"]
+  ];
+  for(const [sheet,range,first,last,lastColumn] of supportPanels){outline(sheet,range);ruled(sheet,first,last,lastColumn);}
+  s.budget.getRange("A38:F38").format.borders={preset:"all",style:"thin",color:section};
+  backdrop(s.rules,"D15:F31");
+  // Buttons are native internal links, not drawings or nonfunctional controls.
+  for(const link of navigation){
+    const sheet=specs.find(([candidate])=>candidate.name===link.sheet)[0];
+    fill(sheet,link.cell,"#DCE8F7");font(sheet,link.cell,{size:10,bold:true,color:accent,italic:false});
+    sheet.getRange(link.cell).format.horizontalAlignment="center";
+    outline(sheet,link.cell,"#9EB8D5");row(sheet,link.cell,32);
+  }
   return navigation;
 }
 
