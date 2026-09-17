@@ -35,8 +35,13 @@ Baseline: GitHub main at f891bd7. The current review is September 15; this desig
 
 - Start says manual actions complete / verify automatics, while Tuesday Review and History flag the corrected top-up for review. These values remain unchanged.
 - The displayed emergency draw uses the $1,200 reserve target. With $300 tagged and a $1,169.46 rent estimate, the rent-only gap is $869.46. The existing $900 formula remains unchanged.
-- Rent-funding rows labeled Tuesday contain Wednesday dates, and the funding reference still says this cycle's AT&T reserve is $88.59. Neither is changed in a visual pass.
+- Rent-funding rows labeled Tuesday contain Wednesday dates. The funding reference previously said this cycle's AT&T reserve was $88.59; the targeted follow-up now updates that reference to the confirmed $48.59 payment. No other financial logic was changed.
 - The weekly runner still executes the full builder; quiet mode reduces printed output and import mode limits previews. This UI work does not claim to reduce model usage or change that architecture.
+
+## Targeted follow-up
+
+- Updated `Support - Funding Detail` row 8 to show the confirmed $48.59 AT&T cycle payment and the corresponding note.
+- Preserved formulas, source data, payment statuses, historical records, and the existing workflow.
 
 ## UI implementation and verification
 

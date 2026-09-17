@@ -481,7 +481,7 @@ funding.getRange("E5:H12").values=[
  ["Wealthfront rent bucket","Wealthfront to rent payment","Fund only Wells capacity, up to $300","Track the actual Tuesday contribution in Savings & Debt. Do not assume a catch-up contribution is feasible."],
  ["Wealthfront car reserve","Wealthfront to CUTX on the 27th","Set aside the displayed weekly amount","Pay the exact $746.47 monthly amount. Do not reduce a direct weekly payment to $172.26 unless the reserve already bridges four-Tuesday months"],
  ["Wells until paid","Wells to PayPal Credit","Pay scheduled promo amount","Funded separately from purchases so deferred interest is avoided"],
- ["Wealthfront AT&T reserve","Wealthfront to Wells; Wells AutoPay","Reserve this cycle's $88.59","Normal baseline remains $65/month; this cycle includes roaming"],
+ ["Wealthfront AT&T reserve","Wealthfront to Wells; Wells AutoPay","Reserve this cycle's $48.59","Confirmed AT&T payment for this cycle is $48.59; normal baseline remains $65/month"],
  ["Wealthfront Canada-bills reserve","Wealthfront to Wise to RBC","Continue weekly reserve","Debit occurs on the last day of each month; use Wise lead time"],
  ["Wealthfront Canada-bills reserve","Wealthfront to Wise to RBC","Continue weekly reserve","Debit occurs on the 27th; use Wise lead time"],
  ["Wealthfront pet reserve","Card / scheduled order","No separate transfer unless order is imminent","BudgetPetCare expected Oct. 16; grooming cadence is every five weeks"],
