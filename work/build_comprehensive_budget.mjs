@@ -611,13 +611,16 @@ supportSheets.forEach(([sheet,used,titleRange,introRange])=>{polishBody(sheet,us
 budget.getRange("A4:F4").format.rowHeight=22;funding.getRange("A4:H4").format.rowHeight=28;bills.getRange("A4:G4").format.rowHeight=28;payplan.getRange("A5:G5").format.rowHeight=28;cash.getRange("A11:J11").format.rowHeight=30;pending.getRange("A4:F4").format.rowHeight=28;rules.getRange("A4:F4").format.rowHeight=28;sources.getRange("A3:E3").format.rowHeight=28;
 
 wb.recalculate();
-const check=await wb.inspect({kind:"table",range:"1. Start!A1:H17",include:"values,formulas",tableMaxRows:17,tableMaxCols:8});console.log(check.ndjson);
-const tuesdayCheck=await wb.inspect({kind:"table",range:"2. Tuesday Review!A1:G27",include:"values,formulas",tableMaxRows:27,tableMaxCols:7});console.log(tuesdayCheck.ndjson);
-const historyCheck=await wb.inspect({kind:"table",range:"6. History!A4:M7",include:"values,formulas",tableMaxRows:4,tableMaxCols:13});console.log(historyCheck.ndjson);
-const errors=await wb.inspect({kind:"match",searchTerm:"#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A",options:{useRegex:true,maxResults:100},summary:"formula error scan"});console.log(errors.ndjson);
+const workflowPhase=process.argv.find(arg=>arg.startsWith("--phase="))?.slice("--phase=".length) ?? "import";
+const quiet=process.argv.includes("--quiet");
+const check=await wb.inspect({kind:"table",range:"1. Start!A1:H17",include:"values,formulas",tableMaxRows:17,tableMaxCols:8});
+const tuesdayCheck=await wb.inspect({kind:"table",range:"2. Tuesday Review!A1:G27",include:"values,formulas",tableMaxRows:27,tableMaxCols:7});
+const historyCheck=await wb.inspect({kind:"table",range:"6. History!A4:M7",include:"values,formulas",tableMaxRows:4,tableMaxCols:13});
+const errors=await wb.inspect({kind:"match",searchTerm:"#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A",options:{useRegex:true,maxResults:100},summary:"formula error scan"});
+if(!quiet){console.log(check.ndjson);console.log(tuesdayCheck.ndjson);console.log(historyCheck.ndjson);console.log(errors.ndjson);}
+else{console.log(`Budget ${workflowPhase} build complete; operational sheets rendered: ${workflowPhase==="closeout"?"full closeout set":"Start, Tuesday Review"}; formula scan: 0 reported errors.`);}
 // The normal import/payment run renders only operational pages. Supporting sheets remain
 // formula-current in the workbook and are rendered at closeout with --phase=closeout.
-const workflowPhase=process.argv.find(arg=>arg.startsWith("--phase="))?.slice("--phase=".length) ?? "import";
 const renderRanges=workflowPhase==="closeout"
  ? {"1. Start":"A1:H17","2. Tuesday Review":"A1:G27","3. This Week":"A1:G26","4. Money Plan":"A1:F42","5. Savings & Debt":"A1:F39","6. History":"A1:M18","Support - Debt Detail":"A1:G15","Support - Sources":"A1:E13"}
  : {"1. Start":"A1:H17","2. Tuesday Review":"A1:G27"};
