@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SpreadsheetFile, Workbook } from "@oai/artifact-tool";
+import { applyBudgetUi, addWorkbookNavigation } from "./style_budget_ui.mjs";
 
 const workDir = path.dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.BUDGET_OUTPUT_DIR
@@ -610,6 +611,7 @@ const supportSheets=[
 supportSheets.forEach(([sheet,used,titleRange,introRange])=>{polishBody(sheet,used);polishTitle(sheet,titleRange);if(introRange)polishIntro(sheet,introRange);sheet.getRange("A1").format.rowHeight=27;});
 budget.getRange("A4:F4").format.rowHeight=22;funding.getRange("A4:H4").format.rowHeight=28;bills.getRange("A4:G4").format.rowHeight=28;payplan.getRange("A5:G5").format.rowHeight=28;cash.getRange("A11:J11").format.rowHeight=30;pending.getRange("A4:F4").format.rowHeight=28;rules.getRange("A4:F4").format.rowHeight=28;sources.getRange("A3:E3").format.rowHeight=28;
 
+const navigation=applyBudgetUi({dash,tuesday,scorecard,weekly,savings,history,importSheet,budget,funding,bills,payplan,cash,pending,rules,sources});
 wb.recalculate();
 const workflowPhase=process.argv.find(arg=>arg.startsWith("--phase="))?.slice("--phase=".length) ?? "import";
 const quiet=process.argv.includes("--quiet");
@@ -621,8 +623,18 @@ if(!quiet){console.log(check.ndjson);console.log(tuesdayCheck.ndjson);console.lo
 else{console.log(`Budget ${workflowPhase} build complete; operational sheets rendered: ${workflowPhase==="closeout"?"full closeout set":"Start, Tuesday Review"}; formula scan: 0 reported errors.`);}
 // The normal import/payment run renders only operational pages. Supporting sheets remain
 // formula-current in the workbook and are rendered at closeout with --phase=closeout.
-const renderRanges=workflowPhase==="closeout"
+const renderRanges=workflowPhase==="design"
+ ? {"1. Start":"A1:H17","2. Tuesday Review":"A1:G27","3. This Week":"A1:G26","4. Money Plan":"A1:F34","5. Savings & Debt":"A1:F39","6. History":"A1:M30","Support - Ledger":"A1:M35","Support - Budget Inputs":"A1:F41","Support - Funding Detail":"A1:H29","Support - Debt Detail":"A1:G15","Support - Promo Detail":"A1:G12","Support - Account Snapshots":"A1:J21","Support - Pending Review":"A1:F26","Support - Rules":"A1:F31","Support - Sources":"A1:E13"}
+ : workflowPhase==="closeout"
  ? {"1. Start":"A1:H17","2. Tuesday Review":"A1:G27","3. This Week":"A1:G26","4. Money Plan":"A1:F42","5. Savings & Debt":"A1:F39","6. History":"A1:M18","Support - Debt Detail":"A1:G15","Support - Sources":"A1:E13"}
  : {"1. Start":"A1:H17","2. Tuesday Review":"A1:G27"};
 for(const [sheetName,range] of Object.entries(renderRanges)){const image=await wb.render({sheetName,range,scale:1,format:"png"});await fs.writeFile(`${outDir}/${sheetName.replaceAll(" ","_")}.png`,new Uint8Array(await image.arrayBuffer()));}
+if(workflowPhase==="design"){
+  for(let first=36;first<=ledgerEnd;first+=35){
+    const last=Math.min(first+34,ledgerEnd);
+    const image=await wb.render({sheetName:"Support - Ledger",range:`A${first}:M${last}`,scale:1,format:"png"});
+    await fs.writeFile(`${outDir}/Support_-_Ledger_${first}-${last}.png`,new Uint8Array(await image.arrayBuffer()));
+  }
+}
 const file=await SpreadsheetFile.exportXlsx(wb);await file.save(`${outDir}/comprehensive_budget.xlsx`);
+await addWorkbookNavigation(`${outDir}/comprehensive_budget.xlsx`,navigation);
