@@ -2,6 +2,13 @@
 
 The user has a five-hour usage limit. Weekly imports must be completed in one session.
 
+## Codex execution preference
+
+- For the main weekly import/reconciliation task, prefer GPT-5.6 Terra with Medium reasoning when it is available.
+- Use the lightweight weekly workflow below; do not rebuild or render supporting tabs during screenshot collection or routine payment updates.
+- Use Luna for narrow read-only checks or small, clearly scoped edits when Terra is unavailable; preserve the same audit standards.
+- Do not ask the user to restate this operating model. Read this file and `work/WEEKLY_RUNBOOK.md` before beginning repository work.
+
 ## Weekly workflow
 
 1. **Collect one complete import packet.** The user sends every screenshot needed for an account's current balance, pending activity, and new posted activity. Multi-screen account captures must be stitched together; deduplicate overlap and use the saved anchor to identify only new rows.
