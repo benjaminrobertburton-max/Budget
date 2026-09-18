@@ -6,6 +6,11 @@ layer, and disposable Chrome browser demonstrations. It does not yet connect to 
 user's home financial store, or update the workbook. The account examples describe
 coverage targets, not certified integrations or current household balances.
 
+For the complete home-deployment path, current compatibility unknowns, next live
+pilot gates, and the required integration into `main`, read
+[the home-machine handoff checklist](../docs/HOME_MACHINE_HANDOFF.md). A successful
+fictional demonstration is not a finished or home-certified budget system.
+
 ## Run without an AI session
 
 Requires Node.js 22 or newer (tested here on Node.js 24). The core demonstrations

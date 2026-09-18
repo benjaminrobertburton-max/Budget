@@ -4,7 +4,7 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
-The project is transitioning from screenshot-based imports to a local, read-only, direct-browser collector. Read `docs/BUDGET_COLLECTOR_VISION.md` before any collector or workbook-architecture work. It records the user’s one-button-refresh goal, financial-model rules, rejected aggregator/email approaches, privacy boundary, and hard acceptance criteria.
+The project is transitioning from screenshot-based imports to a local, read-only, direct-browser collector. Read `docs/BUDGET_COLLECTOR_VISION.md` and `docs/HOME_MACHINE_HANDOFF.md` before any collector, workbook-architecture, or home-sync/deployment work. The vision records the one-button-refresh goal and financial/security rules; the handoff checklist records the complete portability requirements, justified home-only steps, current gaps, and main-release gates. Keep it current after relevant milestones; do not make the user reconstruct the plan from chat.
 
 Until that collector passes its documented shadow-mode and acceptance checks, the screenshot workflow below remains the required fallback. Do not put credentials, browser state, raw financial data, screenshots, or collector databases in Git.
 
