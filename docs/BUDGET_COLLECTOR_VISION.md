@@ -4,16 +4,20 @@
 
 This document is the durable specification for the project's next major change: replace the screenshot-driven weekly import with a **local, read-only, direct-browser collector** and a one-button workbook refresh.
 
-It records durable decisions, not a live financial snapshot. Do not treat any historical balance, payment amount, or dated workbook value as current just because it appears elsewhere in the repository. GitHub is the shared source of truth for code, workbook structure, rules, tests, and the canonical generated workbook; it is **not** a place for credentials, browser state, raw bank data, or local collector databases.
+It records durable decisions, not a live financial snapshot. Do not treat any historical balance, payment amount, or dated workbook value as current just because it appears elsewhere in the repository. The user confirmed on September 18, 2026 that the finished system and all real financial information stay on the home machine. GitHub shares software, workbook structure, documentation, and fictional tests only. It is **not** a place for the real generated workbook, private financial settings, credentials, browser state, raw bank data, or collector databases.
 
 Read this file together with `AGENTS.md` before working on the workbook or collector. Until the collector has passed its acceptance criteria, the existing audited screenshot workflow in `work/WEEKLY_RUNBOOK.md` remains the fallback.
+
+Implementation has begun on `codex/budget-collector`. `collector/README.md` documents the offline foundation, demonstration, tests, and remaining production gates. Its fictional-data candidate is not a verified import and cannot update a workbook. The existing financial workbook and builder are unchanged in this milestone.
+
+Existing real financial files and prior Git commits predate the local-only decision. Do not delete them, silently untrack the only working copy, or rewrite Git history as part of collector development. First preserve and verify a private local copy; resolve historical repository cleanup separately.
 
 ## The outcome the household wants
 
 The budget system must become an aid rather than a second job.
 
 - Normal weekly use is one visible **Refresh Budget** action on the home/local machine.
-- That action collects current data, validates it, reconciles it, rebuilds the workbook, verifies it, and syncs the verified result to GitHub.
+- That action collects current data, validates it, reconciles it, rebuilds the workbook, verifies it, saves a private local backup, and opens the verified local result. It never uploads financial data to GitHub.
 - It must not require screenshot packets, email alerts, manual transcription, or an LLM-driven reconciliation during a normal run.
 - It must never silently treat missing information as zero or “good enough.” A failed or incomplete source should produce a short, specific exception instead of changing the budget from stale or partial data.
 - The target is a refresh that completes in minutes and is comfortably within the user's five-hour plan limit. Routine use must not consume multiple agent sessions.
@@ -57,6 +61,8 @@ Explicitly rejected as the primary design:
 ## Household finance ideology the collector must preserve
 
 The automation serves the existing financial model; it must not replace it with a generic “spend tracker.”
+
+The user explicitly separated collection from budgeting. The collector validates source facts and transaction identity. The existing workbook and builder own budget categories, upcoming expenses, scheduled obligations, affordability, rent/savings rules, and payment decisions. Introducing a structured local input changes how bank facts enter the workbook; it does not transfer or rewrite its financial logic. Scheduled automatic transfers remain required cash actions until the user or source explicitly changes their schedule. Budget preferences and manual updates must survive regeneration.
 
 ### Start is today's cash decision
 
@@ -128,7 +134,7 @@ For every account snapshot, retain:
 5. **Reconcile movements.** Detect card payments, transfers, refunds, payroll, automatic savings transfers, and cash funding separately from purchases. Pair both sides only with defensible evidence. Do not double-count card payments or transfers as expenses.
 6. **Generate a verified local import snapshot.** It is immutable, versioned, encrypted locally, and is the sole input to the workbook builder.
 7. **Rebuild once.** The workbook reads that verified snapshot, updates the ledger, Start, Tuesday Review, and the designated current historical row, runs formula/consistency checks, and renders Start and Tuesday Review only during an operational run.
-8. **Publish only on success.** Commit/push the resulting canonical workbook and non-sensitive code/rule changes to GitHub only when every hard validation passes. A failed run must leave the previous verified workbook intact and explain what is missing.
+8. **Save locally only on success.** Replace the current private workbook only when every hard validation passes, with a recoverable private local backup. A failed run must leave the previous verified workbook intact and explain what is missing. Git software updates are separate from financial refreshes; no financial output is committed or pushed.
 
 ### Hard-stop conditions
 
@@ -181,16 +187,15 @@ Prior errors are not merely historical notes; each must become a fixture and an 
 
 4. **Deterministic reconciliation engine**
    - No AI model in a normal refresh.
-   - Applies signed-money parsing, ID/fingerprint de-duplication, pending-to-posted linking, classification rules, transfer matching, source coverage checks, and cash-plan reconciliation.
+   - Applies signed-money parsing, ID/fingerprint de-duplication, pending-to-posted linking, source-evidenced movement matching, and source coverage checks. Source-provided kinds can be retained; unknown kinds remain unknown. Budget categorization and cash-plan calculations stay in the workbook; the workbook adapter checks their resulting consistency.
 
 5. **Workbook adapter**
    - Refactor the current hard-coded builder so it consumes a verified local import snapshot rather than manually edited values.
-   - It must preserve existing workbook structure and the canonical output path:
-     `outputs/01a04fdf-3751-72e2-88f1-daf19b8b9d1d/comprehensive_budget.xlsx`
+   - Preserve existing workbook structure, formulas, settings, manual updates, and history. Migrate the legacy canonical workbook at `outputs/01a04fdf-3751-72e2-88f1-daf19b8b9d1d/comprehensive_budget.xlsx` to a configured private location outside the repository and cloud-synced folders on the home machine, after verifying a backup. Do not regenerate the real workbook into Git as part of a refresh.
 
 6. **Refresh Budget launcher and status panel**
-   - A visible local button/shortcut invokes collection, validation, build, visual checks, and optional Git sync.
-   - It shows a simple state: `Collecting`, `Needs bank approval`, `Validating`, `Rebuilt`, `Published`, or `Blocked` with a concise reason.
+   - A visible local button/shortcut invokes collection, validation, build, output checks, private backup, and local workbook opening. Software updates are separate; the launcher does not invoke Git.
+   - It shows a simple state: `Collecting`, `Needs bank approval`, `Validating`, `Rebuilt`, `Saved locally`, or `Blocked` with a concise reason.
    - Version 1 has no background scheduler or weekday prefetch. It runs only from the user's Tuesday Refresh Budget action and validates freshness before publishing.
 
 ## Build order and acceptance criteria
@@ -199,10 +204,10 @@ Build on a dedicated feature branch such as `codex/budget-collector`. The work m
 
 1. **Foundation** — create collector project structure, strict TypeScript/JavaScript schemas, local-path configuration, `.gitignore` protections, account registry, sanitized fixtures, and test harness.
 2. **Reconciliation first** — implement transaction lifecycle, signed amount, deduplication, classification, transfer matching, safe-cash additive events, and Start/Tuesdays cash consistency against fixtures before connecting a real browser.
-3. **Workbook input boundary** — define and test the verified import snapshot format; refactor the builder to consume it while preserving the canonical workbook and existing formula/layout protections.
+3. **Workbook input boundary** — define and test the verified import snapshot format; refactor the builder to consume it while preserving the existing financial logic, settings, manual updates, history, and formula/layout protections. Verify private output and backups before migrating the real workbook on the home machine.
 4. **Pilot adapter** — implement Wells Fargo summary + activity as the first direct browser adapter on the home machine. Prove it returns balance, pending, posted, deposits, transfers, and source coverage without making any account change.
 5. **Expand adapters** — add high-impact active accounts and their payment/promo pages one at a time, with a fixture and regression test for each.
-6. **One-button orchestration** — add the Tuesday-only launcher, status, retry/resume after user authentication, local encryption, formula/visual verification, and only-successful Git sync. Do not add a daily scheduler or prefetch in Version 1.
+6. **One-button orchestration** — add the on-demand Tuesday launcher, status, retry/resume after user authentication, local encryption, formula/output verification, private backups, and local workbook opening. Do not add Git publication, a daily scheduler, or prefetch in Version 1. Human visual inspection belongs in development and shadow certification; routine automated checks must not require an AI or human review of every successful run.
 7. **Shadow mode** — for at least three to four complete weekly cycles, compare collector output to user-visible institution pages and the existing audited workflow. Certify each source individually; do not retire the fallback until results reconcile consistently.
 
 A build is not ready merely because it can scrape a balance. It is ready for weekly use only when a clean successful run:
@@ -213,7 +218,7 @@ A build is not ready merely because it can scrape a balance. It is ready for wee
 - creates Start and Tuesday values that reconcile exactly;
 - preserves the $1 Wells minimum and the household rules above;
 - passes formula scan, workbook-preservation checks, and Start/Tuesday visual inspection;
-- uses no raw financial data in Git;
+- uploads no financial data, including the finished workbook, to Git;
 - requires no LLM participation during the actual refresh;
 - performs no money movement; and
 - leaves an understandable audit trail for every imported result.

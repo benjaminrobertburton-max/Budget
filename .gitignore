@@ -17,3 +17,17 @@ work/collector/local/
 !.env.example
 *.cookies
 *.session
+
+# Future financial outputs are private. Existing tracked files need an explicit
+# migration; these patterns do not remove files from Git or its history.
+outputs/**/*.xlsx
+collector/node_modules/
+collector/local/
+collector/private/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm

@@ -4,9 +4,11 @@ The intended replacement is the local direct-browser collector documented in `do
 
 Use one Codex task for the entire weekly import. Collect the complete screenshot packet first; do not rebuild while screenshots are still arriving.
 
+The September 18 local-only decision overrides earlier workbook-sync instructions. Keep real financial updates, including any changed workbook or financial values in builder code, local. GitHub is now for software, documentation, and fictional tests only. Existing tracked financial history requires a separate migration; do not remove local files or rewrite history during a weekly import.
+
 Recommended local prompt:
 
-> Pull the latest `main`, inspect git status, and process the attached weekly screenshot packet as one audited batch. Update only the current ledger, Start, Tuesday Review, and current History row. Reconcile visible counts, posted totals, pending totals, latest-posted anchors, balances, and statuses. Flag unclear items instead of guessing. Run `work\\run_weekly_import.ps1`, inspect only Start and Tuesday Review, run the formula scan, commit, and push to `main`. Do not run closeout formatting or render supporting tabs.
+> Pull the latest software updates without overwriting local financial changes, inspect git status, and process the attached weekly screenshot packet as one audited batch. Update only the current ledger, Start, Tuesday Review, and current History row. Reconcile visible counts, posted totals, pending totals, latest-posted anchors, balances, and statuses. Flag unclear items instead of guessing. Run `work\\run_weekly_import.ps1`, inspect only Start and Tuesday Review, and verify the formula scan. Keep the resulting workbook and any financial changes local; do not commit or push them. Do not run closeout formatting or render supporting tabs.
 
 Run the lightweight operational build locally from the repository root:
 
