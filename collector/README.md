@@ -1,5 +1,24 @@
 # Local Budget Collector — controlled Wells pilot and encrypted storage
 
+## Resume at home: development checkpoint, not a finished collector
+
+Sync `codex/budget-collector`, not just `main`, and read the
+[latest home continuation instructions](../docs/HOME_MACHINE_HANDOFF.md#home-development-resume--latest-decision-overrides-older-next-step-guidance).
+Preserve local financial files and edits before any branch change. Work-machine
+live testing has stopped because extensions cannot be installed there. Do not
+repeat the old pilot or styling investigation as the default next action.
+
+The existing code uses disposable Chrome, not the user's ordinary Chrome.
+A supported home Chrome connection remains to be selected and implemented;
+extension/native messaging was research only. Confirm the home OS (the current
+encryption layer is Windows-only) and request approval for any extension or
+persistent permission. Never extract credentials or copy cookies/profiles.
+Then prove one complete read-only Wells collection using the existing reader and
+validation code before expanding sources. Login/MFA stays with the user.
+No complete real Wells run or workbook update has succeeded. The intended weekly
+run uses local code without an AI session; that production workflow is unfinished.
+Older pilot instructions below are implementation reference, not the new plan.
+
 This is the development foundation for the user's Tuesday **Refresh Budget** workflow.
 It is runnable software with fictional test data, a tested Windows encryption
 layer, disposable Chrome demonstrations, and a separately gated manual Wells pilot.
@@ -95,6 +114,15 @@ Implementation references: [Playwright separate persistent contexts](https://pla
 
 ### Controlled Wells pilot — temporary, private activity candidate
 
+Version 0.6.1 recognizes sorting text in column-header buttons and keeps
+pending/posted section headings from being mistaken for extra column rows.
+It still requires exactly one recognizable column map and does not certify
+account identity, balances, pending scope or pagination. Rejection reports now
+include bounded structural reasons and recognized column roles, never arbitrary
+page text. Off-screen loaded tables do not require zooming or scrolling to read.
+The attended v0.6 attempt found no recognized table; actual Wells extraction
+with this correction still needs verification. See the current handoff checkpoint.
+
 Version 0.5 provides a local control window using the same tested disposable
 lifecycle. Windows encryption, installed Chrome and the pinned browser dependency
 are required. First rehearse without touching a bank:
@@ -103,7 +131,7 @@ are required. First rehearse without touching a bank:
 .\collector\Test-Collector.ps1 -Mode PilotRehearsal
 ```
 
-For the authorized attended work-machine test:
+Historical disposable pilot command (do not launch at work as the next step):
 
 ```powershell
 .\collector\Test-Collector.ps1 -Mode WellsPilot
@@ -341,7 +369,7 @@ every third-party sync application automatically.
 
 ### Disposable testing on the work machine
 
-The user now permits live, read-only work-machine testing, subject to workplace
+The earlier permission allowed live, read-only work-machine testing, subject to workplace
 permission, **only if test financial data is deleted afterward**. The current CLI
 supports fictional demonstrations and a private activity-candidate Wells pilot;
 certified bank readers are not implemented.
@@ -451,12 +479,12 @@ it. Do not skip those failures when claiming Windows integration is verified.
 3. **Movement and evidence acceptance.** Implement explicit transfer/payment links
    without double-counting, local user-confirmed exception resolution, and tests
    against workbook cash outputs. Budget rules remain in the workbook.
-4. **Wells reader and home certification.** Use the separately gated pilot controls
-   for an attended functional activity read, then implement account-specific mapping,
+4. **Wells reader and home certification.** Establish the supported home Chrome
+   connection, then perform an attended read and implement account-specific mapping,
    navigation and completeness. Private table evidence is now supported, not source
    verification. Do not relax the fictional transport's loopback-only rule.
-   Use the approved work-machine live-test boundary to develop the
-   reader. Verify read-only summary, pending, posted, pagination, identity, evidence,
+   Do not restart work-machine live testing. Verify read-only summary,
+   pending, posted, pagination, identity, evidence,
    and authentication pause/resume. Group manual sign-ins instead of making the
    user wait for serial collection. Measure attended authentication, background
    collection, and total time separately. Confirm sessions and operation at home.
@@ -467,11 +495,11 @@ it. Do not skip those failures when claiming Windows integration is verified.
    and opening of the verified workbook. Run three to four complete weekly
    comparison cycles before retiring screenshot fallback. No daily scheduler.
 
-The next gate is an attended functional read to establish the actual table shape,
-then source-specific mapping, read-only navigation and completeness, not a styling
+The next gate is a supported home Chrome connection followed by an attended
+functional read, source-specific mapping, navigation and completeness, not a styling
 check. Normal weekly operation must not require the user to open every account or
 page through transactions; those manual steps are development/onboarding only.
-Finish portable reader and workbook-boundary development here before home installation;
+Continue the existing portable code at the home development checkpoint;
 the pilot does not authorize a partial-source update to the real workbook.
 Full one-button readiness requires every registered source, exact
 workbook cash consistency, preserved history/settings, no financial uploads,

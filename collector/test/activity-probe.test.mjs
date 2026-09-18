@@ -9,6 +9,7 @@ test("private evidence retains exact strings but public summaries contain only s
   const value = fictionalActivityCandidate();
   assert.equal(validateActivityCandidate(value), value);
   assert.deepEqual(activitySummary(value), { finding: "candidate_read", hasFrames: false,
+    layout: value.layout,
     tables: [{ columns: ["date", "description", "amount", "status"], rows: 1, issues: [] }],
     coverageVerified: false, workbookReady: false });
   assert.doesNotMatch(JSON.stringify(activitySummary(value)), /FICTIONAL|2031|7\.43|Pending/);
@@ -20,6 +21,10 @@ test("unexpected private fields, invented status and unbounded evidence are reje
     value => { value.coverageVerified = true; }, value => { value.workbookReady = true; },
     value => { value.tables[0].rows = Array(501).fill(["fictional"]); }, value => { value.finding = "authentication_controls"; },
     value => { value.tables[0].headers.push("extra"); }, value => { value.tables[0].rows[0] = [null]; }];
+  bad.push(value => { value.layout.tables[0].reason = "FICTIONAL-PRIVATE"; },
+    value => { value.layout.tables[0].columns = ["FICTIONAL-PRIVATE"]; },
+    value => { value.layout.privateLabel = "FICTIONAL-PRIVATE"; },
+    value => { value.layout.rowCount = "FICTIONAL-PRIVATE"; });
   for (const mutate of bad) {
     const value = fictionalActivityCandidate(); mutate(value);
     assert.throws(() => validateActivityCandidate(value), error => error.code === "ACTIVITY_PROBE_INVALID" && !error.message.includes("FICTIONAL"));

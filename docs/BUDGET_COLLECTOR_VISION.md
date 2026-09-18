@@ -2,6 +2,15 @@
 
 ## Status and authority
 
+**September 18 continuation update:** the user cannot install extensions at work
+and is moving live browser integration home. The "Home development resume"
+checkpoint in `docs/HOME_MACHINE_HANDOFF.md` supersedes older work-machine
+next-pilot instructions here. Preserve reusable software/tests; do not restart
+the design. Ordinary home Chrome is preferred, but its supported connection is
+not implemented or approved. Confirm the home OS and permissions, then prove a
+complete Wells collection before expanding. This is development continuation,
+not production deployment; all financial acceptance and privacy gates still apply.
+
 This document is the durable specification for the project's next major change: replace the screenshot-driven weekly import with a **local, read-only, direct-browser collector** and a one-button workbook refresh.
 
 It records durable decisions, not a live financial snapshot. Do not treat any historical balance, payment amount, or dated workbook value as current just because it appears elsewhere in the repository. The user confirmed on September 18, 2026 that the finished system and persistent financial information stay on the home machine. They subsequently authorized temporary, read-only work-machine bank testing, conditional on deleting test data afterward and workplace permission. GitHub shares software, workbook structure, documentation, and fictional tests only. It is **not** a place for the real generated workbook, private financial settings, credentials, browser state, raw bank data, or collector databases.

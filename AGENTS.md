@@ -4,6 +4,19 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Latest continuation decision (September 18, 2026):** live browser work moves
+home because extensions cannot be installed at work. Stop work-machine live
+pilots and appearance-only troubleshooting. Read the "Home development resume"
+section in `docs/HOME_MACHINE_HANDOFF.md` first; it supersedes earlier next-pilot
+instructions below. Sync `codex/budget-collector`, not just `main`, preserving
+all local financial changes. This is a development continuation, not a completed
+production handoff. Ordinary home Chrome is the user's preference, but a supported
+connection is not implemented or selected. Do not claim an extension is installed
+or approved, copy profiles/cookies, extract passwords, or weaken browser security.
+Confirm the home OS and connection permissions, reuse existing code, and prove
+one complete Wells collection before adding institutions. Normal weekly operation
+must use deterministic local code with no AI session.
+
 The project is transitioning from screenshot-based imports to a local, read-only, direct-browser collector. Read `docs/BUDGET_COLLECTOR_VISION.md` and `docs/HOME_MACHINE_HANDOFF.md` before any collector, workbook-architecture, or home-sync/deployment work. The vision records the one-button-refresh goal and financial/security rules; the handoff checklist records the complete portability requirements, justified home-only steps, current gaps, and main-release gates. Keep it current after relevant milestones; do not make the user reconstruct the plan from chat.
 
 Until that collector passes its documented shadow-mode and acceptance checks, the screenshot workflow below remains the required fallback. Do not put credentials, browser state, raw financial data, screenshots, or collector databases in Git.
@@ -21,6 +34,7 @@ Until that collector passes its documented shadow-mode and acceptance checks, th
 - Stopped-test recovery (`recover-test` inspects; `--confirm-cleanup` authorizes only proven owned temporary files) never kills personal Chrome and must block on uncertain ownership/processes. The pilot offers text-free structure inspection, stop/cleanup, a 20-minute limit and at most 12 outlines. Outlines are not financial evidence or proof of login/coverage; no real transaction reader or workbook update is enabled. The first attended sign-in reached an unstyled summary; zero outlines were saved and cleanup was verified. Read the current handoff checklist before retrying. Full authenticated-page compatibility remains unverified; fictional tests do not certify it.
 - User priority after the v0.5.1 retry: Wells styling remained broken, but the user could navigate to checking activity and see transactions. Do not spend further work or sign-in attempts solely on bank-page appearance. Prioritize deterministic read-only navigation, extraction and source completeness. Fix a blocked resource only when it prevents authentication, required data, pagination or reliable controls. The intended weekly role is manual sign-in/MFA and genuine exceptions, not opening each account or paging through transactions. Development/onboarding steps must not become routine weekly chores. This changes priorities, not the privacy, read-only or bank-security boundaries.
 - Version 0.6 adds an explicitly consented private activity-table candidate read and optional local row preview. This supersedes the structure-only limitation above, NOT the verification or privacy gates. Raw table text is encrypted in the disposable run; only fixed structural enums/counts reach normal state/CLI/agent output. Never call the private preview endpoint from agent tools or inspect live private evidence. No actual source is certified, no automated bank navigation is installed, and no financial workbook update is enabled. The next attended test should test activity extraction, not appearance. Keep the immediate milestone narrow: obtain the actual structural result, implement missing mapping/coverage, then expand. Do not add unrelated infrastructure before validating Wells.
+- Subsequent explicit user request: "why dont you just view it with me so you can figure this out faster?" For the attended Wells debugging session, the user now authorizes direct visual inspection of the disposable bank window after they complete sign-in/MFA. This is a narrow exception to the no-agent-view restriction, not permission for Git uploads, financial debug logs, credential access, personal-profile access, or money movement. Do not repeat account values in chat or save bank screenshots as files/fixtures. Explain that tool-visible screen captures enter the conversation and cannot be removed by disposable-file cleanup. Inspect only the designated pilot window; use the computer-use skill and leave authentication to the user.
 - Do not commit a regenerated real workbook or new financial values in builder code. Existing tracked financial files and Git history predate this decision; ignoring a file does not untrack it. Preserve them locally while planning the migration. Do not delete them or rewrite Git history without explicit authorization.
 
 ## Codex execution preference

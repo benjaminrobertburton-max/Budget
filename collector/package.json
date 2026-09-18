@@ -1,7 +1,7 @@
 {
   "name": "budget-collector",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "engines": { "node": ">=22" },
   "dependencies": { "playwright-core": "1.62.1" },

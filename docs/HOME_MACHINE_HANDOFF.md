@@ -21,6 +21,95 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 ## Current checkpoint — September 18, 2026
 
+### Home development resume — latest decision, overrides older next-step guidance
+
+This checkpoint is ready to transfer **development**, not a finished weekly
+collector. Earlier requirements for a complete production handoff remain release
+gates, not claims that they have been met. The user now wants to continue live
+browser integration at home: extensions cannot be installed at work. Do not
+restart work-machine live pilots, repeat screenshots, or chase bank styling.
+Portable code and fictional tests remain reusable; this is not an architecture reset.
+
+- **Sync path:** `codex/budget-collector` on the shared repository, not `main`.
+  Inspect local status before fetching/switching. Preserve all local workbook,
+  builder financial inputs, history, private settings and uncommitted changes.
+  Never reset, auto-stash, publish private changes, or overwrite the home workbook
+  with the repository snapshot. If switching would overlap local edits, use a
+  separate clean software checkout outside cloud-synced private-data folders and
+  leave the existing checkout untouched. Do not migrate private data during sync.
+- **First home step:** confirm OS, Node and installed Chrome, then establish a
+  supported, least-privilege local browser connection. Current code launches a
+  separate disposable Chrome profile; it cannot yet attach to ordinary Chrome.
+  The user prefers normal Chrome with browser-managed saved sign-ins. This is a
+  preference, not proof that a safe connection exists. Extension/native messaging
+  was researched only; no extension or connector was implemented or installed.
+  Ask before installing an extension or granting persistent access. Do not bypass
+  policy, expose a debugging endpoint, extract passwords, or copy profiles/cookies.
+  If the supported route requires a different profile, explain the tradeoff before
+  changing the user's setup. The current encryption layer requires Windows;
+  non-Windows support is unverified and needs implementation/testing.
+- **First functional milestone:** reuse the activity reader and reconciliation
+  foundation to prove one full, read-only Wells collection: account identity,
+  balance meanings, all current pending activity, posted overlap/anchor, pagination
+  and independent coverage checks. Unknown or missing evidence blocks verification.
+  A captured table alone is not a complete source. User handles sign-in/MFA;
+  navigation should become code-driven, not a repeated weekly user chore.
+- **Privacy:** real evidence stays in a private local location outside Git/cloud
+  sync with encryption and explicit retention. Never use disposable cleanup on
+  persistent home history. Never send private page text or screenshots to the
+  agent by default; anything viewed by an AI enters that conversation. Git carries
+  code, docs and entirely invented fixtures only. No workbook update until all
+  relevant sources and preservation/financial checks pass.
+- **Scope:** stop expanding institutions until Wells is verified. No new workbook
+  design, infrastructure detour or repeated cosmetic troubleshooting. Routine
+  Tuesday execution must run locally without an AI session or Git operation.
+  The audited screenshot workflow remains the fallback until acceptance passes.
+
+**Not yet verified:** ordinary home Chrome connection, home OS compatibility,
+successful complete Wells collection, other live adapters, private migration/
+backup/restore, workbook integration, production launcher and weekly shadow cycles.
+No actual workbook has been updated by this collector.
+
+For the publishing commit, use the Git commit containing this section and version
+0.6.1; verify the exact local HEAD equals the remote feature-branch hash. Do not
+mistake the older 0.6.0 commit `8b8ac16` or the current main branch for this update.
+
+### Version 0.6.1 heading recognition and structural diagnostics
+
+- Publication validation on September 18: full serial core/browser suite passed
+  **223 tests**, zero failures, cancellations or skips (Node 24 on work Windows,
+  installed Chrome). This includes actual DPAPI, fictional browser extraction,
+  privacy boundaries and interrupted-run cleanup; no bank was accessed by tests.
+  Workbook/builder were unchanged, so workbook builds/formula scans were not rerun.
+  No UI styling changed in this patch; previous fictional visual QA remains the
+  recorded baseline, not a new home or Wells visual verification.
+
+- The attended v0.6 reader returned `no_activity_table`; this was not evidence of
+  zero transactions. Its disposable browser and records were removed and deletion
+  verified. Subsequent demonstration sessions made no activity captures and were
+  also closed with verified cleanup before the reader update.
+- The user demonstrated: sign in; zoom out and scroll to Everyday Checking;
+  open checking; zoom out and scroll to the transaction section. Repeated uploaded
+  images were duplicates, not additional pages or separate coverage evidence.
+- The user explicitly requested joint visual inspection. This narrowly permits
+  viewing the designated pilot after authentication, not credential/session-token
+  exposure or financial Git uploads. Computer Use could not safely support the
+  address-bar/full-screen combination; do not repeat that loop or bypass its
+  checks. Cropped user-provided webpage images supplied the generic layout.
+- Reader correction: recognize sortable heading-button labels, strip only known
+  sorting suffixes for column matching, and distinguish a unique column-heading
+  row from pending/posted section headings. Keep source strings and section rows
+  in private evidence; do not infer coverage, zero pending or transaction status
+  merely from successful recognition. Multiple qualifying header rows still block.
+- New bounded diagnostics report only fixed structural reasons, recognized column
+  roles, counts and shadow-root presence. They explain hidden/form/nested/unknown
+  tables without exporting private labels, URLs, identifiers or account values.
+- Fixtures use generic visible labels and entirely invented transactions, not
+  uploaded financial data. The parser is tested with tall banners, off-screen
+  tables, zoom and scroll. This does not implement automatic bank navigation or
+  prove real-page extraction; the next gate remains an attended activity read.
+- Workbook/builder unchanged; software remains on `codex/budget-collector`, not main.
+
 ### Version 0.6 activity-reading milestone (supersedes structure-only scope below)
 
 - Implemented a bounded generic activity-table/grid reader, separate local capture
@@ -96,7 +185,11 @@ must persist privately at home and must never use the disposable cleanup mode.
 - Collector work is **not yet on main**. Pulling main alone does not retrieve this
   branch. Do not tell the user that their usual main-sync routine includes it.
 
-## Controlled Wells pilot: implemented controls and next attended step
+## Controlled Wells pilot: historical implementation reference
+
+The commands and sequence below document the existing disposable pilot, not an
+instruction to restart it at work. The Home development resume section above
+controls the next action and where live testing occurs.
 
 1. **Implemented and fictional-tested:** a separate visible browser path with a
    reviewed Wells destination restriction; the fictional transport stays

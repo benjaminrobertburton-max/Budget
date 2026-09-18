@@ -119,3 +119,47 @@ test("accessible grids are read but nested tables and embedded frames are not mi
     assert.equal(candidate.hasFrames, true); assert.equal(candidate.coverageVerified, false);
   });
 });
+
+test("sortable heading labels and section headings do not prevent a private activity read", async t => {
+  await fixture(t, async ({ page }) => {
+    // Generic structure observed in the user's demonstration; all values invented.
+    const headings = '<th>Expand or collapse details info</th><th><button>Date<span> sorted in descending order</span></button></th>'
+      + '<th><button>Description<span> sort in descending order</span></button></th>'
+      + '<th><button>Deposits/Credits sort in descending order</button></th>'
+      + '<th><button>Withdrawals/Debits sort in descending order</button></th><th>Ending Daily Balance</th>';
+    const rows = '<tr><th colspan="6">Pending Transactions</th></tr><tr><td colspan="6">No pending transactions to view.</td></tr>'
+      + '<tr><th colspan="6">Posted Transactions</th></tr>'
+      + '<tr><td><button>Expand Row1</button></td><td>04/08/31</td><td>INVENTED STORE</td><td></td><td>$3.17</td><td>$91.28</td></tr>';
+    await page.setContent('<div style="height:4000px">Invented tall banner</div>' + table(rows, headings));
+    let candidate = await readActivityCandidate(page);
+    assert.equal(candidate.finding, "candidate_read");
+    assert.deepEqual(candidate.tables[0].columns, ["details_control", "date", "description", "credit", "debit", "balance"]);
+    assert.equal(candidate.layout.tables[0].headerRows, 3);
+    assert.equal(candidate.tables[0].rows[0][0], "Pending Transactions");
+    assert.equal(candidate.tables[0].rows[1][0], "No pending transactions to view.");
+    assert.deepEqual(candidate.tables[0].rows[3], ["", "04/08/31", "INVENTED STORE", "", "$3.17", "$91.28"]);
+    assert.equal(candidate.coverageVerified, false);
+    assert.ok(candidate.tables[0].issues.includes("spanned_cells"));
+    const original = candidate.tables;
+    await page.evaluate(() => { document.body.style.zoom = "0.3"; window.scrollTo(0, document.body.scrollHeight); });
+    candidate = await readActivityCandidate(page);
+    assert.deepEqual(candidate.tables, original);
+    assert.doesNotMatch(JSON.stringify(activitySummary(candidate)), /INVENTED|91\.28|04\/08/);
+  });
+});
+
+test("diagnostics explain rejected tables without exporting labels, values or identifiers", async t => {
+  await fixture(t, async ({ page }) => {
+    await page.setContent(table('<tr><td>PRIVATE-FICTIONAL-ROW</td></tr>', '<th>PRIVATE-FICTIONAL-HEADER</th><th>Description</th><th>Amount</th>')
+      + '<form>' + table('<tr><td>PRIVATE-FICTIONAL-FORM</td></tr>') + '</form>');
+    const candidate = await readActivityCandidate(page);
+    assert.equal(candidate.finding, "no_activity_table");
+    assert.deepEqual(candidate.layout.tables.map(item => item.reason), ["unsupported_columns", "form_excluded"]);
+    assert.deepEqual(candidate.layout.tables[0].columns, ["unknown", "description", "amount"]);
+    assert.doesNotMatch(JSON.stringify(activitySummary(candidate)), /PRIVATE-FICTIONAL/);
+    await page.setContent(table('<tr><th>Date</th><th>Description</th><th>Amount</th></tr>', '<th>Date</th><th>Description</th><th>Amount</th>'));
+    const ambiguous = await readActivityCandidate(page);
+    assert.equal(ambiguous.finding, "no_activity_table");
+    assert.equal(ambiguous.layout.tables[0].reason, "ambiguous_headers");
+  });
+});
