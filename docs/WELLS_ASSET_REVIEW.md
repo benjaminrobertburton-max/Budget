@@ -76,8 +76,12 @@ the actual policy permits them. Responses are supplied locally; no bank/media
 network is contacted by regression tests. Script, fetch and navigation attempts
 to the same invented media URLs must still be blocked.
 
-After the full suite passes and the software is pushed, retry in a **fresh visible
-Wells pilot**. The user signs in/MFAs and reports only whether styling and checking
-activity work. Then inspect an outline, stop, and verify cleanup. A remaining
-blocked dependency requires another narrow evidence review, not an unrestricted
+The attended v0.5.1 retry still showed broken styling, but the user could open
+checking activity and see transactions. The run saved zero outlines and verified
+shutdown/deletion. This does not verify extraction or source completeness.
+
+The user explicitly deprioritized bank appearance. Do not repeat styling-only
+tests; proceed to read-only navigation, extraction and reconciliation. A missing
+dependency matters only if it blocks authentication, required data, pagination or
+reliable controls. Review any such dependency narrowly, never use an unrestricted
 fallback. No bank screenshot, private URL or account information is needed in chat.

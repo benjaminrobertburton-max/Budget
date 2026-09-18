@@ -37,8 +37,14 @@ must persist privately at home and must never use the disposable cleanup mode.
   account values, identifiers, private URL or screenshot were retained in Git.
   The old policy blocked publicly referenced media resources. Version 0.5.1 adds
   GET-only visual types on three exact reviewed hosts, with matching extensions,
-  no queries and method/type-aware redirects. Real summary compatibility still
-  needs the fresh attended retry; do not claim a successful collection.
+  no queries and method/type-aware redirects. This is not a successful collection.
+- Attended v0.5.1 retry: the user reports styling still broken, but checking
+  activity and its transactions were accessible manually. The launcher confirmed
+  **zero outlines saved**, browser exit and removal of the owned profile/records.
+  No transactions were extracted or reconciled and the workbook was not changed.
+  User explicitly deprioritized bank-page styling: success is complete, accurate
+  collection with automatic read-only navigation, not a visually normal bank page.
+  Do not request another sign-in merely to troubleshoot appearance.
 - Visual QA: fictional start/results screens at 1280px and results at 700px were
   inspected for readable controls, wrapping and clipping. Previews were deleted.
   One preview lost its input pipe; only its verified helper was stopped, Chrome
@@ -94,17 +100,23 @@ must persist privately at home and must never use the disposable cleanup mode.
    account, link destinations or form contents are exported. Frames/truncation
    remain explicit limitations. Financial source-evidence extraction is not yet
    implemented; the structural report always says coverage is unverified.
-4. **Next attended step:** after verifying/pushing the asset correction, launch a
-   fresh WellsPilot. The user signs in, checks that styling and checking activity
-   work, returns to controls, and inspects an outline. Ask for status, not another
-   bank screenshot or private URL. If rendering still fails, review the missing
-   dependency narrowly without relaxing the policy broadly.
+4. **Next development step: functional reader, not styling.** Build/test the
+   local-only evidence/mapping boundary and bounded read-only navigation needed
+   for the Wells reader. Then use an attended session to validate the actual
+   account layout and capture completeness. An outline may help map the page but
+   is not itself a transaction extraction test. Do not guess selectors or ask for
+   bank screenshots/private URLs; keep real source evidence encrypted locally.
+   Unstyled pages are acceptable if required data, controls and pagination work.
+   Investigate blocked dependencies only when they prevent those functions.
    Use PilotRehearsal for a fictional walkthrough first if useful. No new Google
    account or manual Chrome-profile setup is required; do not use Chrome sync.
    The panel has Stop & clean up; closing the account/control tab, interruption,
    a 20-minute expiry or a stuck operation stops the session. At most 12 outlines
    are accepted; encrypted records and the profile are removed after proven exit.
-   Launcher confirmation is required. An unstyled summary is not a compatibility pass.
+   Launcher confirmation is required. Visible transactions alone are not a
+   completeness pass. Manual account selection during development/onboarding must
+   not become a weekly requirement: normal operation should need sign-in/MFA plus
+   genuine exceptions, with the collector handling account navigation/pagination.
 5. Inspect the actual account views locally, implement the reader, and verify
    account identity, balance meanings, all current pending activity, posted
    activity through the anchor/overlap window, and complete pagination. Reconcile
@@ -118,9 +130,9 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 This first pilot does not authorize a partial-source update to the real workbook.
 The full source set, workbook checks, and preservation gates still apply.
-The controls are implemented and fictional-tested; the next work is the attended
-Wells compatibility/structure check, followed by real account mapping/evidence
-extraction. A text-free outline alone cannot identify merchants, balances, labels,
+The controls are implemented and fictional-tested; the next work is the local-only
+evidence/mapping boundary and read-only navigation/reader, followed by an attended
+functional source-validation test. A text-free outline alone cannot identify merchants, balances, labels,
 pagination semantics or account identity. Design and validate the next local-only
 evidence/mapping boundary here; never export real page text to the agent as a
 shortcut or ask the user to rebuild this functionality on the home machine.

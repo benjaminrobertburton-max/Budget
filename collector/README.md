@@ -153,8 +153,12 @@ fetch/XHR, submissions or other methods are allowed. Font prefetch can remain
 blocked while the actual font request works. See the
 [public-source review and test scope](../docs/WELLS_ASSET_REVIEW.md).
 The first attended v0.5 attempt reached an unstyled account summary, saved zero
-outlines, and completed verified cleanup. This correction addresses a confirmed
-public-resource compatibility gap; the authenticated summary still needs a retry.
+outlines, and completed verified cleanup. The v0.5.1 retry remained unstyled, but
+the user could manually open checking activity and see transactions. It also saved
+zero outlines and verified cleanup; no financial extraction has been verified.
+The user does not require normal bank styling. Do not repeat appearance-only
+sign-ins: focus on the reader and complete data coverage. Investigate blocked
+assets only when they prevent required functionality.
 
 The control server binds only to loopback, checks Host/Origin and private action
 tokens, accepts a tiny fixed command set, and exposes only non-financial status.
@@ -446,8 +450,11 @@ it. Do not skip those failures when claiming Windows integration is verified.
    and opening of the verified workbook. Run three to four complete weekly
    comparison cycles before retiring screenshot fallback. No daily scheduler.
 
-The next attended step is the controlled Wells sign-in/structure check here. Finish
-portable reader and workbook-boundary development here before home installation;
+The next work is the private evidence/mapping boundary and read-only navigation/
+reader, followed by an attended functional data-validation test, not a styling
+check. Normal weekly operation must not require the user to open every account or
+page through transactions; those manual steps are development/onboarding only.
+Finish portable reader and workbook-boundary development here before home installation;
 the pilot does not authorize a partial-source update to the real workbook.
 Full one-button readiness requires every registered source, exact
 workbook cash consistency, preserved history/settings, no financial uploads,
