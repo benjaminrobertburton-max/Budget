@@ -1,8 +1,9 @@
-# Local Budget Collector — first implementation milestone
+# Local Budget Collector — offline collection and encrypted storage
 
 This is the offline foundation for the user's Tuesday **Refresh Budget** workflow.
-It is runnable software with fictional test data. It does not yet connect to banks,
-store private financial data, or update the workbook. The account examples describe
+It is runnable software with fictional test data and a tested Windows encryption
+layer. It does not yet connect to banks, collect real financial data, create the
+user's home financial store, or update the workbook. The account examples describe
 coverage targets, not certified integrations or current household balances.
 
 ## Run without an AI session
@@ -12,6 +13,7 @@ API keys, browser access, or accounts are required. From the repository root:
 
 ```powershell
 node collector/src/cli.mjs demo
+node collector/src/cli.mjs storage-demo
 node --test collector/test/*.test.mjs
 ```
 
@@ -19,13 +21,18 @@ On Windows, the equivalent wrapper is:
 
 ```powershell
 .\collector\Test-Collector.ps1 -Mode Demo
+.\collector\Test-Collector.ps1 -Mode StorageDemo
 .\collector\Test-Collector.ps1 -Mode Test
 ```
 
-The demonstration collects eleven entirely fictional accounts, validates them,
+The in-memory `demo` collects eleven entirely fictional accounts, validates them,
 and repeats the refresh to check that entries are not duplicated. It prints only
 summary counts. It never opens a browser, writes data, changes a workbook, or runs
-Git. Unsupported commands (including `live`) fail explicitly.
+Git. The Windows-only `storage-demo` also encrypts and saves fictional candidates
+in a newly created temporary directory, reopens them, verifies a repeat refresh and
+a deliberately failed collection, then removes that exact disposable directory.
+It does not initialize the real private store or access bank sessions. Unsupported
+commands (including `live`) fail explicitly.
 
 ## Responsibilities
 
@@ -53,6 +60,13 @@ Git. Unsupported commands (including `live`) fail explicitly.
 - Consolidated, account-specific exceptions, sanitized reader failures, bounded
   reader execution, and abort signals for timed-out collection.
 - Repeatable updates that preserve prior state and do not duplicate transactions.
+- Windows current-user encryption, append-only encrypted candidate versions, and
+  separately encrypted commit records linking versions by checksum.
+- A complete encrypted snapshot is committed only after it has been written and
+  flushed. An interrupted pre-commit write does not replace the prior committed
+  state. Uncommitted ciphertext is retained but never treated as accepted history.
+- An exclusive refresh lock and path checks excluding repositories, known cloud
+  folders, broad roots, and symbolic links/junctions.
 
 No budgeting calculation, purchase categorization, payment confirmation, or
 transfer pairing is inferred from amount alone. A reader may retain a transaction
@@ -83,17 +97,67 @@ does not establish a match. Changed posted history requires review.
 
 `collectCandidate()` returns either a consolidated `blocked` result with no
 candidate, or a `candidate_ready` result with `workbookReady: false`. Candidate
-state is in memory only. It is **not** a production verified import, encrypted
-snapshot, audit database, or authorization to update the workbook. The adapter
+state from this function is in memory only. `refreshToLocalStore()` can save that
+synthetic candidate encrypted and resume from it later, returning
+`candidate_saved_locally`. Neither result is a production verified import or
+authorization to update the workbook. The adapter
 interface has `collect(account, { signal })`; any eventual live adapter must stop
 its work when that signal is aborted and must remain strictly read-only.
 
+## Private storage behavior and limits
+
+The real private store is reserved for the home machine. Its proposed default is
+`%LOCALAPPDATA%\BudgetCollector`, outside the repository and cloud-synced folders.
+This implementation does not create that store as part of tests or demos.
+Custom sync roots must be declared as excluded paths; the program cannot discover
+every third-party sync application automatically.
+
+`windows/Protect-LocalData.ps1` uses Windows DPAPI with `CurrentUser` scope. The
+helper receives data over pipes, not command arguments or plaintext temporary
+files. It is launched without a visible window or an execution-policy bypass.
+There is no plaintext or machine-wide encryption fallback. Windows user/profile
+access must work; the program fails if encryption is unavailable.
+
+References: [Microsoft DPAPI documentation](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata?view=windowsdesktop-9.0),
+[Node filesystem documentation](https://nodejs.org/docs/latest-v24.x/api/fs.html).
+
+All financial content, account aliases, transaction history, and source references
+are inside encrypted records. The only plaintext lock metadata is an owner token,
+process ID, and format version. File names contain a sequence and random ID.
+
+`runs/` holds immutable encrypted candidates; `commits/` holds encrypted commit
+records. A commit checksum binds the accepted snapshot, and a previous-commit hash
+links history. Readers reject damaged or missing required records rather than
+silently rolling back. These checks do not make files undeletable or constitute
+protection against an attacker controlling the same Windows user account.
+
+Retained prior versions support recovery from an application failure. They are
+not an off-device backup. Hardware-loss recovery and Windows profile/key recovery
+still need a home-machine backup plan before real use. Do not copy an encrypted
+store between this work PC and the home PC; establish the real store under the
+home Windows user instead.
+
+A stopped/crashed process can leave `refresh.lock` behind. The current code blocks
+and preserves that lock rather than guessing whether it is safe to remove. A
+guided recovery action must verify the owner is stopped before removing a stale
+lock; that user-facing recovery flow remains part of the launcher milestone.
+Filesystem writes use flushed files and no-overwrite hard links on the same local
+volume. Sudden-power-loss behavior and home-drive compatibility remain acceptance
+checks; no power-loss guarantee is claimed from unit tests.
+
+Tests use disposable fictional records only. Most fault tests use an ephemeral
+test-only encryption key for portability; Windows integration tests also exercise
+actual DPAPI, on-disk round trips, and tamper rejection. Restricted agent execution
+environments may prohibit DPAPI even though the normal Windows account supports
+it. Do not skip those failures when claiming Windows integration is verified.
+
 ## Remaining milestones
 
-1. **Private storage and migration.** Define a private home-machine directory
-   outside Git/cloud sync; implement user-bound encryption, atomic writes, recovery,
-   local backups, and append-only evidence. Preserve existing workbook settings and
-   financial history during migration. No live capture until this exists.
+1. **Private migration and home certification.** Certify the implemented encrypted
+   store on the home Windows account, add guided stale-lock recovery and a private
+   backup plan, and preserve existing workbook settings and history during the
+   migration. Raw source-evidence capture, retention, and exception records remain
+   to be implemented; this store currently holds synthetic normalized candidates.
 2. **Workbook boundary.** Move private financial inputs out of the builder code.
    Supply verified local inputs and preserve financial logic, manual changes,
    history, formatting, and validations. Make actual formula/consistency failures
@@ -107,7 +171,7 @@ its work when that signal is aborted and must remain strictly read-only.
 5. **Other institutions.** Certify each required account and its payment/promo
    pages. Never mark coverage complete merely because one balance was read.
 6. **Refresh button and shadow runs.** Add a local launcher, progress, retry/resume,
-   safe cancellation, a single-run lock, same-week replay protection, local backup,
+   safe cancellation, guided lock recovery, same-week payment replay protection, local backup,
    and opening of the verified workbook. Run three to four complete weekly
    comparison cycles before retiring screenshot fallback. No daily scheduler.
 

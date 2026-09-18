@@ -1,11 +1,24 @@
 import { collectCandidate } from "./refresh.mjs";
 import { makeRegistry, makeCaptures, fixtureAdapters, FIXTURE_NOW } from "../fixtures/synthetic.mjs";
+import { storageDemo } from "./storage-demo.mjs";
+import { safeIssue } from "./errors.mjs";
 
 const command = process.argv.slice(2);
-if (command.length !== 1 || command[0] !== "demo") {
-  console.error("Available command: node collector/src/cli.mjs demo");
+if (command.length !== 1 || !["demo", "storage-demo"].includes(command[0])) {
+  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo");
   console.error("Live account collection is not installed. This milestone uses fictional data only.");
   process.exitCode = 2;
+} else if (command[0] === "storage-demo") {
+  try {
+    const result = await storageDemo();
+    console.log(`Encrypted storage demo passed: ${result.accountCount} fictional accounts, ${result.savedVersions} retained versions, ${result.duplicateEntries} duplicate entries.`);
+    console.log("A deliberately incomplete refresh left the previous saved version intact.");
+    console.log("Disposable test records were removed. No real financial store, bank connection, workbook change, or Git sync was created.");
+  } catch (error) {
+    const issue = safeIssue(null, error);
+    console.error(`${issue.code}: ${issue.message}`);
+    process.exitCode = 1;
+  }
 } else {
   const registry = makeRegistry();
   const adapters = fixtureAdapters(makeCaptures(registry));

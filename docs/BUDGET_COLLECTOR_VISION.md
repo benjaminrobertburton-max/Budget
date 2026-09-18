@@ -8,7 +8,7 @@ It records durable decisions, not a live financial snapshot. Do not treat any hi
 
 Read this file together with `AGENTS.md` before working on the workbook or collector. Until the collector has passed its acceptance criteria, the existing audited screenshot workflow in `work/WEEKLY_RUNBOOK.md` remains the fallback.
 
-Implementation has begun on `codex/budget-collector`. `collector/README.md` documents the offline foundation, demonstration, tests, and remaining production gates. Its fictional-data candidate is not a verified import and cannot update a workbook. The existing financial workbook and builder are unchanged in this milestone.
+Implementation has begun on `codex/budget-collector`. `collector/README.md` documents the offline foundation, Windows user-bound encrypted storage, demonstrations, tests, and remaining production gates. Its fictional-data candidate can be stored in disposable encrypted test records but is not a verified import and cannot update a workbook. Work-machine tests never initialize the real private financial store; that belongs on the home machine. The existing financial workbook and builder remain unchanged.
 
 Existing real financial files and prior Git commits predate the local-only decision. Do not delete them, silently untrack the only working copy, or rewrite Git history as part of collector development. First preserve and verify a private local copy; resolve historical repository cleanup separately.
 

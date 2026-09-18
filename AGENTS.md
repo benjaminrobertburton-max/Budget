@@ -13,7 +13,7 @@ Until that collector passes its documented shadow-mode and acceptance checks, th
 - The user confirmed that the finished system runs on the home machine. Real workbooks, financial inputs, transaction history, private settings, and backups stay local. Future GitHub updates contain software, documentation, and entirely fictional tests only.
 - The collector gathers and validates account evidence. The existing workbook and builder retain budgeting calculations, categories, upcoming expenses, scheduled transfers, rent rules, and payment decisions.
 - The collector must not decide to skip a scheduled transfer or change a budget rule. Its verified input will replace manual entry of bank facts, not the household financial model.
-- Build collector changes on `codex/budget-collector`. The current implementation is an offline, fictional-data foundation; read `collector/README.md` for the implemented scope and remaining gates. No live collection is supported yet.
+- Build collector changes on `codex/budget-collector`. The current implementation is an offline, fictional-data foundation with tested Windows user-bound storage; read `collector/README.md` for its scope and remaining gates. No live collection is supported yet. Work-machine storage tests use disposable fictional records only; the real private store is initialized exclusively on the home machine.
 - Do not commit a regenerated real workbook or new financial values in builder code. Existing tracked financial files and Git history predate this decision; ignoring a file does not untrack it. Preserve them locally while planning the migration. Do not delete them or rewrite Git history without explicit authorization.
 
 ## Codex execution preference

@@ -31,3 +31,5 @@ collector/private/
 *.db
 *.db-wal
 *.db-shm
+*.enc
+*.enc.*.partial

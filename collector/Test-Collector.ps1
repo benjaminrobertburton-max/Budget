@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("Test", "Demo")]
+  [ValidateSet("Test", "Demo", "StorageDemo")]
   [string]$Mode = "Test"
 )
 
@@ -11,6 +11,8 @@ Push-Location $PSScriptRoot
 try {
   if ($Mode -eq "Demo") {
     & node src/cli.mjs demo
+  } elseif ($Mode -eq "StorageDemo") {
+    & node src/cli.mjs storage-demo
   } else {
     & node --test 'test/*.test.mjs'
   }
