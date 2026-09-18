@@ -3,9 +3,10 @@
 This is the development foundation for the user's Tuesday **Refresh Budget** workflow.
 It is runnable software with fictional test data, a tested Windows encryption
 layer, disposable Chrome demonstrations, and a separately gated manual Wells pilot.
-The pilot can open Wells after user acknowledgement, but only inspects text-free
-page structure. It does not collect real financial data, create the user's home
-financial store, or update the workbook. The account examples describe
+The pilot can open Wells after user acknowledgement. Version 0.6 adds an explicit,
+private activity-table read: raw table strings are encrypted in the disposable run
+and optionally previewed in the local panel. It does not certify a real source,
+create the user's home financial store, or update the workbook. The account examples describe
 coverage targets, not certified integrations or current household balances.
 
 For the complete home-deployment path, current compatibility unknowns, next live
@@ -92,7 +93,7 @@ interrupted-run recovery case, not a guaranteed immediate cleanup.
 Implementation references: [Playwright separate persistent contexts](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context),
 [Chrome's dedicated debugging-profile requirement](https://developer.chrome.com/blog/remote-debugging-port).
 
-### Controlled Wells pilot — manual, temporary, structure only
+### Controlled Wells pilot — temporary, private activity candidate
 
 Version 0.5 provides a local control window using the same tested disposable
 lifecycle. Windows encryption, installed Chrome and the pinned browser dependency
@@ -115,18 +116,27 @@ initially. A non-financial encryption preflight must pass first. Then:
 1. Confirm workplace permission/read-only use in the panel and press **Open Wells**.
 2. Sign in and perform MFA yourself in the bank tab. Open one account page manually.
    Do not make payments/transfers, import passwords, or enable Chrome sync.
-3. Return to the controls and press **Inspect page outline**. Only fixed structural
-   tags/roles and bounded topology are saved encrypted; no account text, amounts,
-   identifiers, field values or private URLs are exported. Login and account
-   coverage remain **unverified**, even when an outline is saved successfully.
+3. Open checking activity for this development test. Return to the controls,
+   acknowledge temporary private table capture, and press **Read activity locally**.
+   Recognizable HTML tables/accessibility grids are read without bank clicks.
+   Displayed dates, descriptions, signs, statuses and other table cells are retained
+   as text, not interpreted as normalized transactions. **Show captured rows here**
+   is an optional, local-only preview; never screenshot it or export it to chat.
+   Form values, credentials, URLs, HTML dumps and browser storage are not read.
+   Active password/username/one-time-code controls block capture. Unsupported
+   layouts, hidden/uneven/spanned rows, interactive cells and truncation are explicit.
+   Login, account identity, balances, pending coverage, earlier pages, independent
+   counts/totals and anchors remain **unverified**. Missing tables are not zero activity.
+   Optional **Inspect page outline** remains text-free, under structure diagnostics.
 4. Press **Stop & clean up**, or close the control/account tab. The launcher must
    confirm browser exit and removal of the owned profile and records. If it cannot,
    use RecoveryCheck; do not assume cleanup succeeded or switch temporary roots.
 
 The session expires after 20 minutes; each operation is bounded to 20 seconds and
-at most 12 outlines can be stored. Stop is available during an operation. There are
-no bank selectors, automatic clicks, form entry/submission, payment actions,
-transaction extraction, real-login detection, or workbook writes in this pilot.
+at most 12 activity reads and 12 outlines can be stored. Stop is available during an
+operation. There are no certified Wells selectors, automatic bank clicks,
+form entry/submission, payment actions, real-login verification, or workbook writes.
+The generic table reader is an evidence-development aid, not the financial adapter.
 The user must keep manual navigation read-only; destination restrictions cannot
 prevent a user from manually making a payment on a permitted bank website.
 
@@ -162,6 +172,10 @@ assets only when they prevent required functionality.
 
 The control server binds only to loopback, checks Host/Origin and private action
 tokens, accepts a tiny fixed command set, and exposes only non-financial status.
+Private row preview uses a separate same-origin, token-protected POST endpoint,
+not GET/state; all responses are no-store and raw strings render as text, never HTML.
+Only fixed structural enums/counts reach the CLI. Evidence must be encrypted
+successfully before preview becomes available; stop clears the in-memory preview.
 No bank network bodies, credential headers, screenshots, traces, or financial
 debug logs are read/exported by pilot inspection. Redirect handling examines only
 status, destination URLs and Location in memory; it does not replay requests.
@@ -278,6 +292,8 @@ Windows process semantics: [Microsoft Win32_Process](https://learn.microsoft.com
   values/text/identifiers, and strict rejection of unexpected output fields.
 - A visible manual Wells pilot and fictional rehearsal, explicit acknowledgement,
   pre-navigation/redirect restrictions, bounded controls, and verified cleanup.
+- A bounded private activity-table reader and local preview, separate capture
+  consent, encrypted evidence, credential/form exclusion and structural-only reports.
 
 No budgeting calculation, purchase categorization, payment confirmation, or
 transfer pairing is inferred from amount alone. A reader may retain a transaction
@@ -327,8 +343,8 @@ every third-party sync application automatically.
 
 The user now permits live, read-only work-machine testing, subject to workplace
 permission, **only if test financial data is deleted afterward**. The current CLI
-supports fictional demonstrations and the separate structure-only Wells pilot;
-bank readers are not implemented.
+supports fictional demonstrations and a private activity-candidate Wells pilot;
+certified bank readers are not implemented.
 Browser shutdown/profile removal have been tested with the fictional site.
 Permission to test is not evidence that live
 collection already works.
@@ -436,8 +452,9 @@ it. Do not skip those failures when claiming Windows integration is verified.
    without double-counting, local user-confirmed exception resolution, and tests
    against workbook cash outputs. Budget rules remain in the workbook.
 4. **Wells reader and home certification.** Use the separately gated pilot controls
-   for an attended sign-in/structure check, then implement source-evidence capture
-   and account mapping. Do not relax the fictional transport's loopback-only rule.
+   for an attended functional activity read, then implement account-specific mapping,
+   navigation and completeness. Private table evidence is now supported, not source
+   verification. Do not relax the fictional transport's loopback-only rule.
    Use the approved work-machine live-test boundary to develop the
    reader. Verify read-only summary, pending, posted, pagination, identity, evidence,
    and authentication pause/resume. Group manual sign-ins instead of making the
@@ -450,8 +467,8 @@ it. Do not skip those failures when claiming Windows integration is verified.
    and opening of the verified workbook. Run three to four complete weekly
    comparison cycles before retiring screenshot fallback. No daily scheduler.
 
-The next work is the private evidence/mapping boundary and read-only navigation/
-reader, followed by an attended functional data-validation test, not a styling
+The next gate is an attended functional read to establish the actual table shape,
+then source-specific mapping, read-only navigation and completeness, not a styling
 check. Normal weekly operation must not require the user to open every account or
 page through transactions; those manual steps are development/onboarding only.
 Finish portable reader and workbook-boundary development here before home installation;

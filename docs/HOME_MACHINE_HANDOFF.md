@@ -21,6 +21,34 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 ## Current checkpoint — September 18, 2026
 
+### Version 0.6 activity-reading milestone (supersedes structure-only scope below)
+
+- Implemented a bounded generic activity-table/grid reader, separate local capture
+  consent, encrypted disposable evidence and opt-in local row preview. It preserves
+  displayed text rather than guessing date years, signs, status or missing values.
+  Normal state/CLI receives only validated structural enums/counts. The private
+  preview is token-protected, same-origin POST, no-store, rendered as text only.
+- Authentication controls block reading. Forms/field values, scripts, browser
+  storage, URLs and HTML dumps are excluded. Unknown layouts, hidden/interactive/
+  uneven/spanned rows and truncation remain explicit. No bank controls are clicked.
+- This does not implement a certified Wells adapter or claim source completeness.
+  Account identity, current/available balances, pending coverage, posted overlap,
+  pagination and independent controls still need actual source-specific mapping.
+- Next attended step: open checking activity once for development, use **Read
+  activity locally**, optionally compare the private preview, and use the
+  structural-only result to finish source mapping. No bank screenshots or private
+  text should be sent to the agent. Stop/cleanup retains only reusable software.
+- Keep the immediate milestone narrow. The user challenged the slow progress;
+  prioritize one successful real Wells read before further infrastructure or
+  multi-institution expansion. Weekly manual navigation is not the intended product.
+- Workbook/builder unchanged. Home deployment and integration into main remain gated.
+- Validation: all **221** core/browser tests passed with no failures or skips.
+  Fictional start and activity-preview layouts were visually inspected at 1280px
+  and 700px; table values and controls were readable. The generic reader still
+  needs an attended Wells extraction test; these results do not certify it.
+
+### Prior milestones and unchanged release gates
+
 - Current implementation: collector version `0.5.1`, the Wells visual-resource
   correction, on `codex/budget-collector`. Pre-edit baseline `647be20` / `0.5.0`
   passed all 205 tests again before this work. The exact media-host exception and

@@ -16,16 +16,19 @@ export async function startPilotPanel({ controller, mode, fictionalPage = null }
 <header class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true">B</span><span>Budget Collector<small>PRIVATE DEVELOPMENT PILOT</small></span></div><div class="top-actions"><span class="badge">${fictional ? "Fictional pages only" : "Local · temporary session"}</span><button id="stop-top" class="top-stop">Stop & clean up</button></div></header>
 <main><div class="intro"><p class="eyebrow">ONE ACCOUNT · NO WORKBOOK CHANGES</p><h1>${title}</h1><p class="lead">${fictional ? "Try the controls safely. This rehearsal cannot connect to a bank." : "A controlled first step toward your Tuesday refresh."}</p></div>
 <div class="layout"><section class="card workflow" aria-labelledby="workflow-title"><div class="section-head"><h2 id="workflow-title">Your test session</h2><span id="status-badge" class="badge muted">Not started</span></div>
-<ol class="steps"><li><span class="step-number">1</span><div><h3>${fictional ? "Open the fictional account" : "Open Wells & sign in yourself"}</h3><p>${fictional ? "No passwords or real account information belong in this rehearsal." : "Use the separate bank tab for sign-in and MFA. View accounts only; do not make payments or transfers."}</p></div></li><li><span class="step-number">2</span><div><h3>Inspect a page outline</h3><p>Return here after opening an account page. Only the page structure is inspected—not text, amounts, account numbers, or form values.</p></div></li><li><span class="step-number">3</span><div><h3>Finish & remove test data</h3><p>The test browser closes before its temporary profile and encrypted outlines are deleted.</p></div></li></ol>
+<ol class="steps"><li><span class="step-number">1</span><div><h3>${fictional ? "Open the fictional account" : "Open Wells & sign in yourself"}</h3><p>${fictional ? "No passwords or real account information belong in this rehearsal." : "Use the separate bank tab for sign-in and MFA. View accounts only; do not make payments or transfers."}</p></div></li><li><span class="step-number">2</span><div><h3>Test the activity reader</h3><p>For this development test, open checking activity once and return here. Read activity locally captures recognizable tables without clicking bank controls. Automatic navigation is not yet validated.</p></div></li><li><span class="step-number">3</span><div><h3>Finish & remove test data</h3><p>The test browser closes before its temporary profile and encrypted evidence are deleted.</p></div></li></ol>
 <label id="ack-row" class="ack"><input id="ack" type="checkbox"><span>${fictional ? "I understand these are fictional pages. I will not enter real information." : "I am permitted to test on this computer. I will handle sign-in myself and keep this session read-only."}</span></label>
-<div class="actions"><button id="start" class="primary" disabled>${fictional ? "Open fictional account" : "Open Wells"}</button><button id="inspect" class="secondary" disabled>Inspect page outline</button></div>
+<div class="actions"><button id="start" class="primary" disabled>${fictional ? "Open fictional account" : "Open Wells"}</button></div>
+<div class="capture-controls"><label class="ack"><input id="capture-ack" type="checkbox"><span>Read visible transaction tables for this test. Keep their contents in this temporary local session, encrypted on disk and deleted afterward. Do not update my workbook.</span></label><div class="actions"><button id="capture" class="primary" disabled>Read activity locally</button></div></div>
 <div id="status-message" class="status" role="status" aria-live="polite">Nothing has connected. Review the steps to begin.</div>
-<div id="network-warning" class="warning" hidden>A request was blocked by the pilot's destination policy. If sign-in or a page does not work, stop and report the issue. Do not bypass security controls.</div>
+<div id="network-warning" class="warning" hidden>Some requests were blocked. Missing styling alone does not prevent this test. Stop if sign-in, transactions or required controls do not work; do not bypass security controls.</div>
+<section id="activity" class="activity" hidden aria-labelledby="activity-title"><h3 id="activity-title">Private activity preview · not verified</h3><p id="activity-note" class="small"></p><p class="small">Only the currently loaded tables are captured. Account identity, balances, pending coverage, earlier pages and reconciliation are not verified. Missing rows are never treated as zero.</p><button id="review" class="secondary">Show captured rows here</button><div id="private-rows" hidden></div></section>
+<details class="diagnostics"><summary>Optional structure diagnostics · no account text</summary><button id="inspect" class="secondary" disabled>Inspect page outline</button>
 <div id="outline" class="outline" hidden><div><span class="label">Outlines inspected</span><strong id="outline-count">0 / 12</strong></div><div><span class="label">Page elements</span><strong id="element-count">—</strong></div><div><span class="label">Tables / grids</span><strong id="table-count">—</strong></div><p id="outline-note"></p></div>
-<div class="finish"><button id="stop" class="stop">Stop & clean up</button><span>Closing this control tab also stops the test.</span></div></section>
+</details><div class="finish"><button id="stop" class="stop">Stop & clean up</button><span>Closing this control tab also stops the test.</span></div></section>
 <aside><section class="card boundary"><p class="eyebrow">WHAT STAYS PROTECTED</p><h2>Your normal browser stays separate.</h2><ul><li>New, disposable Chrome profile</li><li>No Google account or Chrome sync</li><li>No stored credential access</li><li>No account text in logs or chat</li><li>No financial data sent to GitHub</li></ul><p class="small">Browser cookies/cache are browser-managed. The whole test profile is removed after the browser exits.</p></section>
-<section class="card limitation"><span class="badge muted">Not a budget refresh</span><h2>Account coverage is not verified.</h2><p>This pilot does not read transactions, prove a successful login, or update your workbook. An outline is a development aid, not financial evidence.</p></section></aside></div>
-<footer>Session limit: 20 minutes · At most 12 outlines · Cleanup is confirmed by the launcher after the browser closes.<br>Ordinary deletion does not erase bank, operating-system, employer, or backup records.</footer></main></body></html>`;
+<section class="card limitation"><span class="badge muted">Not a budget refresh</span><h2>Account coverage is not verified.</h2><p>The reader preserves table text, including displayed signs and statuses. It does not infer missing values, certify completeness or update the workbook. Only structural results leave the private session.</p></section></aside></div>
+<footer>Session limit: 20 minutes · At most 12 activity reads and 12 outlines · Cleanup is confirmed by the launcher after the browser closes.<br>Ordinary deletion does not erase bank, operating-system, employer, or backup records.</footer></main></body></html>`;
   let origin;
   const headers = {
     "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
@@ -48,7 +51,7 @@ export async function startPilotPanel({ controller, mode, fictionalPage = null }
         if (fictional && suffix === "fictional-bank" && fictionalPage) return send(200, fictionalPage, "text/html");
         return send(404, "Unavailable");
       }
-      if (request.method !== "POST" || suffix !== "action" || request.headers.origin !== origin
+      if (request.method !== "POST" || !["action", "review"].includes(suffix) || request.headers.origin !== origin
         || request.headers["x-collector-control"] !== actionKey || request.headers["content-type"] !== "application/json") return send(403, "Unavailable");
       let bytes = 0;
       const chunks = [];
@@ -60,6 +63,12 @@ export async function startPilotPanel({ controller, mode, fictionalPage = null }
       let command;
       try { command = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
       catch { return send(400, "Unavailable"); }
+      if (suffix === "review") {
+        if (!command || Array.isArray(command) || typeof command !== "object" || Object.keys(command).length) return send(400, "Unavailable");
+        // Private data is opt-in, capability-protected, same-origin POST only.
+        // Never add this content to /state, logs, error messages or CLI output.
+        return send(200, JSON.stringify(controller.privateReview?.() ?? null), "application/json");
+      }
       const accepted = controller.action(command);
       return send(accepted ? 202 : 409, JSON.stringify({ accepted }), "application/json");
     } catch { send(500, "Pilot action unavailable. No private details were logged."); }

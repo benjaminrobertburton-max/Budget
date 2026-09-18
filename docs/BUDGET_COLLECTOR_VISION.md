@@ -12,6 +12,13 @@ Implementation has begun on `codex/budget-collector`. `collector/README.md` docu
 
 Existing real financial files and prior Git commits predate the local-only decision. Do not delete them, silently untrack the only working copy, or rewrite Git history as part of collector development. First preserve and verify a private local copy; resolve historical repository cleanup separately.
 
+Version 0.6 extends the pilot beyond the text-free outline described above: a
+separately consented read captures recognizable activity-table strings into
+encrypted disposable evidence and an optional private local preview. Only fixed
+structural enums/counts leave that boundary. This is not a certified bank reader,
+account mapping, automated navigation, reconciliation or a workbook-ready import.
+The next attended session must validate functional extraction, not bank styling.
+
 ## The outcome the household wants
 
 The budget system must become an aid rather than a second job.

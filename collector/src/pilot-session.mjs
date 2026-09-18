@@ -6,12 +6,14 @@ import { startPilotPanel } from "./pilot-panel.mjs";
 import { createPilotController } from "./pilot-controller.mjs";
 import { installPilotNetworkPolicy, isWellsDocument, WELLS_SIGN_ON } from "./pilot-policy.mjs";
 import { inspectPageStructure } from "./page-structure.mjs";
+import { readActivityCandidate } from "./activity-probe.mjs";
 import { requireEvidence as check } from "./errors.mjs";
 import { fictionalPilotPage } from "../fixtures/pilot-bank.mjs";
 
 // Opens controls, NOT a bank. Only an acknowledged local Start action navigates.
 // No click/fill/submit/cookies/storage APIs are exposed to the pilot controller.
 export async function startPilotInScope(scope, { mode, headless = false, signal,
+  onActivityReport,
   durationMs = 20 * 60 * 1000 } = {}) {
   check(["wells", "fictional"].includes(mode) && typeof headless === "boolean"
     && (mode !== "wells" || headless === false) && Number.isInteger(durationMs)
@@ -27,7 +29,20 @@ export async function startPilotInScope(scope, { mode, headless = false, signal,
   let bankPage;
   let expired;
   let outlineSequence = 0;
+  let activitySequence = 0;
+  async function inspectStablePage(reader, abort) {
+    check(!abort.aborted, "PILOT_STOPPED", "Pilot stopped.");
+    const candidates = context.pages().filter(page => page !== controlPage && !page.isClosed()
+      && (mode === "wells" ? isWellsDocument(page.url()) : page.url() === `${panel.address}fictional-bank`));
+    check(candidates.length === 1, "PILOT_PAGE_AMBIGUOUS", "Keep exactly one permitted account page open before inspection.");
+    const page = candidates[0];
+    const before = page.url(); // Private in memory, never returned or persisted.
+    const value = await reader(page);
+    check(!abort.aborted && page.url() === before, "PILOT_PAGE_CHANGED", "The page changed while being inspected.");
+    return value;
+  }
   const pilot = createPilotController({ mode,
+    onActivityReport,
     stopRun: () => finish(),
     async openBank(abort) {
       check(!abort.aborted, "PILOT_STOPPED", "Pilot stopped.");
@@ -38,19 +53,16 @@ export async function startPilotInScope(scope, { mode, headless = false, signal,
       if (!abort.aborted) await bankPage.bringToFront();
     },
     async inspectBank(abort) {
-      check(!abort.aborted, "PILOT_STOPPED", "Pilot stopped.");
-      const candidates = context.pages().filter(page => page !== controlPage && !page.isClosed()
-        && (mode === "wells" ? isWellsDocument(page.url()) : page.url() === `${panel.address}fictional-bank`));
-      check(candidates.length === 1, "PILOT_PAGE_AMBIGUOUS", "Keep exactly one permitted account page open before inspection.");
-      const page = candidates[0];
-      const before = page.url(); // Private in memory, never returned or persisted.
-      const outline = await inspectPageStructure(page);
-      check(!abort.aborted && page.url() === before, "PILOT_PAGE_CHANGED", "The page changed while being inspected.");
-      return outline;
+      return inspectStablePage(inspectPageStructure, abort);
     },
     async saveOutline(outline, abort) {
       check(!abort.aborted, "PILOT_STOPPED", "Pilot stopped.");
       await scope.saveEvidence({ version: 1, kind: "pilot_structure", sequence: ++outlineSequence, outline });
+    },
+    captureActivity: abort => inspectStablePage(readActivityCandidate, abort),
+    async saveActivity(candidate, abort) {
+      check(!abort.aborted, "PILOT_STOPPED", "Pilot stopped.");
+      await scope.saveEvidence({ version: 1, kind: "pilot_activity", sequence: ++activitySequence, candidate });
     },
   });
   const interrupt = () => pilot.stop("interrupted");
@@ -75,7 +87,7 @@ export async function startPilotInScope(scope, { mode, headless = false, signal,
   return { done, pilot, controlPage, context, panel, stop: () => pilot.stop() };
 }
 
-async function runVisiblePilot(mode) {
+async function runVisiblePilot(mode, options = {}) {
   const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
   const controller = new AbortController();
   const stop = () => controller.abort();
@@ -83,10 +95,11 @@ async function runVisiblePilot(mode) {
   process.on("SIGTERM", stop);
   try {
     return await withDisposableTestRun({ repositoryRoot }, async scope => {
-      const run = await startPilotInScope(scope, { mode, signal: controller.signal });
+      const run = await startPilotInScope(scope, { mode, signal: controller.signal, onActivityReport: options.onActivityReport });
       await run.done;
       const state = run.pilot.state();
       return { status: "stopped", inspectionCount: state.inspectionCount, reason: state.reason,
+        activityCount: state.activityCount,
         coverageVerified: false, workbookUpdated: false };
     });
   } finally {
@@ -95,5 +108,5 @@ async function runVisiblePilot(mode) {
   }
 }
 
-export const runWellsPilot = () => runVisiblePilot("wells");
-export const runFictionalPilot = () => runVisiblePilot("fictional");
+export const runWellsPilot = options => runVisiblePilot("wells", options);
+export const runFictionalPilot = options => runVisiblePilot("fictional", options);

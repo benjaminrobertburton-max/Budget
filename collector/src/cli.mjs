@@ -12,8 +12,10 @@ if (command.length === 1 && ["wells-pilot", "pilot-rehearsal"].includes(command[
       ? "Opening local Wells pilot controls. Nothing connects to Wells until you acknowledge the conditions and press Open Wells."
       : "Opening a fictional pilot rehearsal. Do not enter real credentials or account information.");
     console.log("Sign in only in the bank tab yourself. Do not sign into Chrome sync. Close the controls or press Stop & clean up to finish.");
-    const result = await (command[0] === "wells-pilot" ? runWellsPilot() : runFictionalPilot());
+    const options = { onActivityReport: report => console.log(`Activity reader structural result (no account text): ${JSON.stringify(report)}`) };
+    const result = await (command[0] === "wells-pilot" ? runWellsPilot(options) : runFictionalPilot(options));
     console.log(`Pilot stopped. ${result.inspectionCount} structural outline(s) inspected; account coverage remains unverified.`);
+    console.log(`${result.activityCount} private activity read(s). No verified import or workbook update was produced.`);
     console.log("The separate browser exited. Its temporary profile and encrypted test records were removed and deletion verified.");
     console.log("The financial workbook and personal Chrome profile were not changed.");
   } catch (error) {
@@ -34,7 +36,7 @@ if (command.length === 1 && ["wells-pilot", "pilot-rehearsal"].includes(command[
   }
 } else if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
   console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive");
-  console.error("Live account collection is not installed. Collection demos use fictional data; the separate Wells pilot inspects structure only.");
+  console.error("Live account collection is not installed. Collection demos use fictional data; the Wells development pilot can capture unverified activity tables privately.");
   console.error("Stopped-test inspection: node collector/src/cli.mjs recover-test [--confirm-cleanup]");
   console.error("Separate, manual pilot controls: node collector/src/cli.mjs pilot-rehearsal | wells-pilot");
   process.exitCode = 2;

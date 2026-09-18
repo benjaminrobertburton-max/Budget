@@ -35,6 +35,7 @@ test("pilot controls open only after acknowledgement, inspect only structure, th
     await run.controlPage.locator("#start").click();
     await run.controlPage.waitForFunction(() => document.querySelector("#status-badge").textContent === "Your turn");
     assert.equal(run.context.pages().length, 2);
+    await run.controlPage.locator(".diagnostics summary").click();
     await run.controlPage.locator("#inspect").click();
     await run.controlPage.waitForFunction(() => document.querySelector("#outline-count").textContent === "1 / 12");
     assert.match(await run.controlPage.locator("#outline-note").innerText(), /Not verified account evidence/);
