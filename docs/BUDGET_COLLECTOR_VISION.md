@@ -1,0 +1,226 @@
+# Budget Collector — product vision, operating rules, and build handoff
+
+## Status and authority
+
+This document is the durable specification for the project's next major change: replace the screenshot-driven weekly import with a **local, read-only, direct-browser collector** and a one-button workbook refresh.
+
+It records durable decisions, not a live financial snapshot. Do not treat any historical balance, payment amount, or dated workbook value as current just because it appears elsewhere in the repository. GitHub is the shared source of truth for code, workbook structure, rules, tests, and the canonical generated workbook; it is **not** a place for credentials, browser state, raw bank data, or local collector databases.
+
+Read this file together with `AGENTS.md` before working on the workbook or collector. Until the collector has passed its acceptance criteria, the existing audited screenshot workflow in `work/WEEKLY_RUNBOOK.md` remains the fallback.
+
+## The outcome the household wants
+
+The budget system must become an aid rather than a second job.
+
+- Normal weekly use is one visible **Refresh Budget** action on the home/local machine.
+- That action collects current data, validates it, reconciles it, rebuilds the workbook, verifies it, and syncs the verified result to GitHub.
+- It must not require screenshot packets, email alerts, manual transcription, or an LLM-driven reconciliation during a normal run.
+- It must never silently treat missing information as zero or “good enough.” A failed or incomplete source should produce a short, specific exception instead of changing the budget from stale or partial data.
+- The target is a refresh that completes in minutes and is comfortably within the user's five-hour plan limit. Routine use must not consume multiple agent sessions.
+- The collector is read-only. It must never initiate a card payment, transfer, purchase, account change, or any other financial action.
+
+This is deliberately not another generic budgeting app, a cloud data warehouse, a daily email parser, or a replacement for the household's actual bank controls. It is a private local collection and reconciliation layer that powers the existing workbook.
+
+## Non-negotiable security and privacy boundary
+
+The collector runs only on the user's home/local machine because that is where the user-owned browser profile and banking sessions exist. A more powerful work machine may build and test the software, but it must use sanitized fixtures only.
+
+- The user performs any bank login, password-manager interaction, biometric approval, push approval, text-code entry, passkey use, or other MFA themselves. The collector must not read, store, retrieve, type, bypass, suppress, or attempt to work around credentials or MFA.
+- A dedicated ordinary browser profile, named for example `Budget Collector`, may retain only bank-approved sessions and trusted-device choices that the user personally establishes. The system must not promise that a bank will never require reauthentication; banks can revoke sessions or request MFA at any time.
+- If authentication or a challenge is required, the collector stops safely and reports the exact account that needs the user's action. After the user completes the bank's normal security step, the run may resume. That is the only expected routine intervention, and it cannot be automated away safely or legitimately.
+- Do not use headless-login tricks, stealth/anti-detection tools, CAPTCHA solving, saved password extraction, session-cookie export, browser-profile copying, or IP/ISP-based attempts to defeat bank security.
+- Keep the real browser profile, cookies, credentials, raw page captures, source HTML, screenshots, logs containing financial data, encrypted local store, database files, and environment secrets outside Git. The local store should be encrypted with a user-bound Windows mechanism such as DPAPI.
+- Never run real financial collection from the work machine, a cloud runner, or a GitHub Action. Never put account numbers, balances, transactions, or MFA artifacts in fixtures, commits, issues, pull requests, or chat prompts.
+
+## Why direct local browser collection is the chosen design
+
+Previous aggregate-data experiments were not good enough for a payment-day decision: they exposed partial history, incomplete pending activity, and missing status fields. A balance alone is not sufficient. The household needs exact current balance/available cash, new posted transactions, visible pending transactions, payment obligations, transfer activity, and PayPal promotional-plan details.
+
+Therefore the chosen source is each institution's own authenticated site, read locally from the user-owned browser session. The collector should use account-specific, DOM-based adapters against the same summary and activity views a person sees. It should not rely on OCR or screenshot reading in normal operation.
+
+Explicitly rejected as the primary design:
+
+- **Empower or another generic aggregator:** prior coverage was incomplete; a different wrapper around the same incomplete feed does not solve that problem.
+- **Plaid or a similar API as the source of truth:** useful only as an optional secondary health signal in the future. Pending coverage, refresh timing, liability data, and institution support vary too much for this workbook's Tuesday cash plan.
+- **ChatGPT Finances:** it is not a programmatic, source-complete feed into this local workbook, and connected institutions can still omit history or payment detail.
+- **Email alerts / Gmail parsing:** rejected by the user. They are delayed, incomplete, add another data store, and still require exception handling.
+- **Manual screenshot importing:** the current fallback only, not the desired future experience.
+
+## Household finance ideology the collector must preserve
+
+The automation serves the existing financial model; it must not replace it with a generic “spend tracker.”
+
+### Start is today's cash decision
+
+The **Start** tab answers one question: *Can the expenses that must be paid this week be covered by the verified Wells Fargo funds available now?*
+
+- Its cash plan is based on verified Wells availability and required cash actions, not the weekly discretionary purchase cap.
+- Start and Tuesday Review must reconcile to the same cash requirement. If one says there is money left and the other says additional funds are needed, that is a blocking reconciliation error.
+- Preserve a minimum $1 Wells Fargo balance after planned actions unless the user deliberately changes that rule.
+- Wife/personal safe cash is savings only. It is excluded from Wells availability, reliable income for bills, and purchase capacity.
+
+### Tuesday Review is the once-per-week payment cockpit
+
+The **Tuesday Review** tab is opened after the import and used to make payments. It should contain every source account with a payment due or nonzero balance; zero-balance, confirmed-clear accounts may appear as `Not due`.
+
+- It tells the user what to pay or fund that Tuesday, why, and from which cash plan—not a copy of last week's closed review.
+- Manual actions are separate from automatic actions. A manual action can become `Done` only after the user reports it or the source confirms it. An automatic transfer is only `Automatic / expected` until it is observed in a subsequent source refresh.
+- The workbook must remain usable in the Codex previewer. Do not depend on native Excel checkbox controls that the previewer cannot click. Use clear, cell-based status values or an equally preview-compatible mechanism.
+- Card payments and transfers are cash movements, not discretionary purchases; they must not be double-counted in the spending budget.
+
+### This Week and Money Plan are analysis, not cash authorization
+
+The purchase budget belongs in **This Week** / **Money Plan** as a review of category spending versus plan. It should not make Start's immediate cash decision harder to understand.
+
+- Track posted, pending, committed, and remaining by category.
+- Show a transaction's category only when supported by a deterministic rule or confirmed input. `Unknown` is correct when the merchant cannot be categorized safely.
+- Income reliably available to bills is distinct from variable wife income and personal safe cash.
+
+### Savings, rent, and emergency funding must remain honest
+
+- Fidelity's weekly contribution is Roth IRA savings, not a bill payment.
+- Cruise savings and future-expenses savings are general savings goals, but core bills, rent/car reserves, and promotional-debt targets must fit inside reliable Wells income before discretionary savings contributions are considered fundable.
+- Preserve a rent reserve as its own tagged amount. Do not net it against unrelated Wealthfront withdrawals or Wells top-ups merely because money ultimately moves between the same two institutions.
+- Wealthfront is emergency/general savings and may cover a verified Wells cash shortfall. Record the actual transfer and reduce the working Wealthfront balance by the actual amount. Do not leave the dashboard using a pre-transfer snapshot as if it were still live.
+- A transfer in and a transfer out are two independently evidenced events. Match them only when both legs, dates, amounts, and purpose support the link.
+- At month end, show the net emergency-fund draw separately from planned rent funding so the household can distinguish a true monthly deficit from movement between accounts.
+
+## Known sources and required evidence
+
+The account registry—not informal memory—must define the source set for each refresh. It must include active accounts such as:
+
+- Wells Fargo checking: available balance, pending and posted activity, deposits, payments, transfers, and cash-plan source.
+- Wealthfront cash/emergency savings: available balance and every transfer relevant to Wells or rent.
+- Chase Sapphire and Prime Visa: current balance, payment-due information, statement/current balance, pending and posted purchases, payments, and refunds.
+- Citi: current balance, due information, pending and posted purchases, payments, and refunds.
+- Discover: current balance/payment requirement, pending and posted activity. A nonzero balance or due amount must never be omitted from Tuesday Review.
+- Capital One / Quicksilver: current balance and payment requirement.
+- PayPal Credit: current balance, payments, pending/posted activity, and all promotional financing plans with balance and expiration/payoff targets.
+- Credit Union of Texas / car fund: current balance and applicable transfer evidence.
+- RBC or any retained car/reserve account: current balance, due/payment data where applicable, and activity needed to explain a cash movement.
+- Fidelity Roth IRA: confirmed automatic transfer evidence.
+- Any additional current spending, debt, cash, or savings account that the user registers later.
+
+Personal safe cash can be represented as a local manual event until it has a legitimate machine-readable source. It is **additive by default**: a user-reported amount increases the prior safe-cash total unless the user explicitly says it is a replacement balance. The collector must preserve the arithmetic and never overwrite it silently.
+
+For every transaction or obligation included in a verified refresh, retain local evidence of:
+
+`source • visible section • account • source event ID or stable fingerprint • transaction/effective date • capture time • signed amount • currency • posted/pending state • category/rule • inclusion decision • transfer/payment link • source snapshot/run ID`
+
+For every account snapshot, retain:
+
+`account • balance type (available/current/ledger) • amount • capture time • source page/section • obligation values (minimum/due date/statement/current balance where applicable) • freshness/coverage state`
+
+## Data lifecycle and reconciliation rules
+
+1. **Collect first.** A Refresh Budget run fetches every required source page before modifying local canonical state or the workbook.
+2. **Validate coverage.** Check expected account count, page freshness, visible posted/pending counts or totals, source anchors, balance type, and obligation fields. Missing required source data is a failed run.
+3. **Normalize without guessing.** Parse money as signed values; keep source merchant text; assign posted/pending precisely; preserve dates; apply deterministic merchant rules only. Never infer an unreadable digit, sign, category, due amount, or account state.
+4. **Deduplicate and track lifecycle.** Use source IDs where available; otherwise use stable fingerprints with conservative collision handling. A pending transaction that posts is one lifecycle, not two purchases. Changed/recreated pending records require explicit links, not loose amount-only matches.
+5. **Reconcile movements.** Detect card payments, transfers, refunds, payroll, automatic savings transfers, and cash funding separately from purchases. Pair both sides only with defensible evidence. Do not double-count card payments or transfers as expenses.
+6. **Generate a verified local import snapshot.** It is immutable, versioned, encrypted locally, and is the sole input to the workbook builder.
+7. **Rebuild once.** The workbook reads that verified snapshot, updates the ledger, Start, Tuesday Review, and the designated current historical row, runs formula/consistency checks, and renders Start and Tuesday Review only during an operational run.
+8. **Publish only on success.** Commit/push the resulting canonical workbook and non-sensitive code/rule changes to GitHub only when every hard validation passes. A failed run must leave the previous verified workbook intact and explain what is missing.
+
+### Hard-stop conditions
+
+Stop rather than publish if any of these occur:
+
+- required account/session cannot be read or is stale;
+- a balance, due amount, or transaction is ambiguous;
+- expected source coverage is incomplete;
+- posted/pending totals or latest anchors do not reconcile;
+- an unpaired transfer/payment would change cash or spending materiality;
+- Start and Tuesday cash requirements disagree;
+- a nonzero/due account is absent from Tuesday Review;
+- formula scan, data-validation check, or workbook output verification fails.
+
+The error display should name the account and missing evidence in plain language, for example: `Chase Sapphire — activity page requires reauthentication; no workbook changes made.`
+
+## Lessons that become regression tests
+
+Prior errors are not merely historical notes; each must become a fixture and an automated test before the collector is trusted:
+
+- Multi-screen activity captures overlap. Deduplicate them; do not omit the entry between pages.
+- A small negative refund (including a previously misread `-$5.40`) must preserve its sign and not be read as a positive charge.
+- Fuel/gas must not be skipped because it appears in a crowded transaction list.
+- Posted versus pending must be retained correctly and moved through a single lifecycle when the status changes.
+- Discover or any other due/nonzero account must surface in the Tuesday plan even if it had been absent previously.
+- Card payments, transfers, payroll, and savings movements must never be counted as purchase spending.
+- A Wealthfront-to-Wells top-up must reduce the working Wealthfront snapshot; subsequent top-ups (such as an unanticipated bill coverage amount) must add to the transfer total rather than overwrite it.
+- Rent funding and unrelated emergency transfers must remain distinct.
+- A user-supplied safe-cash figure is additive unless expressly labeled replacement.
+- An automatic transfer is not confirmed merely because it is scheduled.
+- The source snapshot must cover both balances and transactions; no implementation may infer current balance from an old imported value.
+
+## Local architecture
+
+### Components
+
+1. **Account registry and source contract**
+   - One declarative record per account: required pages, fields, account type, expected cadence, whether it affects Wells cash, known obligations, and adapter name.
+   - A refresh cannot silently skip a registry entry.
+
+2. **Browser adapters**
+   - One read-only adapter per institution/page family.
+   - Adapters extract structured text/DOM fields, never use OCR as the normal data path.
+   - Each returns raw local evidence reference, normalized records, coverage checks, and an explicit `needs_user_auth` state where appropriate.
+
+3. **Encrypted local source store**
+   - User-bound local store outside the repository.
+   - Append-only run metadata, evidence references, account snapshots, transaction lifecycles, transfer links, manual safe-cash events, and exception resolution.
+   - Retention policy should minimize exposure while preserving enough audit evidence to explain every workbook result.
+
+4. **Deterministic reconciliation engine**
+   - No AI model in a normal refresh.
+   - Applies signed-money parsing, ID/fingerprint de-duplication, pending-to-posted linking, classification rules, transfer matching, source coverage checks, and cash-plan reconciliation.
+
+5. **Workbook adapter**
+   - Refactor the current hard-coded builder so it consumes a verified local import snapshot rather than manually edited values.
+   - It must preserve existing workbook structure and the canonical output path:
+     `outputs/01a04fdf-3751-72e2-88f1-daf19b8b9d1d/comprehensive_budget.xlsx`
+
+6. **Refresh Budget launcher and status panel**
+   - A visible local button/shortcut invokes collection, validation, build, visual checks, and optional Git sync.
+   - It shows a simple state: `Collecting`, `Needs bank approval`, `Validating`, `Rebuilt`, `Published`, or `Blocked` with a concise reason.
+   - It may prefetch read-only source data locally during the week, but a final refresh must revalidate freshness before publishing.
+
+## Build order and acceptance criteria
+
+Build on a dedicated feature branch such as `codex/budget-collector`. The work machine may create source code, schemas, fixtures, tests, and documentation, then push to GitHub. The home machine pulls the branch and performs the only live browser/session setup.
+
+1. **Foundation** — create collector project structure, strict TypeScript/JavaScript schemas, local-path configuration, `.gitignore` protections, account registry, sanitized fixtures, and test harness.
+2. **Reconciliation first** — implement transaction lifecycle, signed amount, deduplication, classification, transfer matching, safe-cash additive events, and Start/Tuesdays cash consistency against fixtures before connecting a real browser.
+3. **Workbook input boundary** — define and test the verified import snapshot format; refactor the builder to consume it while preserving the canonical workbook and existing formula/layout protections.
+4. **Pilot adapter** — implement Wells Fargo summary + activity as the first direct browser adapter on the home machine. Prove it returns balance, pending, posted, deposits, transfers, and source coverage without making any account change.
+5. **Expand adapters** — add high-impact active accounts and their payment/promo pages one at a time, with a fixture and regression test for each.
+6. **One-button orchestration** — add status, retry/resume after user authentication, local encryption, conservative scheduler/prefetch, formula/visual verification, and only-successful Git sync.
+7. **Shadow mode** — for at least three to four complete weekly cycles, compare collector output to user-visible institution pages and the existing audited workflow. Certify each source individually; do not retire the fallback until results reconcile consistently.
+
+A build is not ready merely because it can scrape a balance. It is ready for weekly use only when a clean successful run:
+
+- covers every registry account and required page;
+- distinguishes available/current balance and posted/pending state;
+- produces no unexplained coverage, balance, payment, or transfer exception;
+- creates Start and Tuesday values that reconcile exactly;
+- preserves the $1 Wells minimum and the household rules above;
+- passes formula scan, workbook-preservation checks, and Start/Tuesday visual inspection;
+- uses no raw financial data in Git;
+- requires no LLM participation during the actual refresh;
+- performs no money movement; and
+- leaves an understandable audit trail for every imported result.
+
+## Development and Git operating rules
+
+- Pull and inspect `main` before beginning work. Do not reset, discard, overwrite, stash, or merge away someone else's uncommitted changes.
+- Use a `codex/` feature branch for collector development. Commit atomic, non-sensitive changes with tests.
+- Develop with sanitized fixtures. Never use production credentials, real screenshots, raw balances, real transaction descriptions, or copied browser profiles on the work machine.
+- The home machine is the only environment allowed to connect a user-authenticated browser to live accounts. Its private data stays local and ignored.
+- Do not install a third-party data aggregator as a shortcut without a new, explicit decision and a documented source-coverage test. It cannot replace direct evidence for the cash plan merely because it returns a balance.
+- Do not reintroduce an email-alert architecture. It is a rejected path.
+- Do not update financial facts while a source packet/collection is incomplete. Create a single consolidated reconciliation and a single verified workbook update.
+- Closeout/analytical tabs remain a later phase after payment execution or the following day. Routine refresh should prioritize the current ledger, Start, Tuesday Review, and current history record.
+
+## Definition of success
+
+The finished system lets the user open the home machine, press **Refresh Budget**, and receive a truthful, source-backed cash plan and Tuesday payment plan without a multi-day screenshot process. If a bank genuinely requires the user's security approval, the system asks once, resumes after that approval, and never fabricates a result. Accuracy, privacy, and clarity win over apparent automation.

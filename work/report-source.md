@@ -1,3 +1,7 @@
+# Historical research brief — superseded as the implementation direction
+
+**Do not implement this email-alert/Google Sheets design.** The household explicitly rejected email alerts and generic aggregation after observed incomplete transaction coverage. The current approved direction is the private, local, read-only direct-browser collector described in `docs/BUDGET_COLLECTOR_VISION.md`. This file is retained only as historical research evidence.
+
 # Custom Budget Tracking System Research Brief
 
 **Audience:** household budget owner using multiple U.S. bank and credit-card accounts
@@ -37,4 +41,3 @@ Use an alert-ledger system: issuer-originated transaction alert emails feed a co
 ## Decision
 
 Proceed only if the user approves a private Gmail + Google Sheets system and can route account-activity emails to a Gmail label. Start with Wells Fargo, Chase, Citi, Capital One, Discover, and PayPal Credit where alerts are available; use the mobile exception form for anything not captured.
-

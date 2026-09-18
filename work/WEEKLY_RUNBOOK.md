@@ -1,4 +1,6 @@
-# Local weekly budget runbook
+# Local weekly budget runbook — screenshot fallback only
+
+The intended replacement is the local direct-browser collector documented in `docs/BUDGET_COLLECTOR_VISION.md`. Do not revive the earlier email-alert approach or substitute a generic aggregator for it. This runbook remains only until the collector is proven in shadow mode.
 
 Use one Codex task for the entire weekly import. Collect the complete screenshot packet first; do not rebuild while screenshots are still arriving.
 

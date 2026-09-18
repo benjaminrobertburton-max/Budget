@@ -2,6 +2,12 @@
 
 The user has a five-hour usage limit. Weekly imports must be completed in one session.
 
+## Collector transition
+
+The project is transitioning from screenshot-based imports to a local, read-only, direct-browser collector. Read `docs/BUDGET_COLLECTOR_VISION.md` before any collector or workbook-architecture work. It records the user’s one-button-refresh goal, financial-model rules, rejected aggregator/email approaches, privacy boundary, and hard acceptance criteria.
+
+Until that collector passes its documented shadow-mode and acceptance checks, the screenshot workflow below remains the required fallback. Do not put credentials, browser state, raw financial data, screenshots, or collector databases in Git.
+
 ## Codex execution preference
 
 - For the main weekly import/reconciliation task, prefer GPT-5.6 Terra with Medium reasoning when it is available.

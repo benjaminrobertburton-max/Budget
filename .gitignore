@@ -6,3 +6,14 @@ outputs/**/*.ndjson
 sources/
 work/node_modules/
 *.tmp
+
+# Private local direct-browser collector state. Keep real banking data and
+# authenticated browser/session material on the home machine, outside Git.
+.collector/
+collector-data/
+work/collector/local/
+.env
+.env.*
+!.env.example
+*.cookies
+*.session
