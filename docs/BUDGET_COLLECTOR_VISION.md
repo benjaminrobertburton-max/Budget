@@ -2,6 +2,17 @@
 
 ## Status and authority
 
+**Latest authentication requirement (September 18):** the collector must perform
+ordinary sign-in through Chrome's user-configured saved-credential/autofill flow,
+including opening institutions and normal sign-in navigation/submission. The
+user's intended routine role is ONLY text-code/2FA approval if required, not
+manual login. This supersedes manual-sign-in requirements below. The connector
+and sign-in automation remain unimplemented and require home verification.
+Never extract/store/log passwords, copy sessions/profiles, intercept MFA, or bypass
+bank/browser security. If normal autofill or sign-in cannot proceed without
+another user gesture/challenge, report it as a limitation to resolve rather than
+claiming the desired approval-only workflow has been achieved.
+
 **September 18 continuation update:** the user cannot install extensions at work
 and is moving live browser integration home. The "Home development resume"
 checkpoint in `docs/HOME_MACHINE_HANDOFF.md` supersedes older work-machine

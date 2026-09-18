@@ -14,7 +14,13 @@ extension/native messaging was research only. Confirm the home OS (the current
 encryption layer is Windows-only) and request approval for any extension or
 persistent permission. Never extract credentials or copy cookies/profiles.
 Then prove one complete read-only Wells collection using the existing reader and
-validation code before expanding sources. Login/MFA stays with the user.
+validation code before expanding sources. The collector must complete normal
+sign-in using Chrome's configured saved-credential/autofill flow; the user's
+intended weekly role is only text-code/2FA approval when required. This supersedes
+older manual-sign-in pilot instructions. Sign-in automation is not implemented;
+test it at home without credential extraction, cookie copying or security bypass.
+Report any extra interaction required by Chrome/banks as a limitation, not as the
+accepted routine.
 No complete real Wells run or workbook update has succeeded. The intended weekly
 run uses local code without an AI session; that production workflow is unfinished.
 Older pilot instructions below are implementation reference, not the new plan.

@@ -4,6 +4,18 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Latest authentication correction (September 18):** the collector, not the user,
+must open institutions and complete ordinary sign-in via Chrome's user-configured
+saved-credential/autofill flow, including normal sign-in navigation/submission.
+The user's intended routine role is ONLY text-code/2FA approval when needed.
+This supersedes older manual-sign-in requirements in these documents. Implement
+and verify this at home; current code does not support it. Do not read/extract,
+store, log or transmit passwords, copy cookies/profiles, bypass MFA/CAPTCHA, or
+disable browser/bank security. If autofill is unavailable or the bank requires
+another user gesture/challenge, stop and report the limitation; do not silently
+redefine manual login as normal operation or promise approval-only operation
+before each institution has been tested.
+
 **Latest continuation decision (September 18, 2026):** live browser work moves
 home because extensions cannot be installed at work. Stop work-machine live
 pilots and appearance-only troubleshooting. Read the "Home development resume"

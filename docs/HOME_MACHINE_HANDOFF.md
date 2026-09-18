@@ -23,6 +23,19 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 ### Home development resume — latest decision, overrides older next-step guidance
 
+**Authentication correction:** the user is NOT agreeing to manually sign in each
+week. The collector must open the institution, use Chrome's normal configured
+saved-credential/autofill flow, and complete ordinary sign-in navigation/submission.
+The user's intended routine role is only text-code/2FA approval if required.
+This supersedes all older manual-sign-in wording, including historical pilot steps.
+No saved-password extraction, credential logging/storage, cookie/profile copying,
+security bypass or programmatic MFA interception is authorized. A missing autofill,
+required browser gesture, CAPTCHA or other challenge must produce an honest
+exception, not a bypass or a silent return to weekly manual login. This capability
+is unimplemented and must be established and tested on the home machine before
+claiming the approval-only experience works. First-time connection/setup permission
+may still be needed; it is distinct from the desired weekly routine.
+
 This checkpoint is ready to transfer **development**, not a finished weekly
 collector. Earlier requirements for a complete production handoff remain release
 gates, not claims that they have been met. The user now wants to continue live
@@ -52,7 +65,8 @@ Portable code and fictional tests remain reusable; this is not an architecture r
   foundation to prove one full, read-only Wells collection: account identity,
   balance meanings, all current pending activity, posted overlap/anchor, pagination
   and independent coverage checks. Unknown or missing evidence blocks verification.
-  A captured table alone is not a complete source. User handles sign-in/MFA;
+  A captured table alone is not a complete source. Collector handles normal
+  sign-in via the approved browser flow; user handles required text-code/2FA;
   navigation should become code-driven, not a repeated weekly user chore.
 - **Privacy:** real evidence stays in a private local location outside Git/cloud
   sync with encryption and explicit retention. Never use disposable cleanup on
