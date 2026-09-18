@@ -4,10 +4,23 @@ import { storageDemo } from "./storage-demo.mjs";
 import { safeIssue } from "./errors.mjs";
 
 const command = process.argv.slice(2);
-if (command.length !== 1 || !["demo", "storage-demo"].includes(command[0])) {
-  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo");
+if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
+  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive");
   console.error("Live account collection is not installed. This milestone uses fictional data only.");
   process.exitCode = 2;
+} else if (command[0].startsWith("browser-")) {
+  try {
+    const { browserDemo } = await import("./browser-demo.mjs");
+    console.log("Fictional browser test only. No bank is connected; do not enter credentials or sign into Chrome sync.");
+    const result = await browserDemo({ interactive: command[0] === "browser-interactive" });
+    console.log(result.status === "cancelled" ? "Test cancelled." : `Browser test passed: ${result.accountCount} fictional accounts across ${result.signInGroups} sign-in groups.`);
+    console.log("The separate test browser exited. Its profile and encrypted test records were removed and deletion verified.");
+    console.log("Your everyday Chrome profile, current workbook, and home financial store were not used.");
+  } catch (error) {
+    const issue = safeIssue(null, error);
+    console.error(`${issue.code}: ${issue.message}`);
+    process.exitCode = 1;
+  }
 } else if (command[0] === "storage-demo") {
   try {
     const result = await storageDemo();
@@ -32,6 +45,6 @@ if (command.length !== 1 || !["demo", "storage-demo"].includes(command[0])) {
     console.log(`Offline demonstration passed: ${first.candidate.accountCount} fictional accounts collected and checked.`);
     console.log(`Repeated refresh: ${Object.values(repeated.candidate.changes).reduce((sum, change) => sum + change.added, 0)} duplicate entries added.`);
     console.log("No browser opened, private data read, files written, workbook changed, or Git sync performed.");
-    console.log("Remaining: workbook input boundary and browser integration, then approved disposable bank testing and home certification.");
+    console.log("Remaining: workbook input boundary and live-bank integration, then approved disposable bank testing and home certification.");
   }
 }

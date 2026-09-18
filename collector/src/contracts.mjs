@@ -36,7 +36,7 @@ function evidence(value) {
 export function validateRegistry(registry) {
   object(registry, ["schemaVersion", "mode", "accounts"]);
   check(registry.schemaVersion === SCHEMA_VERSION, "INVALID_SCHEMA", "Unsupported registry schema version.");
-  check(registry.mode === "synthetic", "LIVE_NOT_READY", "Live collection is disabled until the home-machine pilot and private storage are ready.");
+  check(registry.mode === "synthetic", "LIVE_NOT_READY", "Live collection is disabled until tested bank readers and private-data acceptance checks are ready.");
   list(registry.accounts);
   check(registry.accounts.length > 0, "EMPTY_REGISTRY", "The account registry must not be empty.");
   const ids = new Set();

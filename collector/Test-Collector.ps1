@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("Test", "Demo", "StorageDemo")]
+  [ValidateSet("Test", "Demo", "StorageDemo", "BrowserTest", "BrowserDemo", "BrowserInteractive")]
   [string]$Mode = "Test"
 )
 
@@ -13,6 +13,12 @@ try {
     & node src/cli.mjs demo
   } elseif ($Mode -eq "StorageDemo") {
     & node src/cli.mjs storage-demo
+  } elseif ($Mode -eq "BrowserTest") {
+    & node --test 'test-browser/*.test.mjs'
+  } elseif ($Mode -eq "BrowserDemo") {
+    & node src/cli.mjs browser-demo
+  } elseif ($Mode -eq "BrowserInteractive") {
+    & node src/cli.mjs browser-interactive
   } else {
     & node --test 'test/*.test.mjs'
   }

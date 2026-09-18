@@ -1,15 +1,16 @@
-# Local Budget Collector — offline collection and encrypted storage
+# Local Budget Collector — fictional browser pilot and encrypted storage
 
 This is the offline foundation for the user's Tuesday **Refresh Budget** workflow.
-It is runnable software with fictional test data and a tested Windows encryption
-layer. It does not yet connect to banks, collect real financial data, create the
+It is runnable software with fictional test data, a tested Windows encryption
+layer, and disposable Chrome browser demonstrations. It does not yet connect to banks, collect real financial data, create the
 user's home financial store, or update the workbook. The account examples describe
 coverage targets, not certified integrations or current household balances.
 
 ## Run without an AI session
 
-Requires Node.js 22 or newer (tested here on Node.js 24). No downloaded packages,
-API keys, browser access, or accounts are required. From the repository root:
+Requires Node.js 22 or newer (tested here on Node.js 24). The core demonstrations
+and core tests require no downloaded packages, API keys, browser access, or
+accounts. From the repository root:
 
 ```powershell
 node collector/src/cli.mjs demo
@@ -34,6 +35,55 @@ reopens them, verifies a repeat refresh and a deliberately failed collection, th
 removes that exact owned directory and verifies removal.
 It does not initialize the real private store or access bank sessions. Unsupported
 commands (including `live`) fail explicitly.
+
+### Browser demonstrations — still fictional, never a bank login
+
+The browser features additionally require installed Google Chrome and the pinned
+`playwright-core` dependency. Install once from `collector/` with
+`pnpm install --frozen-lockfile --ignore-scripts`. This does not download another
+browser. Then, from the repository root:
+
+```powershell
+.\collector\Test-Collector.ps1 -Mode BrowserTest
+.\collector\Test-Collector.ps1 -Mode BrowserDemo
+.\collector\Test-Collector.ps1 -Mode BrowserInteractive
+```
+
+`BrowserDemo` runs without a visible window. `BrowserInteractive` intentionally
+opens a separate Chrome window and four fictional approval tabs. Press **Simulate
+approval** on each fictional institution page, or **Cancel test and delete its
+data** on the status page. There are no credential fields and no real MFA. Do not
+enter real account information into this demonstration.
+
+**No new Google account and no manual Chrome-profile setup are needed.** The
+program creates the empty disposable profile automatically. Do not sign it into
+Chrome sync or import passwords. Your normal personal Chrome profile is not
+opened, copied, or cleared. Bank sign-ins in a future live pilot will be separate
+from Google/Chrome sign-in; the user alone will perform them.
+
+The demonstration reads five fictional accounts across four sign-in groups,
+including two cards sharing one institution session. It uses actual DOM tables,
+overlapping activity pages, independent counts/totals, obligation pages, and a
+promotional-plan page. All sign-ins become available together; ready institutions
+collect while others await approval, with at most two collecting concurrently.
+Accounts sharing one session are collected sequentially. A final freshness check
+prevents publishing a candidate if an earlier source has become stale.
+
+The elapsed/login-wait/collection measurements are wall-clock diagnostics, not a
+claim about actual human effort or real bank speeds. The reader has no real bank
+selectors. Page requests are restricted to the fixture server's exact loopback
+origin; real URLs are rejected. Chrome uses its normal sandbox and certificate
+checks. The test does not circumvent workplace browser policies or bank security.
+
+On success, task failure, or graceful cancellation, browser shutdown runs before
+deletion. The launcher waits for the recorded Chrome processes to exit, then
+removes the profile, any contained browser artifacts, and encrypted evidence.
+Unknown shutdown/cleanup outcomes block another test. Ctrl+C is handled by the
+demonstration launcher; forced process termination or power loss is still an
+interrupted-run recovery case, not a guaranteed immediate cleanup.
+
+Implementation references: [Playwright separate persistent contexts](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context),
+[Chrome's dedicated debugging-profile requirement](https://developer.chrome.com/blog/remote-debugging-port).
 
 ## Responsibilities
 
@@ -71,6 +121,9 @@ commands (including `live`) fail explicitly.
 - A separate disposable work-test lifecycle: exclusive ownership, encrypted
   evidence writes, bounded resource-close hooks, verified removal after success or
   task failure, and blocking when an earlier run or failed cleanup remains.
+- Real Chrome integration against a private loopback fictional site, grouped
+  sign-in readiness, bounded concurrent collection, shared-session sequencing,
+  consolidated incomplete-session states, cancellation, and final freshness checks.
 
 No budgeting calculation, purchase categorization, payment confirmation, or
 transfer pairing is inferred from amount alone. A reader may retain a transaction
@@ -120,8 +173,9 @@ every third-party sync application automatically.
 
 The user now permits live, read-only work-machine testing, subject to workplace
 permission, **only if test financial data is deleted afterward**. The current CLI
-still supports fictional demonstrations only; bank readers and browser shutdown
-integration are not yet implemented. Permission to test is not evidence that live
+still supports fictional demonstrations only; bank readers are not implemented.
+Browser shutdown/profile removal have been tested with the fictional site.
+Permission to test is not evidence that live
 collection already works.
 
 `src/disposable-run.mjs` supplies `withDisposableTestRun()`. Its default parent is
@@ -146,13 +200,15 @@ ownership and ensure all associated processes have stopped; automatic crash
 recovery and a browser-aware recovery UI are not implemented yet. Do not work
 around a cleanup warning by moving to a fresh parent directory.
 
-The future browser runner must create a **new, unsynced disposable Chrome profile**
-inside that run, never attach to or copy the everyday personal profile. The user
+The implemented fictional browser runner creates a **new, unsynced disposable
+Chrome profile** inside that run, never attaching to or copying the everyday personal profile. The user
 signs into banks, not Chrome sync. Browser cookies/cache are browser-managed and
 are not encrypted by the collector's record helper. Browser downloads, screenshots,
 traces, videos, and financial debug logs must be disabled unless explicitly needed
-and safely contained. Prove browser exit, ordinary cancellation, profile removal,
-and leftover handling with fictional pages before enabling live tests.
+and safely contained. Browser exit, the fictional Cancel button, profile removal,
+and external-page blocking are integration-tested. Live navigation, real approval
+detection, evidence coverage, and process-crash recovery still require additional
+development and acceptance before enabling bank tests.
 
 Retain only generic source code, account-independent navigation rules, invented
 fixtures, and non-sensitive test outcomes. Never print private page contents into
@@ -221,9 +277,10 @@ it. Do not skip those failures when claiming Windows integration is verified.
 3. **Movement and evidence acceptance.** Implement explicit transfer/payment links
    without double-counting, local user-confirmed exception resolution, and tests
    against workbook cash outputs. Budget rules remain in the workbook.
-4. **Wells disposable pilot and home certification.** First integrate and verify
-   browser shutdown/cancellation and disposable-profile cleanup using fictional
-   pages. Then use the approved work-machine live-test boundary to develop the
+4. **Wells disposable pilot and home certification.** Use the tested fictional
+   browser lifecycle to build a separately gated read-only live pilot; do not relax
+   the fictional transport's loopback-only rule. Use the approved work-machine
+   live-test boundary to develop the
    reader. Verify read-only summary, pending, posted, pagination, identity, evidence,
    and authentication pause/resume. Group manual sign-ins instead of making the
    user wait for serial collection. Measure attended authentication, background
