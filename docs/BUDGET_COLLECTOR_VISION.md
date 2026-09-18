@@ -19,6 +19,14 @@ The budget system must become an aid rather than a second job.
 - The target is a refresh that completes in minutes and is comfortably within the user's five-hour plan limit. Routine use must not consume multiple agent sessions.
 - The collector is read-only. It must never initiate a card payment, transfer, purchase, account change, or any other financial action.
 
+### Collection cadence: Tuesday on demand, not daily
+
+Version 1 runs **once, when the user presses Refresh Budget on Tuesday**. It must not collect daily, consume model tokens daily, send daily prompts, or require daily MFA. The previous idea of a weekday prefetch/scheduler is explicitly out of scope for the initial build.
+
+The collector's healthy Tuesday run should use no LLM/Codex participation and should finish in roughly **5–10 minutes** after already-authenticated pages are available. That is a performance target to measure during the pilot, not a promise: the first live run may take longer because of initial session setup and bank page variability. If the normal Tuesday run needs repeated codes, more than one meaningful user intervention, or routinely takes longer than about 10–15 minutes, it has failed the usability requirement and must be improved before it replaces the audited fallback.
+
+An optional preflight run may be reconsidered only after the Tuesday collector has proven reliable for several shadow cycles, and only if it is user-approved, entirely local/deterministic, requires no extra authentication, does not publish a workbook, and demonstrably reduces Tuesday time. It is not necessary to achieve the one-button goal.
+
 This is deliberately not another generic budgeting app, a cloud data warehouse, a daily email parser, or a replacement for the household's actual bank controls. It is a private local collection and reconciliation layer that powers the existing workbook.
 
 ## Non-negotiable security and privacy boundary
@@ -183,7 +191,7 @@ Prior errors are not merely historical notes; each must become a fixture and an 
 6. **Refresh Budget launcher and status panel**
    - A visible local button/shortcut invokes collection, validation, build, visual checks, and optional Git sync.
    - It shows a simple state: `Collecting`, `Needs bank approval`, `Validating`, `Rebuilt`, `Published`, or `Blocked` with a concise reason.
-   - It may prefetch read-only source data locally during the week, but a final refresh must revalidate freshness before publishing.
+   - Version 1 has no background scheduler or weekday prefetch. It runs only from the user's Tuesday Refresh Budget action and validates freshness before publishing.
 
 ## Build order and acceptance criteria
 
@@ -194,7 +202,7 @@ Build on a dedicated feature branch such as `codex/budget-collector`. The work m
 3. **Workbook input boundary** — define and test the verified import snapshot format; refactor the builder to consume it while preserving the canonical workbook and existing formula/layout protections.
 4. **Pilot adapter** — implement Wells Fargo summary + activity as the first direct browser adapter on the home machine. Prove it returns balance, pending, posted, deposits, transfers, and source coverage without making any account change.
 5. **Expand adapters** — add high-impact active accounts and their payment/promo pages one at a time, with a fixture and regression test for each.
-6. **One-button orchestration** — add status, retry/resume after user authentication, local encryption, conservative scheduler/prefetch, formula/visual verification, and only-successful Git sync.
+6. **One-button orchestration** — add the Tuesday-only launcher, status, retry/resume after user authentication, local encryption, formula/visual verification, and only-successful Git sync. Do not add a daily scheduler or prefetch in Version 1.
 7. **Shadow mode** — for at least three to four complete weekly cycles, compare collector output to user-visible institution pages and the existing audited workflow. Certify each source individually; do not retire the fallback until results reconcile consistently.
 
 A build is not ready merely because it can scrape a balance. It is ready for weekly use only when a clean successful run:
