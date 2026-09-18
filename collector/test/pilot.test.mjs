@@ -110,13 +110,36 @@ test("Wells policy requires HTTPS, true domain boundaries, no URL credentials, a
   }
 });
 
-test("separate media/third-party domains stay blocked pending explicit review", () => {
-  const url = "https://www17.wellsfargomedia.com/fixture.png";
-  assert.equal(wellsRequestAllowed({ url, method: "GET", resourceType: "image" }), false);
-  assert.equal(wellsRequestAllowed({ url, method: "POST", resourceType: "image" }), false);
-  assert.equal(wellsRequestAllowed({ url, method: "GET", resourceType: "document" }), false);
-  assert.equal(wellsRequestAllowed({ url, method: "GET", resourceType: "fetch" }), false);
+test("only reviewed exact media hosts permit GET visual resources with matching file types", () => {
+  for (const host of ["www10", "www15", "www17"]) {
+    for (const [resourceType, file] of [["stylesheet", "fictional.css"], ["font", "fictional.woff2"], ["image", "fictional.svg"]]) {
+      const url = `https://${host}.wellsfargomedia.com/assets/${file}`;
+      assert.equal(wellsRequestAllowed({ url, method: "GET", resourceType }), true);
+      assert.equal(isWellsDocument(url), false);
+    }
+  }
   assert.equal(wellsRequestAllowed({ url: WELLS_SIGN_ON, method: "POST", resourceType: "document" }), true);
+});
+
+test("media exceptions never permit scripts, documents, submissions, fetches or mismatched extensions", () => {
+  const url = "https://www17.wellsfargomedia.com/assets/fictional.css";
+  for (const resourceType of ["document", "script", "xhr", "fetch", "websocket", "worker", "other", "image", "font", "constructor", undefined]) {
+    assert.equal(wellsRequestAllowed({ url, method: "GET", resourceType }), false);
+  }
+  for (const method of ["POST", "PUT", "DELETE", "HEAD", undefined]) {
+    assert.equal(wellsRequestAllowed({ url, method, resourceType: "stylesheet" }), false);
+  }
+  for (const path of ["/dynamic", "/assets/fictional.js", "/assets/fictional.css/payload", "/assets/fictional%2Ecss", "/assets/fictional.css?private=value", "/assets/fictional.css#private"]) {
+    assert.equal(wellsRequestAllowed({ url: `https://www17.wellsfargomedia.com${path}`, method: "GET", resourceType: "stylesheet" }), false);
+  }
+});
+
+test("media permission rejects unreviewed hosts, subdomains, spoofing, URL credentials, insecure TLS and ports", () => {
+  for (const origin of ["https://www99.wellsfargomedia.com", "https://wellsfargomedia.com", "https://a.www17.wellsfargomedia.com",
+    "https://www17.wellsfargomedia.com.unreviewed.example", "https://www17.wellsfargomedia.com@unreviewed.example",
+    "https://user@www17.wellsfargomedia.com", "http://www17.wellsfargomedia.com", "https://www17.wellsfargomedia.com:444", "https://www17.wellsfargomedia.com."]) {
+    assert.equal(wellsRequestAllowed({ url: `${origin}/assets/fictional.css`, method: "GET", resourceType: "stylesheet" }), false);
+  }
 });
 
 test("pilot network handler blocks unreviewed destinations and websocket connections without logging URLs", async () => {

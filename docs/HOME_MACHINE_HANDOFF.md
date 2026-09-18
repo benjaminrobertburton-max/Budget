@@ -21,14 +21,24 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 ## Current checkpoint — September 18, 2026
 
-- Current implementation: collector version `0.5.0`, the controlled Wells pilot
-  milestone, on `codex/budget-collector`. Pre-edit baseline `3296200` / `0.4.0`
-  passed all 181 tests again before this work. Version 0.5 validation: all **205**
-  core/browser tests passed with no skips using Node 24 and installed Chrome 153
-  on the work Windows machine. This includes encryption, manual controls,
-  structural privacy, redirect/POST restrictions, cancellation/expiry, browser
-  shutdown and forced-process-exit recovery. No real bank was opened. Workbook/builder
+- Current implementation: collector version `0.5.1`, the Wells visual-resource
+  correction, on `codex/budget-collector`. Pre-edit baseline `647be20` / `0.5.0`
+  passed all 205 tests again before this work. The exact media-host exception and
+  public evidence are documented in `docs/WELLS_ASSET_REVIEW.md`. Workbook/builder
   files were unchanged, so no financial workbook was rebuilt or uploaded.
+- Version 0.5.1 validation: **209** core/browser tests passed, zero failures/skips,
+  on the work Windows machine. New checks cover exact media hosts, matching static
+  resource types/extensions, denied submissions and type-aware redirects. Chrome
+  rendered fictional CSS/cross-host CSS import/SVG through the real permission
+  handler while denying scripts, fetches and navigation. RecoveryCheck reported no
+  disposable test files remaining. No bank assets were fetched by regression tests.
+- First attended v0.5 attempt: sign-in reached an unstyled summary, zero outlines
+  were saved, and browser shutdown/profile-record deletion were verified. No
+  account values, identifiers, private URL or screenshot were retained in Git.
+  The old policy blocked publicly referenced media resources. Version 0.5.1 adds
+  GET-only visual types on three exact reviewed hosts, with matching extensions,
+  no queries and method/type-aware redirects. Real summary compatibility still
+  needs the fresh attended retry; do not claim a successful collection.
 - Visual QA: fictional start/results screens at 1280px and results at 700px were
   inspected for readable controls, wrapping and clipping. Previews were deleted.
   One preview lost its input pipe; only its verified helper was stopped, Chrome
@@ -58,9 +68,9 @@ must persist privately at home and must never use the disposable cleanup mode.
    reviewed Wells destination restriction; the fictional transport stays
    loopback-only. `Test-Collector.ps1 -Mode WellsPilot` opens local controls, not a
    bank. After encryption preflight, the user's acknowledgement and **Open Wells**
-   action open the public Wells Sign On page. Only HTTPS Wells domain-family
-   destinations and the private panel are permitted; redirect targets are checked
-   before following them, including POST redirects. Third-party/media domains,
+   action open the public Wells Sign On page. HTTPS Wells domain-family
+   destinations, the private panel and the reviewed GET visual-asset exception
+   are permitted; redirects retain source-method/resource-type checks. Unreviewed domains,
    WebSockets, unknown popups and child-frame requests are blocked. No automatic
    bank clicks, field entry, transfers or security bypasses. Real sign-in may need
    a blocked component; stop and review, do not bypass it. These page restrictions
@@ -84,14 +94,17 @@ must persist privately at home and must never use the disposable cleanup mode.
    account, link destinations or form contents are exported. Frames/truncation
    remain explicit limitations. Financial source-evidence extraction is not yet
    implemented; the structural report always says coverage is unverified.
-4. **Next attended step:** launch WellsPilot and let the user sign into Wells in
-   its separate tab, view one account, return to controls, and inspect its outline.
+4. **Next attended step:** after verifying/pushing the asset correction, launch a
+   fresh WellsPilot. The user signs in, checks that styling and checking activity
+   work, returns to controls, and inspects an outline. Ask for status, not another
+   bank screenshot or private URL. If rendering still fails, review the missing
+   dependency narrowly without relaxing the policy broadly.
    Use PilotRehearsal for a fictional walkthrough first if useful. No new Google
    account or manual Chrome-profile setup is required; do not use Chrome sync.
    The panel has Stop & clean up; closing the account/control tab, interruption,
    a 20-minute expiry or a stuck operation stops the session. At most 12 outlines
    are accepted; encrypted records and the profile are removed after proven exit.
-   Launcher confirmation is required. No real login has been tested yet.
+   Launcher confirmation is required. An unstyled summary is not a compatibility pass.
 5. Inspect the actual account views locally, implement the reader, and verify
    account identity, balance meanings, all current pending activity, posted
    activity through the anchor/overlap window, and complete pagination. Reconcile

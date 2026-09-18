@@ -180,3 +180,71 @@ test("actual Chrome policy blocks redirects, fetches and websocket handshakes to
   } catch (error) { throw assertion ?? error; }
   assert.deepEqual(await fs.readdir(parent), []);
 });
+
+test("Chrome renders fictional CDN styles and images while media scripts, fetches and navigation remain blocked", async t => {
+  const parent = path.join(await tempDirectory(t), "visual-assets");
+  let assertion;
+  try {
+    await withDisposableTestRun({ parent, repositoryRoot }, async scope => {
+      const prefix = `/${"b".repeat(48)}/`;
+      const media = "https://www17.wellsfargomedia.com/assets/fictional";
+      const served = [];
+      const site = http.createServer((_, response) => {
+        response.setHeader("Content-Type", "text/html");
+        response.end(`<!doctype html><html><head>
+          <link rel="stylesheet" href="https://www10.wellsfargomedia.com/assets/fictional.css">
+          <script src="${media}.js"></script><script src="${media}.css"></script>
+          </head><body><main>Entirely fictional visual test</main><img src="${media}.svg" alt="Fictional square"></body></html>`);
+      });
+      const origin = await listen(site);
+      scope.registerClose(() => close(site));
+      const browser = await openOwnedTestBrowser(scope, { headless: true, configure: async context => {
+        // Test-only transport: after the REAL policy permits a request, fulfill
+        // its invented asset locally. Never contact the bank or any media host.
+        // Rejected requests still run the real abort path. No TLS bypass flags.
+        const register = context.route.bind(context);
+        context.route = (pattern, handler) => register(pattern, async route => {
+          const request = route.request();
+          if (new URL(request.url()).origin === origin) return handler(route);
+          return handler({ request: () => request, abort: reason => route.abort(reason), continue: async () => {
+            const url = new URL(request.url());
+            served.push({ host: url.hostname, type: request.resourceType(), method: request.method() });
+            if (request.resourceType() === "stylesheet") {
+              const body = url.hostname === "www10.wellsfargomedia.com"
+                ? '@import url("https://www15.wellsfargomedia.com/assets/fictional-import.css"); main { background-color: rgb(12, 34, 56); }'
+                : 'main { border: 3px solid rgb(90, 80, 70); }';
+              return route.fulfill({ status: 200, contentType: "text/css", body });
+            }
+            if (request.resourceType() === "image") return route.fulfill({ status: 200, contentType: "image/svg+xml",
+              body: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="teal"/></svg>' });
+            return route.fulfill({ status: 200, contentType: "text/plain", body: "Fictional unexpected delivery" });
+          } });
+        });
+        try { await installPilotNetworkPolicy(context, { panelAddress: `${origin}${prefix}` }); }
+        finally { context.route = register; }
+      } });
+      const page = browser.context.pages()[0];
+      try {
+        await page.goto(`${origin}${prefix}`);
+        const rendered = await page.evaluate(() => ({
+          background: getComputedStyle(document.querySelector("main")).backgroundColor,
+          border: getComputedStyle(document.querySelector("main")).borderTopWidth,
+          imageWidth: document.querySelector("img").naturalWidth,
+        }));
+        assert.deepEqual(rendered, { background: "rgb(12, 34, 56)", border: "3px", imageWidth: 24 });
+        const denied = await page.evaluate(async url => {
+          const results = [];
+          for (const method of ["GET", "POST"]) {
+            try { await fetch(url, { method }); results.push(false); } catch { results.push(true); }
+          }
+          return results;
+        }, `${media}.css`);
+        assert.deepEqual(denied, [true, true]);
+        await assert.rejects(page.goto(`${media}.css`));
+        assert.deepEqual(served.map(item => item.host).sort(), ["www10.wellsfargomedia.com", "www15.wellsfargomedia.com", "www17.wellsfargomedia.com"]);
+        assert.ok(served.every(item => item.method === "GET" && ["stylesheet", "image"].includes(item.type)));
+      } catch (error) { assertion = error; throw error; }
+    });
+  } catch (error) { throw assertion ?? error; }
+  assert.deepEqual(await fs.readdir(parent), []);
+});

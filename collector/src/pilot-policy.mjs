@@ -5,6 +5,14 @@ import { createRedirectGuard } from "./redirect-guard.mjs";
 // No CLI-provided bank URL, wildcard third-party domain or insecure TLS override.
 export const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
 const family = (hostname, domain) => hostname === domain || hostname.endsWith(`.${domain}`);
+// Exact hosts declared by the PUBLIC, signed-out Wells sign-in page. See
+// docs/WELLS_ASSET_REVIEW.md for provenance. Never wildcard the media domain.
+const visualHosts = new Set(["www10.wellsfargomedia.com", "www15.wellsfargomedia.com", "www17.wellsfargomedia.com"]);
+const visualExtensions = {
+  stylesheet: /\.css$/i,
+  font: /\.(?:woff2?|ttf|otf|eot)$/i,
+  image: /\.(?:png|jpe?g|gif|svg|webp|ico|avif)$/i,
+};
 
 function parseHttps(value) {
   try {
@@ -19,10 +27,15 @@ export function isWellsDocument(value) {
   return Boolean(url && family(url.hostname, "wellsfargo.com"));
 }
 
-export function wellsRequestAllowed({ url }) {
+export function wellsRequestAllowed({ url, method, resourceType }) {
   const target = parseHttps(url);
   if (!target) return false;
-  return family(target.hostname, "wellsfargo.com");
+  if (family(target.hostname, "wellsfargo.com")) return true;
+  // A visual-resource exception, NOT permission for bank navigation, scripts,
+  // fetch/XHR, workers, uploads or form submissions. No query-string payloads.
+  const extension = Object.hasOwn(visualExtensions, resourceType) ? visualExtensions[resourceType] : null;
+  return visualHosts.has(target.hostname) && method === "GET" && !target.search && !target.hash
+    && Boolean(extension?.test(target.pathname));
 }
 
 export function assertPanelAddress(address) {
@@ -37,11 +50,11 @@ export function assertPanelAddress(address) {
 
 export async function installPilotNetworkPolicy(context, { panelAddress, onBlocked = () => {} }) {
   const panel = assertPanelAddress(panelAddress);
-  const allowedDestination = value => {
+  const allowedDestination = (value, request) => {
     const url = new URL(value);
     return url.origin === panel.origin
       ? !url.username && !url.password && url.pathname.startsWith(panel.pathname) && !url.search
-      : isWellsDocument(value);
+      : wellsRequestAllowed({ url: value, method: request?.method, resourceType: request?.resourceType });
   };
   const guard = await createRedirectGuard(context, allowedDestination, onBlocked);
   await context.route("**/*", async route => {

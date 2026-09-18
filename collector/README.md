@@ -132,16 +132,29 @@ prevent a user from manually making a payment on a permitted bank website.
 
 The starting URL is the Sign On link from
 [Wells Fargo's public online-banking page](https://www.wellsfargo.com/mobile-online-banking/).
-Page traffic is limited to HTTPS `wellsfargo.com` and its true subdomains, plus the
-random-capability loopback control panel. No URL credentials or nonstandard bank
-ports are permitted. Redirect responses are checked before following Location,
-including redirects that would forward POST data. Unreviewed destinations,
-separate media domains, WebSockets, child frames, workers without a supported
+Page traffic is limited to HTTPS `wellsfargo.com` and its true subdomains, the
+random-capability loopback panel, and the narrow visual-resource exception below.
+No URL credentials or nonstandard bank ports are permitted. Redirect responses
+are checked before following Location, including the source method and resource
+type, so a redirect cannot expand the visual exception. Unreviewed destinations,
+WebSockets, child frames, workers without a supported
 frame, and unprepared popup tabs are blocked. Service workers and downloads are
 disabled. These are page-traffic restrictions, not an OS firewall or a guarantee
 about Chrome's own background traffic. Normal TLS and browser security stay on.
 Bank sign-in/MFA may depend on a blocked component: stop and review compatibility,
 never weaken or bypass security controls to force a login.
+
+**Version 0.5.1 visual-resource correction:** Wells' public sign-in page declares
+`www10.wellsfargomedia.com`, `www15.wellsfargomedia.com`, and
+`www17.wellsfargomedia.com`; its public CSS/font references confirm the latter two.
+Only these exact hosts may receive GET stylesheet/font/image requests with matching
+static extensions and no query strings. No media wildcard, navigation, scripts,
+fetch/XHR, submissions or other methods are allowed. Font prefetch can remain
+blocked while the actual font request works. See the
+[public-source review and test scope](../docs/WELLS_ASSET_REVIEW.md).
+The first attended v0.5 attempt reached an unstyled account summary, saved zero
+outlines, and completed verified cleanup. This correction addresses a confirmed
+public-resource compatibility gap; the authenticated summary still needs a retry.
 
 The control server binds only to loopback, checks Host/Origin and private action
 tokens, accepts a tiny fixed command set, and exposes only non-financial status.
@@ -154,8 +167,9 @@ Regression tests use entirely fictional pages for acknowledgement, controls,
 encrypted outlines, cancellation/expiry, redirect chains, POST redirects, blocked
 destinations, frames/popups, shutdown and directory removal. Run browser test files
 serially (`--test-concurrency=1`) so an unrelated concurrent test browser cannot
-confuse conservative crash-recovery ownership checks. Real Wells login and account
-coverage have **not** been tested. This is not the production Refresh Budget button.
+confuse conservative crash-recovery ownership checks. An attended sign-in reached
+the summary, but full page compatibility and financial coverage remain **unverified**.
+This is not the production Refresh Budget button.
 
 ### Stopped-test recovery and private page-structure inspection
 
@@ -360,8 +374,9 @@ its own private data and sessions, and cross-week shadow checks happen at home.
 Ordinary file deletion is not a forensic-erasure guarantee. This cleanup cannot
 erase employer/OS monitoring, backups outside its control, bank logs, or data
 already uploaded to a conversation. A personal Chrome profile does not make an
-employer-managed computer private. No real bank data has been used to test this
-lifecycle; its coverage is entirely fictional.
+employer-managed computer private. Automated coverage tests use fictional data
+only. The attended pilot can create a real temporary bank session; cleanup covers
+its owned profile/records, not a screenshot a user separately uploads to chat.
 
 `windows/Protect-LocalData.ps1` uses Windows DPAPI with `CurrentUser` scope. The
 helper receives data over pipes, not command arguments or plaintext temporary

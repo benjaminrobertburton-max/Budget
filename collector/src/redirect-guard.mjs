@@ -11,7 +11,12 @@ export async function createRedirectGuard(context, allowedUrl, onBlocked = () =>
         let allowed = true;
         if (event.responseStatusCode >= 300 && event.responseStatusCode < 400) {
           const locations = (event.responseHeaders ?? []).filter(header => header.name.toLowerCase() === "location");
-          if (locations.length) allowed = locations.length === 1 && allowedUrl(new URL(locations[0].value, event.request.url).href);
+          if (locations.length) allowed = locations.length === 1 && allowedUrl(new URL(locations[0].value, event.request.url).href, {
+            // Use the SOURCE method even on a 303: a POST must never acquire a
+            // visual-asset exception through redirect method conversion.
+            method: event.request.method,
+            resourceType: event.resourceType?.toLowerCase(),
+          });
         }
         if (allowed) await session.send("Fetch.continueResponse", { requestId: event.requestId });
         else { onBlocked(); await session.send("Fetch.failRequest", { requestId: event.requestId, errorReason: "BlockedByClient" }); }

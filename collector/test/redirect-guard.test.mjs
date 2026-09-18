@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRedirectGuard } from "../src/redirect-guard.mjs";
+import { wellsRequestAllowed } from "../src/pilot-policy.mjs";
 
-async function setup({ broken = false } = {}) {
+async function setup({ broken = false, allow = value => new URL(value).origin === "https://allowed.example" } = {}) {
   const sent = [];
   let handler;
   let closed = 0;
@@ -13,7 +14,7 @@ async function setup({ broken = false } = {}) {
     if (broken && method !== "Fetch.enable") throw new Error("FICTIONAL PRIVATE PROTOCOL DETAIL");
   } };
   const context = { pages: () => [page], newCDPSession: async () => session, newPage: async () => page };
-  const guard = await createRedirectGuard(context, value => new URL(value).origin === "https://allowed.example", () => { blocked++; });
+  const guard = await createRedirectGuard(context, allow, () => { blocked++; });
   return { context, guard, page, sent, paused: value => handler({ requestId: "fictional", request: { url: "https://allowed.example/start" }, ...value }),
     closed: () => closed, blocked: () => blocked };
 }
@@ -64,4 +65,25 @@ test("only guarded top-level pages can send requests; unknown frames and tabs re
 
 test("unsupported browser interception refuses startup instead of silently weakening restrictions", async () => {
   await assert.rejects(createRedirectGuard({ pages: () => [{}], newCDPSession: async () => { throw new Error("Unsupported"); } }, () => true));
+});
+
+test("redirects preserve request-type and source-method restrictions for media, including POST-to-GET redirects", async () => {
+  const state = await setup({ allow: (url, request) => wellsRequestAllowed({ url, ...request }) });
+  for (const [method, resourceType, status, destination, expected] of [
+    ["GET", "Stylesheet", 302, "https://www17.wellsfargomedia.com/assets/fictional.css", true],
+    ["GET", "Font", 307, "https://www15.wellsfargomedia.com/wfui/fictional.woff2", true],
+    ["GET", "Image", 308, "https://www10.wellsfargomedia.com/assets/fictional.png", true],
+    ["GET", "Document", 302, "https://www17.wellsfargomedia.com/assets/fictional.css", false],
+    ["POST", "Stylesheet", 303, "https://www17.wellsfargomedia.com/assets/fictional.css", false],
+    ["POST", "Image", 307, "https://www10.wellsfargomedia.com/assets/fictional.png", false],
+    ["GET", "Script", 302, "https://www17.wellsfargomedia.com/assets/fictional.css", false],
+    ["GET", "Fetch", 302, "https://www17.wellsfargomedia.com/assets/fictional.css", false],
+    ["GET", "Stylesheet", 302, "https://unreviewed.example/fictional.css", false],
+    ["GET", "Stylesheet", 302, "https://www17.wellsfargomedia.com/assets/fictional.css?private=value", false],
+  ]) {
+    await state.paused({ request: { url: "https://connect.secure.wellsfargo.com/fictional-start", method }, resourceType,
+      responseStatusCode: status, responseHeaders: [{ name: "Location", value: destination }] });
+    assert.equal(state.sent.at(-1).method, expected ? "Fetch.continueResponse" : "Fetch.failRequest");
+  }
+  assert.equal(state.closed(), 0);
 });
