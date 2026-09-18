@@ -29,8 +29,9 @@ The in-memory `demo` collects eleven entirely fictional accounts, validates them
 and repeats the refresh to check that entries are not duplicated. It prints only
 summary counts. It never opens a browser, writes data, changes a workbook, or runs
 Git. The Windows-only `storage-demo` also encrypts and saves fictional candidates
-in a newly created temporary directory, reopens them, verifies a repeat refresh and
-a deliberately failed collection, then removes that exact disposable directory.
+in a newly created disposable directory under `%LOCALAPPDATA%\BudgetCollectorTesting`,
+reopens them, verifies a repeat refresh and a deliberately failed collection, then
+removes that exact owned directory and verifies removal.
 It does not initialize the real private store or access bank sessions. Unsupported
 commands (including `live`) fail explicitly.
 
@@ -67,6 +68,9 @@ commands (including `live`) fail explicitly.
   state. Uncommitted ciphertext is retained but never treated as accepted history.
 - An exclusive refresh lock and path checks excluding repositories, known cloud
   folders, broad roots, and symbolic links/junctions.
+- A separate disposable work-test lifecycle: exclusive ownership, encrypted
+  evidence writes, bounded resource-close hooks, verified removal after success or
+  task failure, and blocking when an earlier run or failed cleanup remains.
 
 No budgeting calculation, purchase categorization, payment confirmation, or
 transfer pairing is inferred from amount alone. A reader may retain a transaction
@@ -111,6 +115,58 @@ The real private store is reserved for the home machine. Its proposed default is
 This implementation does not create that store as part of tests or demos.
 Custom sync roots must be declared as excluded paths; the program cannot discover
 every third-party sync application automatically.
+
+### Disposable testing on the work machine
+
+The user now permits live, read-only work-machine testing, subject to workplace
+permission, **only if test financial data is deleted afterward**. The current CLI
+still supports fictional demonstrations only; bank readers and browser shutdown
+integration are not yet implemented. Permission to test is not evidence that live
+collection already works.
+
+`src/disposable-run.mjs` supplies `withDisposableTestRun()`. Its default parent is
+`%LOCALAPPDATA%\BudgetCollectorTesting`, separate from the persistent home store.
+Each invocation creates an owned `run-<random-id>` with `store`, `evidence`, and
+`browser-profile` subdirectories. It does not initialize the home store. The parent
+may remain empty after success; no account names or financial values appear in
+its ownership markers.
+
+The encrypted evidence helper uses Windows user-bound protection by default and
+has no plaintext fallback. Tasks must await all work and register shutdown hooks
+for any owned processes. Hooks run in reverse order, each with a maximum 30-second
+wait; the browser hook must resolve only after the browser has actually exited.
+Tracked evidence writes finish before removal. Only the exact owned run can be
+deleted, after checking ownership, paths, and absence of links/junctions. A task
+error is sanitized and its directory still removed when cleanup is safe.
+
+If a process crashes, a resource will not close, paths change unexpectedly, or
+deletion fails, the program reports `TEST_CLEANUP_REQUIRED`, never a false deletion
+success. Existing runs/locks block another test. Guided recovery must check exact
+ownership and ensure all associated processes have stopped; automatic crash
+recovery and a browser-aware recovery UI are not implemented yet. Do not work
+around a cleanup warning by moving to a fresh parent directory.
+
+The future browser runner must create a **new, unsynced disposable Chrome profile**
+inside that run, never attach to or copy the everyday personal profile. The user
+signs into banks, not Chrome sync. Browser cookies/cache are browser-managed and
+are not encrypted by the collector's record helper. Browser downloads, screenshots,
+traces, videos, and financial debug logs must be disabled unless explicitly needed
+and safely contained. Prove browser exit, ordinary cancellation, profile removal,
+and leftover handling with fictional pages before enabling live tests.
+
+Retain only generic source code, account-independent navigation rules, invented
+fixtures, and non-sensitive test outcomes. Never print private page contents into
+agent tool outputs or retain them in chat. Delete any future test workbook along
+with its test run, not the legacy workbook or the home production history. Multiple
+refresh/reconciliation tests may run within one session before final deletion.
+Deleting test history does not hinder code deployment; home onboarding starts with
+its own private data and sessions, and cross-week shadow checks happen at home.
+
+Ordinary file deletion is not a forensic-erasure guarantee. This cleanup cannot
+erase employer/OS monitoring, backups outside its control, bank logs, or data
+already uploaded to a conversation. A personal Chrome profile does not make an
+employer-managed computer private. No real bank data has been used to test this
+lifecycle; its coverage is entirely fictional.
 
 `windows/Protect-LocalData.ps1` uses Windows DPAPI with `CurrentUser` scope. The
 helper receives data over pipes, not command arguments or plaintext temporary
@@ -165,9 +221,13 @@ it. Do not skip those failures when claiming Windows integration is verified.
 3. **Movement and evidence acceptance.** Implement explicit transfer/payment links
    without double-counting, local user-confirmed exception resolution, and tests
    against workbook cash outputs. Budget rules remain in the workbook.
-4. **Wells home pilot.** Set up the user-owned browser normally on the home machine.
-   Verify read-only summary, pending, posted, pagination, identity, evidence,
-   authentication pause/resume, and elapsed time. No live banking on this work PC.
+4. **Wells disposable pilot and home certification.** First integrate and verify
+   browser shutdown/cancellation and disposable-profile cleanup using fictional
+   pages. Then use the approved work-machine live-test boundary to develop the
+   reader. Verify read-only summary, pending, posted, pagination, identity, evidence,
+   and authentication pause/resume. Group manual sign-ins instead of making the
+   user wait for serial collection. Measure attended authentication, background
+   collection, and total time separately. Confirm sessions and operation at home.
 5. **Other institutions.** Certify each required account and its payment/promo
    pages. Never mark coverage complete merely because one balance was read.
 6. **Refresh button and shadow runs.** Add a local launcher, progress, retry/resume,

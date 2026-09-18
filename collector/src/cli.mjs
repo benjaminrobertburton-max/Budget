@@ -32,6 +32,6 @@ if (command.length !== 1 || !["demo", "storage-demo"].includes(command[0])) {
     console.log(`Offline demonstration passed: ${first.candidate.accountCount} fictional accounts collected and checked.`);
     console.log(`Repeated refresh: ${Object.values(repeated.candidate.changes).reduce((sum, change) => sum + change.added, 0)} duplicate entries added.`);
     console.log("No browser opened, private data read, files written, workbook changed, or Git sync performed.");
-    console.log("Next milestone: private storage and workbook input boundary, followed by the Wells home-machine pilot.");
+    console.log("Remaining: workbook input boundary and browser integration, then approved disposable bank testing and home certification.");
   }
 }

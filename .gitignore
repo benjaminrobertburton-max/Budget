@@ -8,7 +8,7 @@ work/node_modules/
 *.tmp
 
 # Private local direct-browser collector state. Keep real banking data and
-# authenticated browser/session material on the home machine, outside Git.
+# authenticated browser/session material outside Git. Work tests are disposable.
 .collector/
 collector-data/
 work/collector/local/
@@ -33,3 +33,4 @@ collector/private/
 *.db-shm
 *.enc
 *.enc.*.partial
+BudgetCollectorTesting/

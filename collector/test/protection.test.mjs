@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { windowsProtector } from "../src/protection.mjs";
-import { testStore } from "./store-helpers.mjs";
+import { testStore, tempDirectory, repositoryRoot } from "./store-helpers.mjs";
+import { withDisposableTestRun } from "../src/disposable-run.mjs";
 import { refreshToLocalStore } from "../src/private-refresh.mjs";
 import { makeRegistry, makeCaptures, fixtureAdapters, FIXTURE_NOW } from "../fixtures/synthetic.mjs";
 
@@ -32,4 +35,18 @@ test("actual Windows encryption protects a disposable fictional candidate on dis
 test("plaintext and unknown protection formats are never accepted", async () => {
   const protector = windowsProtector();
   await assert.rejects(protector.openMany([Buffer.from('{"marker":"FICTIONAL-PLAINTEXT"}')]), { code: "PROTECTION_FAILED" });
+});
+
+test("disposable evidence uses actual Windows encryption and is removed after the test", { skip: process.platform !== "win32" }, async t => {
+  const parent = path.join(await tempDirectory(t), "dpapi-disposable");
+  let filename;
+  await withDisposableTestRun({ repositoryRoot, parent }, async ({ saveEvidence }) => {
+    const value = { marker: "FICTIONAL-DISPOSABLE-DPAPI-ONLY" };
+    filename = await saveEvidence(value);
+    const ciphertext = await fs.readFile(filename);
+    assert.ok(!ciphertext.includes(Buffer.from(value.marker)));
+    assert.deepEqual(await windowsProtector().openMany([ciphertext]), [value]);
+  });
+  await assert.rejects(fs.stat(filename), { code: "ENOENT" });
+  assert.deepEqual(await fs.readdir(parent), []);
 });
