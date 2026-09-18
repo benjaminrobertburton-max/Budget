@@ -1,7 +1,7 @@
 {
   "name": "budget-collector",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "engines": { "node": ">=22" },
   "dependencies": { "playwright-core": "1.62.1" },
@@ -9,8 +9,10 @@
     "test": "node --test test/*.test.mjs",
     "demo": "node src/cli.mjs demo",
     "demo:storage": "node src/cli.mjs storage-demo",
-    "test:browser": "node --test test-browser/*.test.mjs",
+    "test:browser": "node --test --test-concurrency=1 test-browser/*.test.mjs",
     "demo:browser": "node src/cli.mjs browser-demo",
-    "demo:interactive": "node src/cli.mjs browser-interactive"
+    "demo:interactive": "node src/cli.mjs browser-interactive",
+    "pilot:rehearsal": "node src/cli.mjs pilot-rehearsal",
+    "pilot:wells": "node src/cli.mjs wells-pilot"
   }
 }

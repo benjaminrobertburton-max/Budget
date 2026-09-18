@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("Test", "Demo", "StorageDemo", "BrowserTest", "BrowserDemo", "BrowserInteractive", "RecoveryCheck", "RecoverTest")]
+  [ValidateSet("Test", "Demo", "StorageDemo", "BrowserTest", "BrowserDemo", "BrowserInteractive", "RecoveryCheck", "RecoverTest", "PilotRehearsal", "WellsPilot")]
   [string]$Mode = "Test",
   [switch]$ConfirmCleanup
 )
@@ -19,7 +19,7 @@ try {
   } elseif ($Mode -eq "StorageDemo") {
     & node src/cli.mjs storage-demo
   } elseif ($Mode -eq "BrowserTest") {
-    & node --test 'test-browser/*.test.mjs'
+    & node --test --test-concurrency=1 'test-browser/*.test.mjs'
   } elseif ($Mode -eq "BrowserDemo") {
     & node src/cli.mjs browser-demo
   } elseif ($Mode -eq "BrowserInteractive") {
@@ -28,6 +28,10 @@ try {
     & node src/cli.mjs recover-test
   } elseif ($Mode -eq "RecoverTest") {
     & node src/cli.mjs recover-test --confirm-cleanup
+  } elseif ($Mode -eq "PilotRehearsal") {
+    & node src/cli.mjs pilot-rehearsal
+  } elseif ($Mode -eq "WellsPilot") {
+    & node src/cli.mjs wells-pilot
   } else {
     & node --test 'test/*.test.mjs'
   }

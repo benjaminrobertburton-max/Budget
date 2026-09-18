@@ -21,19 +21,25 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 ## Current checkpoint — September 18, 2026
 
-- Current implementation: collector version `0.4.0`, the stopped-test recovery and
-  private structural-inspection milestone, on `codex/budget-collector`.
-  Pre-edit baseline `a18e15d` / `0.3.0` passed all 140 tests again before this work.
-  Version 0.4 validation: all **181** core/browser tests passed with no skips,
-  including Windows encryption, real Chrome/fictional pages, structural privacy,
-  and forced-process-exit recovery. Offline demo and the PowerShell recovery-check
-  entry point passed; the default disposable area was empty. Workbook/builder
+- Current implementation: collector version `0.5.0`, the controlled Wells pilot
+  milestone, on `codex/budget-collector`. Pre-edit baseline `3296200` / `0.4.0`
+  passed all 181 tests again before this work. Version 0.5 validation: all **205**
+  core/browser tests passed with no skips using Node 24 and installed Chrome 153
+  on the work Windows machine. This includes encryption, manual controls,
+  structural privacy, redirect/POST restrictions, cancellation/expiry, browser
+  shutdown and forced-process-exit recovery. No real bank was opened. Workbook/builder
   files were unchanged, so no financial workbook was rebuilt or uploaded.
+- Visual QA: fictional start/results screens at 1280px and results at 700px were
+  inspected for readable controls, wrapping and clipping. Previews were deleted.
+  One preview lost its input pipe; only its verified helper was stopped, Chrome
+  exited, and the explicit recovery tool verified removal. The repeat interactive
+  preview shut down normally; its helper now also expires after two minutes.
 - Implemented: synthetic source contracts/reconciliation, Windows user-bound
   encrypted storage, disposable test cleanup, actual Chrome against fictional
   local pages, grouped sign-in readiness, bounded collection, cancellation,
-  explicit stopped-test recovery, and bounded text-free page-structure inspection.
-- Not implemented: real bank readers, a permitted live-bank browser runner,
+  explicit stopped-test recovery, bounded text-free page-structure inspection,
+  and a separately gated visible Wells pilot with private local controls.
+- Not implemented: real bank readers, verified authenticated navigation,
   production refresh-lock/recovery UI, verified-input/workbook integration, full
   movement reconciliation, private migration/backup/restore, and production
   one-button deployment. A candidate is not a verified workbook update.
@@ -46,13 +52,19 @@ must persist privately at home and must never use the disposable cleanup mode.
 - Collector work is **not yet on main**. Pulling main alone does not retrieve this
   branch. Do not tell the user that their usual main-sync routine includes it.
 
-## Immediate next implementation: controlled Wells pilot
+## Controlled Wells pilot: implemented controls and next attended step
 
-1. Add a separately gated live browser path with an explicit reviewed Wells
-   destination/navigation policy. Keep the fictional transport loopback-only.
-   Use a fresh disposable visible browser, normal security checks, and manual
-   user login/MFA. Never automate credentials, payment/transfer actions, or bypass
-   bank/workplace controls.
+1. **Implemented and fictional-tested:** a separate visible browser path with a
+   reviewed Wells destination restriction; the fictional transport stays
+   loopback-only. `Test-Collector.ps1 -Mode WellsPilot` opens local controls, not a
+   bank. After encryption preflight, the user's acknowledgement and **Open Wells**
+   action open the public Wells Sign On page. Only HTTPS Wells domain-family
+   destinations and the private panel are permitted; redirect targets are checked
+   before following them, including POST redirects. Third-party/media domains,
+   WebSockets, unknown popups and child-frame requests are blocked. No automatic
+   bank clicks, field entry, transfers or security bypasses. Real sign-in may need
+   a blocked component; stop and review, do not bypass it. These page restrictions
+   are not an OS firewall or a prevention mechanism for user-initiated payments.
 2. Implement and test interruption recovery before collecting live records:
    identify only owned test processes/directories, handle cancellation and failed
    startup, preserve unrelated profiles, and verify cleanup. Unknown ownership or
@@ -72,9 +84,14 @@ must persist privately at home and must never use the disposable cleanup mode.
    account, link destinations or form contents are exported. Frames/truncation
    remain explicit limitations. Financial source-evidence extraction is not yet
    implemented; the structural report always says coverage is unverified.
-4. Once those gates pass, ask the user to sign into Wells in the separate test
-   window. No new Google account or manual Chrome-profile setup is required.
-   Do not sign that profile into Chrome sync.
+4. **Next attended step:** launch WellsPilot and let the user sign into Wells in
+   its separate tab, view one account, return to controls, and inspect its outline.
+   Use PilotRehearsal for a fictional walkthrough first if useful. No new Google
+   account or manual Chrome-profile setup is required; do not use Chrome sync.
+   The panel has Stop & clean up; closing the account/control tab, interruption,
+   a 20-minute expiry or a stuck operation stops the session. At most 12 outlines
+   are accepted; encrypted records and the profile are removed after proven exit.
+   Launcher confirmation is required. No real login has been tested yet.
 5. Inspect the actual account views locally, implement the reader, and verify
    account identity, balance meanings, all current pending activity, posted
    activity through the anchor/overlap window, and complete pagination. Reconcile
@@ -88,15 +105,18 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 This first pilot does not authorize a partial-source update to the real workbook.
 The full source set, workbook checks, and preservation gates still apply.
-The next implementation step remains the separately gated live navigation path
-and local pilot controls, followed by real account mapping/evidence extraction.
-Do not ask the user to sign in until those controls are implemented and tested.
+The controls are implemented and fictional-tested; the next work is the attended
+Wells compatibility/structure check, followed by real account mapping/evidence
+extraction. A text-free outline alone cannot identify merchants, balances, labels,
+pagination semantics or account identity. Design and validate the next local-only
+evidence/mapping boundary here; never export real page text to the agent as a
+shortcut or ask the user to rebuild this functionality on the home machine.
 Public-only research on September 18 confirmed the Sign On link from
 [Wells Fargo's online-banking page](https://www.wellsfargo.com/mobile-online-banking/)
 targets `https://connect.secure.wellsfargo.com/auth/login/present?origin=cob`.
-That is a starting destination, not a reviewed policy for authenticated redirects,
-supporting domains, or account navigation. Do not substitute guessed bank selectors
-or call the live transport implemented on this basis.
+The implemented domain restriction is deliberately conservative, not certification
+of authenticated redirects/supporting domains or account navigation. Do not
+substitute guessed selectors or call the financial reader implemented on this basis.
 
 ## Portable work required before home handoff
 

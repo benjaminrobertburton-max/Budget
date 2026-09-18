@@ -1,9 +1,11 @@
-# Local Budget Collector — fictional browser pilot and encrypted storage
+# Local Budget Collector — controlled Wells pilot and encrypted storage
 
-This is the offline foundation for the user's Tuesday **Refresh Budget** workflow.
+This is the development foundation for the user's Tuesday **Refresh Budget** workflow.
 It is runnable software with fictional test data, a tested Windows encryption
-layer, and disposable Chrome browser demonstrations. It does not yet connect to banks, collect real financial data, create the
-user's home financial store, or update the workbook. The account examples describe
+layer, disposable Chrome demonstrations, and a separately gated manual Wells pilot.
+The pilot can open Wells after user acknowledgement, but only inspects text-free
+page structure. It does not collect real financial data, create the user's home
+financial store, or update the workbook. The account examples describe
 coverage targets, not certified integrations or current household balances.
 
 For the complete home-deployment path, current compatibility unknowns, next live
@@ -63,7 +65,7 @@ enter real account information into this demonstration.
 **No new Google account and no manual Chrome-profile setup are needed.** The
 program creates the empty disposable profile automatically. Do not sign it into
 Chrome sync or import passwords. Your normal personal Chrome profile is not
-opened, copied, or cleared. Bank sign-ins in a future live pilot will be separate
+opened, copied, or cleared. Bank sign-ins in the separate Wells pilot are separate
 from Google/Chrome sign-in; the user alone will perform them.
 
 The demonstration reads five fictional accounts across four sign-in groups,
@@ -89,6 +91,71 @@ interrupted-run recovery case, not a guaranteed immediate cleanup.
 
 Implementation references: [Playwright separate persistent contexts](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context),
 [Chrome's dedicated debugging-profile requirement](https://developer.chrome.com/blog/remote-debugging-port).
+
+### Controlled Wells pilot — manual, temporary, structure only
+
+Version 0.5 provides a local control window using the same tested disposable
+lifecycle. Windows encryption, installed Chrome and the pinned browser dependency
+are required. First rehearse without touching a bank:
+
+```powershell
+.\collector\Test-Collector.ps1 -Mode PilotRehearsal
+```
+
+For the authorized attended work-machine test:
+
+```powershell
+.\collector\Test-Collector.ps1 -Mode WellsPilot
+```
+
+Equivalent commands are `node collector/src/cli.mjs pilot-rehearsal` and
+`node collector/src/cli.mjs wells-pilot`. The second opens **only local controls**
+initially. A non-financial encryption preflight must pass first. Then:
+
+1. Confirm workplace permission/read-only use in the panel and press **Open Wells**.
+2. Sign in and perform MFA yourself in the bank tab. Open one account page manually.
+   Do not make payments/transfers, import passwords, or enable Chrome sync.
+3. Return to the controls and press **Inspect page outline**. Only fixed structural
+   tags/roles and bounded topology are saved encrypted; no account text, amounts,
+   identifiers, field values or private URLs are exported. Login and account
+   coverage remain **unverified**, even when an outline is saved successfully.
+4. Press **Stop & clean up**, or close the control/account tab. The launcher must
+   confirm browser exit and removal of the owned profile and records. If it cannot,
+   use RecoveryCheck; do not assume cleanup succeeded or switch temporary roots.
+
+The session expires after 20 minutes; each operation is bounded to 20 seconds and
+at most 12 outlines can be stored. Stop is available during an operation. There are
+no bank selectors, automatic clicks, form entry/submission, payment actions,
+transaction extraction, real-login detection, or workbook writes in this pilot.
+The user must keep manual navigation read-only; destination restrictions cannot
+prevent a user from manually making a payment on a permitted bank website.
+
+The starting URL is the Sign On link from
+[Wells Fargo's public online-banking page](https://www.wellsfargo.com/mobile-online-banking/).
+Page traffic is limited to HTTPS `wellsfargo.com` and its true subdomains, plus the
+random-capability loopback control panel. No URL credentials or nonstandard bank
+ports are permitted. Redirect responses are checked before following Location,
+including redirects that would forward POST data. Unreviewed destinations,
+separate media domains, WebSockets, child frames, workers without a supported
+frame, and unprepared popup tabs are blocked. Service workers and downloads are
+disabled. These are page-traffic restrictions, not an OS firewall or a guarantee
+about Chrome's own background traffic. Normal TLS and browser security stay on.
+Bank sign-in/MFA may depend on a blocked component: stop and review compatibility,
+never weaken or bypass security controls to force a login.
+
+The control server binds only to loopback, checks Host/Origin and private action
+tokens, accepts a tiny fixed command set, and exposes only non-financial status.
+No bank network bodies, credential headers, screenshots, traces, or financial
+debug logs are read/exported by pilot inspection. Redirect handling examines only
+status, destination URLs and Location in memory; it does not replay requests.
+See [Chrome Fetch response interception](https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/pdl/domains/Fetch.pdl).
+
+Regression tests use entirely fictional pages for acknowledgement, controls,
+encrypted outlines, cancellation/expiry, redirect chains, POST redirects, blocked
+destinations, frames/popups, shutdown and directory removal. Run browser test files
+serially (`--test-concurrency=1`) so an unrelated concurrent test browser cannot
+confuse conservative crash-recovery ownership checks. Real Wells login and account
+coverage have **not** been tested. This is not the production Refresh Budget button.
 
 ### Stopped-test recovery and private page-structure inspection
 
@@ -139,9 +206,9 @@ unexpected fields/strings before a caller receives the report. Errors are static
 
 **A structural outline is never transaction evidence, authentication proof, or a
 verified account.** It cannot identify balance meanings or prove page coverage.
-No raw financial HTML capture or bank adapter is enabled by these helpers. A
-separately reviewed live navigation path, local pilot controls, and account-specific
-evidence extraction are still required before asking for a real sign-in.
+No raw financial HTML capture or bank adapter is enabled by these helpers. The
+version 0.5 pilot above supplies gated navigation and local controls; actual
+account mapping and source-evidence extraction remain separate unfinished work.
 
 Tests include an actual forced collector-process exit with fictional Chrome
 pages, subsequent stopped-run cleanup, PID/lineage uncertainty, tampered paths,
@@ -191,6 +258,8 @@ Windows process semantics: [Microsoft Win32_Process](https://learn.microsoft.com
   read-only Windows process/lineage checks, ownership rechecks, and no process killing.
 - Bounded structural page inspection with a fixed vocabulary, excluded form
   values/text/identifiers, and strict rejection of unexpected output fields.
+- A visible manual Wells pilot and fictional rehearsal, explicit acknowledgement,
+  pre-navigation/redirect restrictions, bounded controls, and verified cleanup.
 
 No budgeting calculation, purchase categorization, payment confirmation, or
 transfer pairing is inferred from amount alone. A reader may retain a transaction
@@ -240,7 +309,8 @@ every third-party sync application automatically.
 
 The user now permits live, read-only work-machine testing, subject to workplace
 permission, **only if test financial data is deleted afterward**. The current CLI
-still supports fictional demonstrations only; bank readers are not implemented.
+supports fictional demonstrations and the separate structure-only Wells pilot;
+bank readers are not implemented.
 Browser shutdown/profile removal have been tested with the fictional site.
 Permission to test is not evidence that live
 collection already works.
@@ -268,15 +338,15 @@ process state remain blocking; unattended recovery and a browser-aware recovery
 UI are not implemented. Do not work around a cleanup warning by moving to a fresh
 parent directory.
 
-The implemented fictional browser runner creates a **new, unsynced disposable
+Both the fictional browser runner and gated pilot create a **new, unsynced disposable
 Chrome profile** inside that run, never attaching to or copying the everyday personal profile. The user
 signs into banks, not Chrome sync. Browser cookies/cache are browser-managed and
 are not encrypted by the collector's record helper. Browser downloads, screenshots,
 traces, videos, and financial debug logs must be disabled unless explicitly needed
 and safely contained. Browser exit, the fictional Cancel button, profile removal,
-and external-page blocking are integration-tested. Live navigation, real approval
-detection, account-specific evidence coverage, and a local live-pilot control
-surface still require development and acceptance before enabling bank tests.
+and external-page blocking are integration-tested. Pilot controls and destination
+restrictions are tested using fictional pages; real-bank compatibility, approval
+detection and account-specific evidence coverage still require development/testing.
 The fictional forced-process-exit recovery test does not certify live-bank coverage.
 
 Retain only generic source code, account-independent navigation rules, invented
@@ -346,10 +416,10 @@ it. Do not skip those failures when claiming Windows integration is verified.
 3. **Movement and evidence acceptance.** Implement explicit transfer/payment links
    without double-counting, local user-confirmed exception resolution, and tests
    against workbook cash outputs. Budget rules remain in the workbook.
-4. **Wells disposable pilot and home certification.** Use the tested fictional
-   browser lifecycle to build a separately gated read-only live pilot; do not relax
-   the fictional transport's loopback-only rule. Use the approved work-machine
-   live-test boundary to develop the
+4. **Wells reader and home certification.** Use the separately gated pilot controls
+   for an attended sign-in/structure check, then implement source-evidence capture
+   and account mapping. Do not relax the fictional transport's loopback-only rule.
+   Use the approved work-machine live-test boundary to develop the
    reader. Verify read-only summary, pending, posted, pagination, identity, evidence,
    and authentication pause/resume. Group manual sign-ins instead of making the
    user wait for serial collection. Measure attended authentication, background
@@ -361,8 +431,10 @@ it. Do not skip those failures when claiming Windows integration is verified.
    and opening of the verified workbook. Run three to four complete weekly
    comparison cycles before retiring screenshot fallback. No daily scheduler.
 
-The next acceptance milestone is one verified Wells-to-workbook refresh on the
-home machine. Full one-button readiness requires every registered source, exact
+The next attended step is the controlled Wells sign-in/structure check here. Finish
+portable reader and workbook-boundary development here before home installation;
+the pilot does not authorize a partial-source update to the real workbook.
+Full one-button readiness requires every registered source, exact
 workbook cash consistency, preserved history/settings, no financial uploads,
 acceptable intervention/time, and no AI participation in a normal refresh.
 

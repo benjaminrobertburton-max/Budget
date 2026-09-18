@@ -12,7 +12,8 @@ test("offline CLI completes without printing fictional balances or merchants", (
   assert.doesNotMatch(result.stdout, /FICTIONAL PAYROLL|250000|230000/);
 });
 test("live and arbitrary input commands fail closed", () => {
-  for (const args of [["live"], ["demo", "--input=private.json"], []]) {
+  for (const args of [["live"], ["demo", "--input=private.json"],
+    ["wells-pilot", "--url=https://unreviewed.example"], ["pilot-rehearsal", "--headless"], []]) {
     const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
     assert.equal(result.status, 2);
     assert.match(result.stderr, /Live account collection is not installed/);
