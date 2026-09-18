@@ -45,6 +45,7 @@ export async function openFixtureBrowser(scope, { origin, headless = true } = {}
     while ([...pids].some(alive) && performance.now() < deadline) await delay(50);
     check(!processCheckFailed && pids.size > 0 && ![...pids].some(alive), "BROWSER_CLOSE_UNVERIFIED", "A test browser process may still be running.");
   });
+  await scope.armBrowserRecovery();
   try {
     context = await chromium.launchPersistentContext(scope.paths.browserProfile, {
       channel: "chrome", headless, chromiumSandbox: true, acceptDownloads: false,

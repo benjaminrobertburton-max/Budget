@@ -2,11 +2,24 @@ import { collectCandidate } from "./refresh.mjs";
 import { makeRegistry, makeCaptures, fixtureAdapters, FIXTURE_NOW } from "../fixtures/synthetic.mjs";
 import { storageDemo } from "./storage-demo.mjs";
 import { safeIssue } from "./errors.mjs";
+import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
+if (command[0] === "recover-test" && (command.length === 1 || (command.length === 2 && command[1] === "--confirm-cleanup"))) {
+  try {
+    const { recoverDisposableTest, recoveryMessage } = await import("./test-recovery.mjs");
+    const result = await recoverDisposableTest({ repositoryRoot: fileURLToPath(new URL("../../", import.meta.url)),
+      confirm: command[1] === "--confirm-cleanup" });
+    console.log(recoveryMessage(result));
+    if (result.status === "blocked") process.exitCode = 1;
+  } catch {
+    console.error("Recovery is unavailable. No personal browser or financial workbook was changed.");
+    process.exitCode = 1;
+  }
+} else if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
   console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive");
   console.error("Live account collection is not installed. This milestone uses fictional data only.");
+  console.error("Stopped-test inspection: node collector/src/cli.mjs recover-test [--confirm-cleanup]");
   process.exitCode = 2;
 } else if (command[0].startsWith("browser-")) {
   try {

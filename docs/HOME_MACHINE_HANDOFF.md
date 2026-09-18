@@ -21,14 +21,20 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 ## Current checkpoint — September 18, 2026
 
-- Last implementation checkpoint: `a18e15d`, collector version `0.3.0`, on
-  `codex/budget-collector`. That checkpoint passed 140 core/browser tests; the
-  final five browser checks were rerun after the progress-display correction.
+- Current implementation: collector version `0.4.0`, the stopped-test recovery and
+  private structural-inspection milestone, on `codex/budget-collector`.
+  Pre-edit baseline `a18e15d` / `0.3.0` passed all 140 tests again before this work.
+  Version 0.4 validation: all **181** core/browser tests passed with no skips,
+  including Windows encryption, real Chrome/fictional pages, structural privacy,
+  and forced-process-exit recovery. Offline demo and the PowerShell recovery-check
+  entry point passed; the default disposable area was empty. Workbook/builder
+  files were unchanged, so no financial workbook was rebuilt or uploaded.
 - Implemented: synthetic source contracts/reconciliation, Windows user-bound
   encrypted storage, disposable test cleanup, actual Chrome against fictional
-  local pages, grouped sign-in readiness, bounded collection, and cancellation.
+  local pages, grouped sign-in readiness, bounded collection, cancellation,
+  explicit stopped-test recovery, and bounded text-free page-structure inspection.
 - Not implemented: real bank readers, a permitted live-bank browser runner,
-  guided crash recovery, production verified-input/workbook integration, full
+  production refresh-lock/recovery UI, verified-input/workbook integration, full
   movement reconciliation, private migration/backup/restore, and production
   one-button deployment. A candidate is not a verified workbook update.
 - No real bank has been read by the collector. No actual workbook has been
@@ -51,10 +57,21 @@ must persist privately at home and must never use the disposable cleanup mode.
    identify only owned test processes/directories, handle cancellation and failed
    startup, preserve unrelated profiles, and verify cleanup. Unknown ownership or
    a running process blocks deletion and another test; never claim success.
+   **Implemented for supported disposable runs:** `recover-test` is inspection
+   only; `recover-test --confirm-cleanup` checks ownership and current process
+   ancestry again before removal. A fictional Chrome test deliberately exits the
+   collector without cleanup, then verifies recovery after browser exit. No
+   process is killed by recovery. Unknown ancestry/legacy or damaged markers and
+   an interrupted recovery itself still block and need review.
 3. Keep page contents, sensitive URLs, IDs, balances, and transactions out of
    agent output, logs, Git, and chat. Establish local encrypted source evidence
    and a safe structural-inspection method for reader development. Do not treat
    redacted page inspection as proof of financial coverage.
+   **Implemented structural boundary:** only a fixed tag/role vocabulary and
+   bounded topology leave the page. No text, values, attributes identifying the
+   account, link destinations or form contents are exported. Frames/truncation
+   remain explicit limitations. Financial source-evidence extraction is not yet
+   implemented; the structural report always says coverage is unverified.
 4. Once those gates pass, ask the user to sign into Wells in the separate test
    window. No new Google account or manual Chrome-profile setup is required.
    Do not sign that profile into Chrome sync.
@@ -71,6 +88,15 @@ must persist privately at home and must never use the disposable cleanup mode.
 
 This first pilot does not authorize a partial-source update to the real workbook.
 The full source set, workbook checks, and preservation gates still apply.
+The next implementation step remains the separately gated live navigation path
+and local pilot controls, followed by real account mapping/evidence extraction.
+Do not ask the user to sign in until those controls are implemented and tested.
+Public-only research on September 18 confirmed the Sign On link from
+[Wells Fargo's online-banking page](https://www.wellsfargo.com/mobile-online-banking/)
+targets `https://connect.secure.wellsfargo.com/auth/login/present?origin=cob`.
+That is a starting destination, not a reviewed policy for authenticated redirects,
+supporting domains, or account navigation. Do not substitute guessed bank selectors
+or call the live transport implemented on this basis.
 
 ## Portable work required before home handoff
 

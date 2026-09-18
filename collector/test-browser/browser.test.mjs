@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fork } from "node:child_process";
+import { once } from "node:events";
+import { fileURLToPath } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 import { withDisposableTestRun } from "../src/disposable-run.mjs";
 import { openFixtureBrowser } from "../src/fixture-browser.mjs";
 import { collectWithSessions } from "../src/session-collection.mjs";
@@ -9,6 +13,8 @@ import { startFixtureSite } from "../fixtures/browser-site.mjs";
 import { fixtureBrowserReader } from "../fixtures/browser-reader.mjs";
 import { FIXTURE_NOW, makeCaptures } from "../fixtures/synthetic.mjs";
 import { repositoryRoot, tempDirectory } from "../test/store-helpers.mjs";
+import { inspectPageStructure } from "../src/page-structure.mjs";
+import { recoverDisposableTest } from "../src/test-recovery.mjs";
 
 async function runBrowser(t, task) {
   const parent = path.join(await tempDirectory(t), "browser-run");
@@ -112,4 +118,77 @@ test("the local Cancel button ends login waits and cleans up the browser and pro
     assert.equal(result.status, "cancelled");
     assert.equal(result.candidate, null);
   });
+});
+
+test("private structural inspection excludes credentials, page text, attributes and frame contents", async t => {
+  await runBrowser(t, async ({ context }) => {
+    const page = await context.newPage();
+    await page.setContent(`<body><main id="FICTIONAL-ACCOUNT-123" data-balance="765.43">
+      <h1>FICTIONAL-PERSON-NAME</h1><table><tr><td>FICTIONAL-MERCHANT</td><td>$765.43</td></tr></table>
+      <form><label>FICTIONAL-USERNAME</label><input value="FICTIONAL-PASSWORD"><input type="password" value="FICTIONAL-CODE"></form>
+      <div contenteditable="true">FICTIONAL-EDITABLE</div>
+      <a href="https://example.com/?account=FICTIONAL-PRIVATE" title="FICTIONAL-LABEL">FICTIONAL-LINK</a>
+      <x-fictional-account role="FICTIONAL-SECRET">FICTIONAL-SECRET</x-fictional-account>
+      <iframe srcdoc="<p>FICTIONAL-FRAME</p>"></iframe><div id="shadow"></div></main></body>`);
+    await page.evaluate(() => {
+      document.querySelector("#shadow").attachShadow({ mode: "open" }).innerHTML = "<table><tr><td>FICTIONAL-SHADOW</td></tr></table>";
+      for (const input of document.querySelectorAll("input")) Object.defineProperty(input, "value", { get() { throw new Error("Credential read prohibited"); } });
+    });
+    const structure = await inspectPageStructure(page);
+    assert.doesNotMatch(JSON.stringify(structure), /FICTIONAL|765|https|password|account=|srcdoc/i);
+    assert.equal(structure.hasFrames, true);
+    assert.equal(structure.hasShadowRoots, true);
+    assert.equal(structure.coverageVerified, false);
+    assert.equal(structure.redactedSubtrees, 2);
+    assert.ok(structure.nodes.some(item => item.tag === "table"));
+    assert.ok(structure.nodes.some(item => item.tag === "other" && item.role === "other"));
+    assert.ok(!structure.nodes.some(item => item.tag === "input"));
+  });
+});
+
+test("large pages produce a bounded incomplete structure, never a false coverage pass", async t => {
+  await runBrowser(t, async ({ context }) => {
+    const page = await context.newPage();
+    await page.setContent(`<main>${"<div>FICTIONAL</div>".repeat(1600)}</main>`);
+    const result = await inspectPageStructure(page);
+    assert.equal(result.nodes.length, 1500);
+    assert.equal(result.truncated, true);
+    assert.equal(result.coverageVerified, false);
+  });
+});
+
+test("forced collector exit leaves a blocked run which can be recovered after real Chrome exits", { timeout: 45000 }, async t => {
+  let child;
+  let exited;
+  // Register helper shutdown before the temporary-directory cleanup hook.
+  t.after(async () => {
+    if (child && child.exitCode === null) {
+      if (child.connected) child.send("finish");
+      await Promise.race([exited, delay(10000, null, { ref: false })]);
+      if (child.exitCode === null) child.kill();
+    }
+  });
+  const parent = path.join(await tempDirectory(t), "crashed-browser");
+  const script = fileURLToPath(new URL("../fixtures/interrupted-browser.mjs", import.meta.url));
+  child = fork(script, [parent], { stdio: ["ignore", "ignore", "ignore", "ipc"], windowsHide: true });
+  exited = once(child, "exit");
+  const ready = await Promise.race([
+    once(child, "message").then(([message]) => message),
+    exited.then(() => { throw new Error("Fictional crash helper exited before readiness"); }),
+    delay(20000, null, { ref: false }).then(() => { throw new Error("Fictional crash helper timed out"); }),
+  ]);
+  assert.equal(ready.ready, true);
+  const active = await recoverDisposableTest({ repositoryRoot, parent });
+  assert.equal(active.status, "blocked");
+  assert.equal(active.reason, "test_running");
+  child.send("crash");
+  assert.equal((await exited)[0], 17);
+  const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== "ESRCH"; } };
+  const deadline = performance.now() + 10000;
+  while (ready.pids.some(alive) && performance.now() < deadline) await delay(50);
+  assert.ok(!ready.pids.some(alive), "fictional Chrome processes must exit before recovery");
+  assert.ok((await fs.readdir(parent)).length > 0, "forced exit must leave recoverable files");
+  const result = await recoverDisposableTest({ repositoryRoot, parent, confirm: true });
+  assert.equal(result.status, "cleaned", `Recovery must be verified: ${result.reason ?? result.status}`);
+  assert.deepEqual(await fs.readdir(parent), []);
 });

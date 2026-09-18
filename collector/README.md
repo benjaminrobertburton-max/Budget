@@ -90,6 +90,64 @@ interrupted-run recovery case, not a guaranteed immediate cleanup.
 Implementation references: [Playwright separate persistent contexts](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context),
 [Chrome's dedicated debugging-profile requirement](https://developer.chrome.com/blog/remote-debugging-port).
 
+### Stopped-test recovery and private page-structure inspection
+
+Version 0.4 adds recovery for new disposable test runs. It does **not** recover or
+delete the persistent home store, the financial workbook, or a personal profile.
+Inspect first; that command creates/deletes nothing:
+
+```powershell
+.\collector\Test-Collector.ps1 -Mode RecoveryCheck
+```
+
+If the result says cleanup is safe, explicitly confirm deletion of the stopped
+test's temporary files:
+
+```powershell
+.\collector\Test-Collector.ps1 -Mode RecoverTest -ConfirmCleanup
+```
+
+Equivalent commands are `node collector/src/cli.mjs recover-test` and
+`node collector/src/cli.mjs recover-test --confirm-cleanup`. Neither starts a bank
+session. Do not respond to a blocked check by selecting another temporary parent.
+
+Before launching Chrome, the test writes and flushes a startup journal containing
+only an ownership token, boot timestamp, and pre-existing Chrome process IDs,
+parent IDs, and creation timestamps. No command lines, profile paths, URLs, user
+names, or account data are collected by the Windows process helper. Recovery
+checks exact directory/marker ownership, rejects links/junctions, verifies the
+owner is stopped, and repeats these checks under an exclusive recovery lock
+before deletion. It never kills Chrome or any process identified by a marker.
+
+New tabs descended from a proven pre-existing Chrome process do not block
+recovery. An unknown new Chrome process, PID reuse, missing ancestry, failed
+process lookup, malformed journal, old-format run, or unexpected file blocks it.
+Close only the collector's test window and check again. If process ownership
+cannot be resolved, a Windows restart can establish that old processes exited;
+it does not authorize deletion of an invalid/unowned directory. A crashed recovery
+operation or partially deleted ownership record still needs review. This is a
+conservative command-line recovery tool, not a production recovery UI or a
+guarantee against sudden power loss.
+
+`src/page-structure.mjs` supplies a separate privacy boundary for reader
+development. The browser exports only bounded topology and fixed tag/role words;
+it does not read text, financial values, field values, IDs/classes, link targets,
+labels, cookies, or browser storage. Form/editable subtrees are excluded, embedded
+frames are flagged but not entered, open shadow roots are distinguished, and
+large/deep outlines are marked truncated. A second strict schema check rejects
+unexpected fields/strings before a caller receives the report. Errors are static.
+
+**A structural outline is never transaction evidence, authentication proof, or a
+verified account.** It cannot identify balance meanings or prove page coverage.
+No raw financial HTML capture or bank adapter is enabled by these helpers. A
+separately reviewed live navigation path, local pilot controls, and account-specific
+evidence extraction are still required before asking for a real sign-in.
+
+Tests include an actual forced collector-process exit with fictional Chrome
+pages, subsequent stopped-run cleanup, PID/lineage uncertainty, tampered paths,
+and fictional secrets deliberately placed in page fields and attributes.
+Windows process semantics: [Microsoft Win32_Process](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process).
+
 ## Responsibilities
 
 - The collector gathers and validates source facts and transaction identities.
@@ -129,6 +187,10 @@ Implementation references: [Playwright separate persistent contexts](https://pla
 - Real Chrome integration against a private loopback fictional site, grouped
   sign-in readiness, bounded concurrent collection, shared-session sequencing,
   consolidated incomplete-session states, cancellation, and final freshness checks.
+- Explicit stopped-test recovery with a flushed browser-startup journal,
+  read-only Windows process/lineage checks, ownership rechecks, and no process killing.
+- Bounded structural page inspection with a fixed vocabulary, excluded form
+  values/text/identifiers, and strict rejection of unexpected output fields.
 
 No budgeting calculation, purchase categorization, payment confirmation, or
 transfer pairing is inferred from amount alone. A reader may retain a transaction
@@ -200,10 +262,11 @@ error is sanitized and its directory still removed when cleanup is safe.
 
 If a process crashes, a resource will not close, paths change unexpectedly, or
 deletion fails, the program reports `TEST_CLEANUP_REQUIRED`, never a false deletion
-success. Existing runs/locks block another test. Guided recovery must check exact
-ownership and ensure all associated processes have stopped; automatic crash
-recovery and a browser-aware recovery UI are not implemented yet. Do not work
-around a cleanup warning by moving to a fresh parent directory.
+success. Existing runs/locks block another test. Use the explicit stopped-test
+recovery commands above for supported new-format runs. Unknown ownership and
+process state remain blocking; unattended recovery and a browser-aware recovery
+UI are not implemented. Do not work around a cleanup warning by moving to a fresh
+parent directory.
 
 The implemented fictional browser runner creates a **new, unsynced disposable
 Chrome profile** inside that run, never attaching to or copying the everyday personal profile. The user
@@ -212,8 +275,9 @@ are not encrypted by the collector's record helper. Browser downloads, screensho
 traces, videos, and financial debug logs must be disabled unless explicitly needed
 and safely contained. Browser exit, the fictional Cancel button, profile removal,
 and external-page blocking are integration-tested. Live navigation, real approval
-detection, evidence coverage, and process-crash recovery still require additional
-development and acceptance before enabling bank tests.
+detection, account-specific evidence coverage, and a local live-pilot control
+surface still require development and acceptance before enabling bank tests.
+The fictional forced-process-exit recovery test does not certify live-bank coverage.
 
 Retain only generic source code, account-independent navigation rules, invented
 fixtures, and non-sensitive test outcomes. Never print private page contents into

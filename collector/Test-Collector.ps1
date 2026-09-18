@@ -1,9 +1,14 @@
 param(
-  [ValidateSet("Test", "Demo", "StorageDemo", "BrowserTest", "BrowserDemo", "BrowserInteractive")]
-  [string]$Mode = "Test"
+  [ValidateSet("Test", "Demo", "StorageDemo", "BrowserTest", "BrowserDemo", "BrowserInteractive", "RecoveryCheck", "RecoverTest")]
+  [string]$Mode = "Test",
+  [switch]$ConfirmCleanup
 )
 
 $ErrorActionPreference = "Stop"
+if ($Mode -eq "RecoverTest" -and -not $ConfirmCleanup) {
+  throw "Use RecoveryCheck first. RecoverTest requires -ConfirmCleanup and removes only a proven stopped disposable test."
+}
+if ($ConfirmCleanup -and $Mode -ne "RecoverTest") { throw "ConfirmCleanup applies only to RecoverTest." }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   throw "Node.js 22 or newer must be installed before running the offline collector demonstration."
 }
@@ -19,6 +24,10 @@ try {
     & node src/cli.mjs browser-demo
   } elseif ($Mode -eq "BrowserInteractive") {
     & node src/cli.mjs browser-interactive
+  } elseif ($Mode -eq "RecoveryCheck") {
+    & node src/cli.mjs recover-test
+  } elseif ($Mode -eq "RecoverTest") {
+    & node src/cli.mjs recover-test --confirm-cleanup
   } else {
     & node --test 'test/*.test.mjs'
   }

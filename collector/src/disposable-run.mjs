@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { CollectionError, requireEvidence as check } from "./errors.mjs";
 import { assertPrivateDirectory, assertRegularFile } from "./private-paths.mjs";
 import { windowsProtector } from "./protection.mjs";
+import { windowsTestProcesses, validateProcessSnapshot } from "./test-processes.mjs";
 
 // This lifecycle is for work-machine tests, NEVER the persistent home store.
 export function defaultTestRoot() {
@@ -16,13 +17,13 @@ function failure(code, message) {
   return new CollectionError(code, message);
 }
 
-async function noLinksInTree(directory) {
+export async function noLinksInTestTree(directory) {
   for (const entry of await fs.readdir(directory)) {
     const filename = path.join(directory, entry);
     const info = await fs.lstat(filename);
     check(!info.isSymbolicLink() && (info.isDirectory() || info.isFile()),
       "UNSAFE_CLEANUP", "A test directory contains an unexpected link or file type.");
-    if (info.isDirectory()) await noLinksInTree(filename);
+    if (info.isDirectory()) await noLinksInTestTree(filename);
   }
 }
 
@@ -49,6 +50,7 @@ async function closeWithin(close, timeoutMs) {
 export async function withDisposableTestRun({
   repositoryRoot, parent = defaultTestRoot(), cloudRoots = [],
   protector = windowsProtector(), closeTimeoutMs = 30000,
+  processProbe = windowsTestProcesses,
 }, task) {
   check(typeof task === "function" && Number.isInteger(closeTimeoutMs)
     && closeTimeoutMs > 0 && closeTimeoutMs <= 30000,
@@ -58,7 +60,7 @@ export async function withDisposableTestRun({
   await fs.mkdir(safeParent, { recursive: true, mode: 0o700 });
   await assertPrivateDirectory(safeParent, boundaries);
   const resolvedParent = await fs.realpath(safeParent);
-  const marker = JSON.stringify({ version: 1, purpose: "disposable-collector-test", id: randomUUID(), pid: process.pid });
+  const marker = JSON.stringify({ version: 2, purpose: "disposable-collector-test", id: randomUUID(), pid: process.pid });
   const lock = path.join(safeParent, ".active-test.json");
   let handle;
   try {
@@ -96,8 +98,31 @@ export async function withDisposableTestRun({
     for (const directory of [paths.store, paths.evidence, paths.browserProfile]) {
       await fs.mkdir(directory, { mode: 0o700 });
     }
+    // Immutable journal: an incomplete .browser-starting.json always blocks recovery.
+    // The arm record is flushed before any browser process may be launched.
+    const initialGuard = await fs.open(path.join(root, ".browser-unused.json"), "wx", 0o600);
+    try { await initialGuard.writeFile(marker, "utf8"); await initialGuard.sync(); }
+    finally { await initialGuard.close(); }
+    let browserArmed = false;
     result = await task(Object.freeze({
       paths,
+      armBrowserRecovery() {
+        check(accepting && !browserArmed, "BROWSER_GUARD_REQUIRED", "Only one owned browser may start in a disposable test.");
+        browserArmed = true;
+        const pending = (async () => {
+          const snapshot = validateProcessSnapshot(await processProbe(process.pid), process.pid);
+          check(snapshot.processes.some(row => row.pid === process.pid), "PROCESS_CHECK_FAILED", "The test owner could not be verified.");
+          const guard = { version: 2, owner: JSON.parse(marker).id, bootId: snapshot.bootId,
+            startedAfter: snapshot.observedAt, baselineChrome: snapshot.processes.filter(row => row.kind === "chrome") };
+          const guardFile = await fs.open(path.join(root, ".browser-starting.json"), "wx", 0o600);
+          try { await guardFile.writeFile(JSON.stringify(guard), "utf8"); await guardFile.sync(); }
+          finally { await guardFile.close(); }
+          return Object.freeze(guard);
+        })();
+        writes.push(pending);
+        pending.catch(() => { writeFailed = true; });
+        return pending;
+      },
       registerClose(close) {
         check(accepting && typeof close === "function", "TEST_RUN_CLOSED", "This test no longer accepts resources.");
         closers.push(close);
@@ -143,7 +168,7 @@ export async function withDisposableTestRun({
         await assertRegularFile(path.join(root, ".owner.json"), 1024);
         check(await fs.readFile(path.join(root, ".owner.json"), "utf8") === marker,
           "UNSAFE_CLEANUP", "Test ownership changed.");
-        await noLinksInTree(resolved);
+        await noLinksInTestTree(resolved);
         // Exact ownership and absolute boundaries are checked above. Never delete the parent.
         await fs.rm(resolved, { recursive: true, force: false });
         try {
