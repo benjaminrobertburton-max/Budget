@@ -80,6 +80,14 @@ chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === POLL_ALARM) void
 chrome.runtime.onStartup.addListener(() => void pollCommand());
 chrome.runtime.onInstalled.addListener(() => void pollCommand());
 
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name !== "collector-wake" || port.sender?.id !== chrome.runtime.id
+    || port.sender?.url !== chrome.runtime.getURL("wake.html")) return;
+  port.onMessage.addListener(message => {
+    if (message?.event === "collector_wake") void pollCommand();
+  });
+});
+
 chrome.action.onClicked.addListener(async () => {
   try {
     await startSession();
@@ -93,10 +101,6 @@ chrome.action.onClicked.addListener(async () => {
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const event = message.event;
-  if (event === "collector_wake" && sender.url === chrome.runtime.getURL("wake.html")) {
-    void pollCommand();
-    return;
-  }
   if (!session) return;
   if (event === "activity_capture") {
     if (Number.isInteger(sender.tab?.id) && sender.tab.id === wellsTabId && message.candidate) {
