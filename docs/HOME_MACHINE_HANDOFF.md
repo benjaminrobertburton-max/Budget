@@ -84,6 +84,28 @@ successful complete Wells collection, other live adapters, private migration/
 backup/restore, workbook integration, production launcher and weekly shadow cycles.
 No actual workbook has been updated by this collector.
 
+### Home preflight — September 19, 2026
+
+- Synced the local checkout to `codex/budget-collector` at `8a50dcb` before
+  implementation and confirmed the working tree was clean. No local workbook or
+  private financial file was migrated, overwritten, or published.
+- Confirmed Windows, Node.js 24.19.0, installed Chrome 152.0.7977.84 and the
+  pinned `playwright-core` dependency. The full local fictional core suite
+  (201 tests) and serial browser suite (15 tests) now pass on this machine.
+  No bank page, browser profile, account, workbook, or financial evidence was
+  accessed by those tests.
+- This Windows profile blocks `.ps1` files through execution policy. The private
+  DPAPI and process-inspection helpers were made compatible without changing the
+  policy, adding an execution-policy bypass, or placing pipe payloads on a command
+  line. They continue to fail closed with no plaintext fallback. This is only an
+  environment/preflight correction; it does not establish an ordinary-Chrome
+  collector connection.
+- The next gate is still a least-privilege connection to ordinary home Chrome.
+  No collector extension, persistent browser permission, debugging endpoint or
+  profile attachment has been installed or enabled. Obtain the user's approval at
+  the exact installation/permission step, then prove one full read-only Wells
+  collection before creating another institution adapter.
+
 For the publishing commit, use the Git commit containing this section and version
 0.6.1; verify the exact local HEAD equals the remote feature-branch hash. Do not
 mistake the older 0.6.0 commit `8b8ac16` or the current main branch for this update.

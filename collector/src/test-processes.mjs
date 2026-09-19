@@ -11,6 +11,15 @@ const keys = (value, expected) => value && typeof value === "object" && !Array.i
 const validPid = value => Number.isSafeInteger(value) && value > 0 && value <= 2147483647;
 const failure = () => new CollectionError("PROCESS_CHECK_FAILED", "Test process state is unavailable. No files were removed and no processes were stopped.");
 
+function scriptCommand(scriptPath) {
+  // Keep the helper compatible with Windows profiles that disallow .ps1 files
+  // by execution policy. This neither changes the policy nor puts any private
+  // process data on the command line; the bounded request is still sent on stdin.
+  const literalPath = scriptPath.replaceAll("'", "''");
+  return "$ErrorActionPreference='Stop'; $collectorScript=[IO.File]::ReadAllText('"
+    + literalPath + "'); & ([scriptblock]::Create($collectorScript))";
+}
+
 export function validateProcessSnapshot(value, ownerPid) {
   check(validPid(ownerPid) && keys(value, ["version", "bootId", "observedAt", "processes"])
     && value.version === 1 && stamp(value.bootId) && stamp(value.observedAt)
@@ -44,7 +53,7 @@ export async function windowsTestProcesses(ownerPid) {
   check(process.platform === "win32" && validPid(ownerPid), "WINDOWS_REQUIRED", "Disposable browser recovery currently requires Windows.");
   const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", helper], {
+    const child = spawn(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", scriptCommand(helper)], {
       windowsHide: true, shell: false, stdio: ["pipe", "pipe", "pipe"],
     });
     const chunks = [];

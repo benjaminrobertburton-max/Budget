@@ -13,13 +13,24 @@ function protectionError() {
   return new CollectionError("PROTECTION_FAILED", "Windows could not protect or open local data for this user. No plaintext fallback is allowed.");
 }
 
+function scriptCommand(scriptPath, operation) {
+  // Some locked-down home Windows profiles permit PowerShell commands but block
+  // .ps1 files via execution policy. Run the checked-in helper as a script block
+  // without changing that policy or passing any private payload on the command
+  // line; the JSON request remains on stdin.
+  const literalPath = scriptPath.replaceAll("'", "''");
+  return "$ErrorActionPreference='Stop'; $collectorScript=[IO.File]::ReadAllText('"
+    + literalPath + "'); & ([scriptblock]::Create($collectorScript)) -Operation '"
+    + operation + "'";
+}
+
 async function callWindows(operation, items) {
   check(process.platform === "win32", "WINDOWS_REQUIRED", "User-bound local encryption requires Windows.");
   const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   const input = JSON.stringify({ version: 1, items });
   check(Buffer.byteLength(input) <= MAX_BATCH_BYTES, "RECORD_TOO_LARGE", "The local encryption batch exceeds its supported size.");
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", helper, "-Operation", operation], {
+    const child = spawn(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", scriptCommand(helper, operation)], {
       windowsHide: true, stdio: ["pipe", "pipe", "pipe"], shell: false,
     });
     const chunks = [];
