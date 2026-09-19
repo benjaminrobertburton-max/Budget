@@ -78,9 +78,26 @@ test("activity packets are accepted only for the paired extension and never ente
     assert.equal(activity.status, 204);
     assert.deepEqual(saved, [candidate]);
     assert.deepEqual(bridge.status(), { listening: true, extensionConnected: true,
-      lastEvent: "activity_captured", commandQueued: false });
+      lastEvent: "activity_candidate_captured", commandQueued: false });
     assert.doesNotMatch(JSON.stringify(bridge.status()), /FICTIONAL|7\.43/);
     assert.equal((await post(bridge.port, "/v1/activity", { "X-Budget-Collector-Session": "wrong" }, JSON.stringify(candidate))).status, 403);
+  } finally { await bridge.close(); }
+});
+
+test("empty or unsupported activity states never invoke the private evidence writer", async () => {
+  const saved = [];
+  const bridge = await startChromeBridge({ port: 0, onActivityCapture: async value => saved.push(value) });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    for (const finding of ["no_activity_table", "page_limit", "authentication_controls"]) {
+      const candidate = fictionalActivityCandidate();
+      candidate.finding = finding;
+      candidate.tables = [];
+      const response = await post(bridge.port, "/v1/activity", { "X-Budget-Collector-Session": session }, JSON.stringify(candidate));
+      assert.equal(response.status, 204);
+      assert.match(bridge.status().lastEvent, /^activity_capture_/);
+    }
+    assert.deepEqual(saved, []);
   } finally { await bridge.close(); }
 });
 

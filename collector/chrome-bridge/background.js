@@ -1,8 +1,9 @@
-// This bridge deliberately never reads, fills, submits, stores, or transmits
-// credentials, cookies, form values, page text, balances, or transactions.
-// A local collector can issue one bounded, read-only Wells-open command. The
-// extension polls only while the local collector is running; it does not create
-// a schedule, open Wells spontaneously, or make a financial decision.
+// This bridge never reads, fills, submits, stores, or transmits credentials,
+// cookies, form values, or browser state. A bounded activity candidate is sent
+// only after an explicit local capture command and is immediately encrypted by
+// the local collector. The extension polls only while that collector is running;
+// it does not schedule itself, open Wells spontaneously, or make a financial
+// decision.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
 const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
 const POLL_ALARM = "budget-collector-local-command";
@@ -90,8 +91,13 @@ chrome.action.onClicked.addListener(async () => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if (!session || !message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
+  if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const event = message.event;
+  if (event === "collector_wake" && sender.url === chrome.runtime.getURL("wake.html")) {
+    void pollCommand();
+    return;
+  }
+  if (!session) return;
   if (event === "activity_capture") {
     if (Number.isInteger(sender.tab?.id) && sender.tab.id === wellsTabId && message.candidate) {
       void send("/v1/activity", { method: "POST", body: JSON.stringify(message.candidate) });
@@ -103,6 +109,6 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   // non-sensitive progress only. It is kept in memory and never written to disk.
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
   if (event === "authenticated_page") wellsTabId = tabId;
-  void send("/v1/progress", { method: "POST", body: JSON.stringify({ version: 1, event, tabId }) });
+  void send("/v1/progress", { method: "POST", body: JSON.stringify({ version: 1, event, tabId }) }).then(() => void pollCommand());
   void chrome.action.setBadgeText({ text: event === "auth_required" ? "AUTH" : "READY" });
 });

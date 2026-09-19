@@ -9,17 +9,22 @@ if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])
   let bridge = null;
   try {
     const { startChromeBridge } = await import("./chrome-bridge.mjs");
+    const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
     let evidenceStore = null;
     bridge = await startChromeBridge({
       nextCommand: command[0] === "wells-auto" ? "open_wells" : "none",
       captureAfterAuth: command[0] === "wells-auto",
+      onConnected: async ({ origin }) => {
+        const { saveBridgeLaunchConfig } = await import("./chrome-launcher.mjs");
+        await saveBridgeLaunchConfig({ extensionOrigin: origin, repositoryRoot });
+      },
       onActivityCapture: command[0] === "wells-auto" ? async candidate => {
         if (!evidenceStore) {
           const [{ defaultPrivateRoot }, { openPrivateEvidenceStore }] = await Promise.all([
             import("./private-paths.mjs"), import("./private-evidence-store.mjs"),
           ]);
           evidenceStore = await openPrivateEvidenceStore({ root: defaultPrivateRoot(),
-            repositoryRoot: fileURLToPath(new URL("../../", import.meta.url)) });
+            repositoryRoot });
         }
         await evidenceStore.save({ source: "wells", capturedAt: new Date().toISOString(), payload: candidate });
       } : null,
@@ -28,6 +33,9 @@ if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])
     console.log(`Local Chrome bridge is listening only on 127.0.0.1:${bridge.port}.`);
     if (command[0] === "wells-auto") {
       console.log("One read-only Wells-open command is queued for the installed local bridge. No extension click is required.");
+      const { readBridgeLaunchConfig, wakeInstalledBridge } = await import("./chrome-launcher.mjs");
+      const config = await readBridgeLaunchConfig({ repositoryRoot });
+      if (config) await wakeInstalledBridge({ config });
     } else {
       console.log("It accepts only the installed Budget Collector Bridge extension and reports no financial data.");
     }

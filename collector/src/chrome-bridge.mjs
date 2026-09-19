@@ -5,6 +5,12 @@ import { validateActivityCandidate } from "./activity-probe.mjs";
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 const events = new Set(["wells_opened", "auth_required", "authenticated_page"]);
+const captureStates = Object.freeze({
+  candidate_read: "activity_candidate_captured",
+  authentication_controls: "activity_capture_auth_required",
+  no_activity_table: "activity_capture_no_table",
+  page_limit: "activity_capture_page_limit",
+});
 const MAX_BODY_BYTES = 300000;
 const commands = new Set(["none", "open_wells", "capture_wells_activity"]);
 
@@ -43,7 +49,7 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onActivityCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
@@ -77,6 +83,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (!extensionOrigin.test(requestOrigin ?? "")) return response(res, 403, null);
         origin = requestOrigin;
         session = randomBytes(32).toString("hex");
+        await onConnected({ origin });
         return response(res, 200, origin, { version: 1, session });
       }
       if (req.url === "/v1/progress") {
@@ -92,10 +99,11 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (!origin || requestOrigin !== origin || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
         if (!onActivityCapture) return response(res, 503, origin);
         const candidate = validateActivityCandidate(await readJson(req));
-        // Raw source text stays inside this callback and its encrypted local
-        // store. Status/CLI output receives only the fixed event below.
-        await onActivityCapture(candidate);
-        lastEvent = "activity_captured";
+        // A source table is the only candidate that can contain private activity
+        // text. Empty/unsupported outcomes become fixed, non-financial states;
+        // they are not represented as a successful capture.
+        if (candidate.finding === "candidate_read") await onActivityCapture(candidate);
+        lastEvent = captureStates[candidate.finding];
         onProgress({ event: lastEvent });
         return response(res, 204, origin);
       }
