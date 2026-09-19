@@ -9,8 +9,20 @@ if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])
   let bridge = null;
   try {
     const { startChromeBridge } = await import("./chrome-bridge.mjs");
+    let evidenceStore = null;
     bridge = await startChromeBridge({
       nextCommand: command[0] === "wells-auto" ? "open_wells" : "none",
+      captureAfterAuth: command[0] === "wells-auto",
+      onActivityCapture: command[0] === "wells-auto" ? async candidate => {
+        if (!evidenceStore) {
+          const [{ defaultPrivateRoot }, { openPrivateEvidenceStore }] = await Promise.all([
+            import("./private-paths.mjs"), import("./private-evidence-store.mjs"),
+          ]);
+          evidenceStore = await openPrivateEvidenceStore({ root: defaultPrivateRoot(),
+            repositoryRoot: fileURLToPath(new URL("../../", import.meta.url)) });
+        }
+        await evidenceStore.save({ source: "wells", capturedAt: new Date().toISOString(), payload: candidate });
+      } : null,
       onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
     });
     console.log(`Local Chrome bridge is listening only on 127.0.0.1:${bridge.port}.`);
@@ -19,7 +31,9 @@ if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])
     } else {
       console.log("It accepts only the installed Budget Collector Bridge extension and reports no financial data.");
     }
-    console.log("Press Ctrl+C to stop it. This command does not install an extension, read credentials, capture financial data, or update the workbook.");
+    console.log(command[0] === "wells-auto"
+      ? "After authentication, a bounded activity-table candidate is sealed locally for development. It is not a verified import or workbook update."
+      : "Press Ctrl+C to stop it. This command does not install an extension, read credentials, capture financial data, or update the workbook.");
     await new Promise(resolve => {
       const stop = () => {
         process.removeListener("SIGINT", stop);

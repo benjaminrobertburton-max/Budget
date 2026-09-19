@@ -6,7 +6,7 @@ import { validateActivityCandidate } from "./activity-probe.mjs";
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 const events = new Set(["wells_opened", "auth_required", "authenticated_page"]);
 const MAX_BODY_BYTES = 300000;
-const commands = new Set(["none", "open_wells"]);
+const commands = new Set(["none", "open_wells", "capture_wells_activity"]);
 
 function response(res, status, origin, body = null) {
   const headers = {
@@ -43,7 +43,7 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", onProgress = () => {}, onActivityCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
@@ -84,6 +84,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", on
         const body = await readJson(req);
         if (!validProgress(body)) return response(res, 400, origin);
         lastEvent = body.event;
+        if (captureAfterAuth && body.event === "authenticated_page" && nextCommand === "none") nextCommand = "capture_wells_activity";
         onProgress({ event: body.event });
         return response(res, 204, origin);
       }

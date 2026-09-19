@@ -67,7 +67,11 @@ financial information, update the workbook, or schedule itself. The production
 Tuesday launcher will replace this development command only after the encrypted
 Wells adapter and complete source-validation gates exist.
 
-Version `0.1.1` is the first bridge build with the one-shot local-command path.
+Version `0.1.2` adds a bounded Wells activity-table candidate capture after an
+authenticated local command. The candidate is sealed in the private local
+evidence store before anything else can reference it. It remains unverified:
+no balance mapping, pagination/coverage proof, normalized transactions or
+workbook update is enabled.
 After a source update, Chrome must reload the unpacked extension once from its
 Extensions page before that code can run. Reloading the extension is a
 development/setup action, not part of the intended Tuesday routine.

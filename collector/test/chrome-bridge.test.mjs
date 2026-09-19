@@ -84,6 +84,18 @@ test("activity packets are accepted only for the paired extension and never ente
   } finally { await bridge.close(); }
 });
 
+test("authenticated state queues one capture command only when an explicit capture run requested it", async () => {
+  const bridge = await startChromeBridge({ port: 0, captureAfterAuth: true, onActivityCapture: async () => {} });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, event: "authenticated_page", tabId: 1 }));
+    const command = await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
+      headers: { "X-Budget-Collector-Session": session },
+    });
+    assert.deepEqual(await command.json(), { version: 1, command: "capture_wells_activity" });
+  } finally { await bridge.close(); }
+});
+
 test("loopback bridge rejects raw page content and invalid paths", async () => {
   const bridge = await startChromeBridge({ port: 0 });
   try {

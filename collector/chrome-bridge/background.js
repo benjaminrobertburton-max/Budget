@@ -8,6 +8,7 @@ const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?
 const POLL_ALARM = "budget-collector-local-command";
 let session = null;
 let pollInFlight = false;
+let wellsTabId = null;
 
 async function send(path, options = {}) {
   if (!session) return false;
@@ -43,6 +44,7 @@ async function startSession() {
 
 async function openWells() {
   const tab = await chrome.tabs.create({ url: WELLS_SIGN_ON, active: true });
+  wellsTabId = Number.isInteger(tab.id) ? tab.id : null;
   await send("/v1/progress", {
     method: "POST",
     body: JSON.stringify({ version: 1, event: "wells_opened", tabId: Number.isInteger(tab.id) ? tab.id : null }),
@@ -61,8 +63,11 @@ async function pollCommand() {
     if (response.status === 403) { session = null; return; }
     if (!response.ok) return;
     const command = await response.json();
-    if (!command || command.version !== 1 || !["none", "open_wells"].includes(command.command)) return;
+    if (!command || command.version !== 1 || !["none", "open_wells", "capture_wells_activity"].includes(command.command)) return;
     if (command.command === "open_wells") await openWells();
+    if (command.command === "capture_wells_activity" && Number.isInteger(wellsTabId)) {
+      await chrome.tabs.sendMessage(wellsTabId, { command: "capture_wells_activity" });
+    }
   } catch {
     // The normal state is no local collector. Never surface host/process details.
     session = null;
@@ -87,10 +92,17 @@ chrome.action.onClicked.addListener(async () => {
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!session || !message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const event = message.event;
+  if (event === "activity_capture") {
+    if (Number.isInteger(sender.tab?.id) && sender.tab.id === wellsTabId && message.candidate) {
+      void send("/v1/activity", { method: "POST", body: JSON.stringify(message.candidate) });
+    }
+    return;
+  }
   if (!["auth_required", "authenticated_page"].includes(event)) return;
   // A tab ID is not financial evidence; it allows the local bridge to correlate
   // non-sensitive progress only. It is kept in memory and never written to disk.
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
+  if (event === "authenticated_page") wellsTabId = tabId;
   void send("/v1/progress", { method: "POST", body: JSON.stringify({ version: 1, event, tabId }) });
   void chrome.action.setBadgeText({ text: event === "auth_required" ? "AUTH" : "READY" });
 });
