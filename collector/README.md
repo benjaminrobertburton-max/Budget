@@ -49,6 +49,15 @@ or copy a browser profile, enable a debugging endpoint, or require Chrome sync.
 The bridge's connection tests are entirely local and fictional. They do not
 access a bank page or browser profile.
 
+For connection-development only, the loopback service can be started from the
+repository root with `pnpm --dir collector bridge:chrome` (or
+`node collector/src/cli.mjs chrome-bridge`). It binds exclusively to
+`127.0.0.1:43811`, reports only the three bounded connection states, and exits on
+Ctrl+C. It does not launch Chrome or Wells, install the extension, access any
+profile or financial data, or change the workbook. It is not the future weekly
+launcher. The user must be present and confirm at the exact Chrome-extension
+installation step before this can connect to Chrome.
+
 This is the development foundation for the user's Tuesday **Refresh Budget** workflow.
 It is runnable software with fictional test data, a tested Windows encryption
 layer, disposable Chrome demonstrations, and a separately gated manual Wells pilot.

@@ -5,7 +5,34 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if (command.length === 1 && ["wells-pilot", "pilot-rehearsal"].includes(command[0])) {
+if (command.length === 1 && command[0] === "chrome-bridge") {
+  let bridge = null;
+  try {
+    const { startChromeBridge } = await import("./chrome-bridge.mjs");
+    bridge = await startChromeBridge({
+      onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
+    });
+    console.log(`Local Chrome bridge is listening only on 127.0.0.1:${bridge.port}.`);
+    console.log("It accepts only the uninstalled Budget Collector Bridge extension and reports no financial data.");
+    console.log("Press Ctrl+C to stop it. This command does not open Chrome, install an extension, connect to a bank, or update the workbook.");
+    await new Promise(resolve => {
+      const stop = () => {
+        process.removeListener("SIGINT", stop);
+        process.removeListener("SIGTERM", stop);
+        resolve();
+      };
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    });
+    await bridge.close();
+    console.log("Local Chrome bridge stopped.");
+  } catch (error) {
+    if (bridge) await bridge.close().catch(() => {});
+    const issue = safeIssue(null, error);
+    console.error(`${issue.code}: ${issue.message}`);
+    process.exitCode = 1;
+  }
+} else if (command.length === 1 && ["wells-pilot", "pilot-rehearsal"].includes(command[0])) {
   try {
     const { runWellsPilot, runFictionalPilot } = await import("./pilot-session.mjs");
     console.log(command[0] === "wells-pilot"
@@ -35,7 +62,7 @@ if (command.length === 1 && ["wells-pilot", "pilot-rehearsal"].includes(command[
     process.exitCode = 1;
   }
 } else if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
-  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive");
+  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive | chrome-bridge");
   console.error("Live account collection is not installed. Collection demos use fictional data; the Wells development pilot can capture unverified activity tables privately.");
   console.error("Stopped-test inspection: node collector/src/cli.mjs recover-test [--confirm-cleanup]");
   console.error("Separate, manual pilot controls: node collector/src/cli.mjs pilot-rehearsal | wells-pilot");

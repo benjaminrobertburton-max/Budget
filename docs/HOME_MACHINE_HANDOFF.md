@@ -109,6 +109,12 @@ No actual workbook has been updated by this collector.
   attachment has been installed or enabled. Obtain the user's approval at the
   exact installation/permission step, then prove one full read-only Wells
   collection before creating another institution adapter.
+- The bridge now also has an explicit local development launcher
+  (`pnpm --dir collector bridge:chrome`). It binds only to `127.0.0.1`, exposes
+  no bank or financial data, and is intentionally separate from the future
+  Tuesday launcher. It was tested with fictional HTTP clients only. Starting it
+  does not open Chrome or Wells; extension installation and its permission remain
+  a present-user confirmation gate.
 
 For the publishing commit, use the Git commit containing this section and version
 0.6.1; verify the exact local HEAD equals the remote feature-branch hash. Do not

@@ -12,6 +12,7 @@
     "test:browser": "node --test --test-concurrency=1 test-browser/*.test.mjs",
     "demo:browser": "node src/cli.mjs browser-demo",
     "demo:interactive": "node src/cli.mjs browser-interactive",
+    "bridge:chrome": "node src/cli.mjs chrome-bridge",
     "pilot:rehearsal": "node src/cli.mjs pilot-rehearsal",
     "pilot:wells": "node src/cli.mjs wells-pilot"
   }
