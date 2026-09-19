@@ -8,43 +8,44 @@ Preserve local financial files and edits before any branch change. Work-machine
 live testing has stopped because extensions cannot be installed there. Do not
 repeat the old pilot or styling investigation as the default next action.
 
-The existing code uses disposable Chrome, not the user's ordinary Chrome.
-A supported home Chrome connection remains to be selected and implemented;
-extension/native messaging was research only. Confirm the home OS (the current
-encryption layer is Windows-only) and request approval for any extension or
-persistent permission. Never extract credentials or copy cookies/profiles.
-Then prove one complete read-only Wells collection using the existing reader and
-validation code before expanding sources. The collector must complete normal
-sign-in using Chrome's configured saved-credential/autofill flow; the user's
-intended weekly role is only text-code/2FA approval when required. This supersedes
-older manual-sign-in pilot instructions. Sign-in automation is not implemented;
-test it at home without credential extraction, cookie copying or security bypass.
-Report any extra interaction required by Chrome/banks as a limitation, not as the
-accepted routine.
-No complete real Wells run or workbook update has succeeded. The intended weekly
-run uses local code without an AI session; that production workflow is unfinished.
+The existing code now has a supported, user-approved ordinary-Chrome bridge on
+the home Windows machine. It never attaches to or copies a profile, and it never
+extracts credentials, cookies, or form values. The bridge can open Wells from a
+local command without a toolbar click and, after an authenticated page is reached,
+seal a bounded activity-table candidate in the private local evidence store.
+The collector must use Chrome's configured saved-credential/autofill flow for
+ordinary sign-in; the intended weekly role is only text-code/2FA approval when
+required. System/browser restrictions prevented the development agent from
+selecting a saved password or submitting the sign-in form, so that exact
+approval-only path remains an explicit home acceptance gate rather than a claim.
+No complete, verified Wells run or workbook update has succeeded. The intended
+weekly run uses local code without an AI session; that production workflow is
+unfinished.
 Older pilot instructions below are implementation reference, not the new plan.
 
-### Ordinary Chrome bridge — uninstalled connection foundation
+### Ordinary Chrome bridge — installed home development connection
 
-`chrome-bridge/` contains an **uninstalled** Manifest V3 extension and
+`chrome-bridge/` contains the reviewed Manifest V3 extension and
 `src/chrome-bridge.mjs` contains its loopback-only local handshake. It is the
 first candidate for a supported ordinary-Chrome connection; it does not attach to
 or copy a browser profile, enable a debugging endpoint, or require Chrome sync.
 
 - Its sole remote host permission is the Wells Fargo domain family; its only other
   host permission is `127.0.0.1` for the local collector process.
-- A user click on the extension action opens the official Wells sign-on page and
-  creates an in-memory, per-run local session. It does not read, fill, submit,
+- A local `wells:auto` command creates an in-memory, per-run local session and
+  instructs the installed extension to open the official Wells sign-on page. The
+  extension action remains a development fallback, not a weekly requirement. It
+  does not read, fill, submit,
   save, or transmit credentials, cookies, form values, page text, balances, or
   transactions.
 - It may report only bounded connection state: Wells opened, authentication
-  control visible, or authenticated page visible. The local bridge rejects raw
-  page content and binds only to loopback.
-- It has not been installed, granted a persistent permission, exercised against
-  Wells, or connected to the financial workbook. Installing an extension requires
-  the user's confirmation at that exact step. The required saved-credential/
-  autofill sign-in behavior and complete Wells source reader remain unverified.
+  control visible, authenticated page visible, or encrypted activity capture
+  complete. The local bridge rejects raw page content from normal status output
+  and binds only to loopback.
+- The user installed and approved the extension in ordinary home Chrome. A live
+  automatic Wells opening and one encrypted activity-candidate capture have
+  completed. This does not verify saved-credential submission, source completeness,
+  or any workbook integration.
 
 The bridge's connection tests are entirely local and fictional. They do not
 access a bank page or browser profile.

@@ -124,13 +124,24 @@ No actual workbook has been updated by this collector.
   no financial capture endpoint, source-specific mapping, pagination coverage,
   encrypted persistent evidence, or workbook update. No source values were saved
   by collector code or added to Git.
-- The next portable increment is a local one-shot command handoff: a launcher
-  can queue `open_wells`, and the installed extension polls only the loopback
-  bridge while it is running, consumes that command once, and opens Wells without
-  a toolbar click. It does not create a daily schedule or a background financial
-  data connection. This is a replacement for the manual extension-action step,
-  not the completed Tuesday refresh: encrypted capture, source mapping,
-  navigation/pagination, validation and workbook gates still remain.
+- **Automatic opening and encrypted capture check (September 19):** the installed
+  extension consumed a one-shot local `open_wells` command, opened Wells without
+  a toolbar action, and completed one bounded activity-table candidate capture
+  after authentication. The candidate was written directly to the home private
+  encrypted evidence store; normal bridge status exposed only fixed connection
+  states, not source text, amounts, account details, or a preview. The one-time
+  launcher and loopback bridge were then stopped. No workbook was read or changed,
+  and no financial data was added to Git.
+- The approval-only sign-in objective is still not certified. The automatic
+  opening worked, but the development agent could not select Chrome's saved
+  password or submit bank authentication; those actions remain protected browser
+  interactions. Test ordinary Chrome's allowed autofill/sign-in behavior during
+  home acceptance without extracting credentials or bypassing security. Any
+  additional required gesture/challenge must be recorded as an exception.
+- This is a replacement for the manual extension-action step, not the completed
+  Tuesday refresh: balance mapping, complete pending/posted coverage, pagination,
+  source-specific validation, normalized reconciliation, workbook gates, and a
+  local scheduler/launcher still remain.
 
 For the publishing commit, use the Git commit containing this section and version
 0.6.1; verify the exact local HEAD equals the remote feature-branch hash. Do not
