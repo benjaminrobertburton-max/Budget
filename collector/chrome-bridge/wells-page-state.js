@@ -27,7 +27,12 @@
     // payments, statements, profile settings, or another product.
     const checking = [...document.querySelectorAll("a")].find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
     if (!checking) return false;
-    checking.click();
+    // Wells may reject a synthetic click as untrusted. Use the card's already
+    // rendered same-site destination immediately, without retaining its URL or
+    // account parameters. This only changes the current tab's read-only view.
+    const destination = new URL(checking.href);
+    if (destination.protocol !== "https:" || !/(^|\.)wellsfargo\.com$/i.test(destination.hostname)) return false;
+    location.assign(destination.href);
     return true;
   };
   const report = () => {
