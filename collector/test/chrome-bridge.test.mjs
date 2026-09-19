@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { startChromeBridge } from "../src/chrome-bridge.mjs";
+import { fictionalActivityCandidate } from "../fixtures/activity-candidate.mjs";
 
 const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 const post = (port, path, headers = {}, body = "") => fetch(`http://127.0.0.1:${port}${path}`, {
@@ -64,6 +65,22 @@ test("command polling accepts Chromium's origin-less extension GET only with its
     assert.equal((await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
       headers: { "X-Budget-Collector-Session": "wrong" },
     })).status, 403);
+  } finally { await bridge.close(); }
+});
+
+test("activity packets are accepted only for the paired extension and never enter status", async () => {
+  const saved = [];
+  const bridge = await startChromeBridge({ port: 0, onActivityCapture: async value => saved.push(value) });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const candidate = fictionalActivityCandidate();
+    const activity = await post(bridge.port, "/v1/activity", { "X-Budget-Collector-Session": session }, JSON.stringify(candidate));
+    assert.equal(activity.status, 204);
+    assert.deepEqual(saved, [candidate]);
+    assert.deepEqual(bridge.status(), { listening: true, extensionConnected: true,
+      lastEvent: "activity_captured", commandQueued: false });
+    assert.doesNotMatch(JSON.stringify(bridge.status()), /FICTIONAL|7\.43/);
+    assert.equal((await post(bridge.port, "/v1/activity", { "X-Budget-Collector-Session": "wrong" }, JSON.stringify(candidate))).status, 403);
   } finally { await bridge.close(); }
 });
 

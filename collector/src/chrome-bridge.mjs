@@ -1,10 +1,11 @@
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 import { requireEvidence as check } from "./errors.mjs";
+import { validateActivityCandidate } from "./activity-probe.mjs";
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 const events = new Set(["wells_opened", "auth_required", "authenticated_page"]);
-const MAX_BODY_BYTES = 1024;
+const MAX_BODY_BYTES = 300000;
 const commands = new Set(["none", "open_wells"]);
 
 function response(res, status, origin, body = null) {
@@ -42,9 +43,10 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", onProgress = () => {} } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", onProgress = () => {}, onActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
+  check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
   let origin = null;
   let session = null;
   let lastEvent = null;
@@ -83,6 +85,17 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", on
         if (!validProgress(body)) return response(res, 400, origin);
         lastEvent = body.event;
         onProgress({ event: body.event });
+        return response(res, 204, origin);
+      }
+      if (req.url === "/v1/activity") {
+        if (!origin || requestOrigin !== origin || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
+        if (!onActivityCapture) return response(res, 503, origin);
+        const candidate = validateActivityCandidate(await readJson(req));
+        // Raw source text stays inside this callback and its encrypted local
+        // store. Status/CLI output receives only the fixed event below.
+        await onActivityCapture(candidate);
+        lastEvent = "activity_captured";
+        onProgress({ event: lastEvent });
         return response(res, 204, origin);
       }
       return response(res, 404, requestOrigin === origin ? origin : null);
