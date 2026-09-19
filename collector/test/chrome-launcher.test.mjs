@@ -28,6 +28,6 @@ test("wake starts only the configured Chrome profile and local extension page", 
     config: { version: 1, extensionId: "abcdefghijklmnopabcdefghijklmnop", profileDirectory: "Person 1" },
     spawnProcess: (...args) => { calls.push(args); return { unref() {} }; } });
   assert.equal(result, true);
-  assert.deepEqual(calls[0][1], ["--profile-directory=Person 1", "chrome-extension://abcdefghijklmnopabcdefghijklmnop/wake.html"]);
+  assert.deepEqual(calls[0][1], ["--profile-directory=Person 1", "http://127.0.0.1:43811/v1/wake"]);
   assert.equal(calls[0][2].windowsHide, true);
 });

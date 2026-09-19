@@ -36,6 +36,20 @@ test("loopback status is bounded local-only diagnostic state", async () => {
   } finally { await bridge.close(); }
 });
 
+test("local wake relay is available only when paired to the configured extension", async () => {
+  const bridge = await startChromeBridge({ port: 0, wakeExtensionId: "abcdefghijklmnopabcdefghijklmnop" });
+  try {
+    const page = await fetch(`http://127.0.0.1:${bridge.port}/v1/wake`);
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /chrome-extension:\/\/abcdefghijklmnopabcdefghijklmnop\/wake\.html/);
+    assert.doesNotMatch(html, /balance|transaction|credential/i);
+  } finally { await bridge.close(); }
+  const absent = await startChromeBridge({ port: 0 });
+  try { assert.equal((await fetch(`http://127.0.0.1:${absent.port}/v1/wake`)).status, 404); }
+  finally { await absent.close(); }
+});
+
 test("loopback bridge delivers one Wells-open command only to its connected extension", async () => {
   const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
   try {

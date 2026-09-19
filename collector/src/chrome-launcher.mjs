@@ -31,11 +31,12 @@ export async function saveBridgeLaunchConfig({ extensionOrigin, profileDirectory
   return structuredClone(value);
 }
 
-export async function wakeInstalledBridge({ config, executable = path.join(process.env.PROGRAMFILES ?? "", "Google", "Chrome", "Application", "chrome.exe"), spawnProcess = spawn }) {
+export async function wakeInstalledBridge({ config, port = 43811, executable = path.join(process.env.PROGRAMFILES ?? "", "Google", "Chrome", "Application", "chrome.exe"), spawnProcess = spawn }) {
   check(valid(config), "INVALID_LAUNCH_CONFIG", "The local Chrome bridge configuration is invalid.");
+  check(Number.isInteger(port) && port > 0 && port <= 65535, "INVALID_LAUNCH_CONFIG", "The local Chrome bridge configuration is invalid.");
   await fs.access(executable);
   const child = spawnProcess(executable, [`--profile-directory=${config.profileDirectory}`,
-    `chrome-extension://${config.extensionId}/wake.html`], { detached: true, stdio: "ignore", windowsHide: true });
+    `http://127.0.0.1:${port}/v1/wake`], { detached: true, stdio: "ignore", windowsHide: true });
   child.unref?.();
   return true;
 }
