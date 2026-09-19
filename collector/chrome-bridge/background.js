@@ -10,6 +10,7 @@ const POLL_ALARM = "budget-collector-local-command";
 let session = null;
 let pollInFlight = false;
 let wellsTabId = null;
+const checkingNavigation = new Set();
 
 async function send(path, options = {}) {
   if (!session) return false;
@@ -53,11 +54,47 @@ async function openWells() {
   await chrome.action.setBadgeText({ text: "AUTH" });
 }
 
+async function probeExistingWellsTabs() {
+  const tabs = await chrome.tabs.query({ url: ["https://*.wellsfargo.com/*"] });
+  for (const tab of tabs) {
+    if (!Number.isInteger(tab.id) || !/Account (Summary|Detail) - Wells Fargo/.test(tab.title || "")) continue;
+    wellsTabId = tab.id;
+    try { await chrome.tabs.sendMessage(tab.id, { command: "probe_wells_state" }); } catch {}
+    return true;
+  }
+  return false;
+}
+
+async function navigateChecking(tabId) {
+  if (!Number.isInteger(tabId) || checkingNavigation.has(tabId)) return;
+  checkingNavigation.add(tabId);
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, "1.3");
+    // This fixed expression returns a viewport rectangle only. It never returns
+    // DOM text, account identifiers, URLs, balances, transactions, credentials,
+    // cookies, form values, or network data.
+    const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", { returnByValue: true,
+      expression: `(() => { const a = [...document.querySelectorAll('a')].find(x => /^\\s*everyday checking\\b/i.test(x.innerText || '')); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()` });
+    const rect = response?.result?.value;
+    if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return;
+    const x = rect[0] + rect[2] / 2;
+    const y = rect[1] + rect[3] / 2;
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+  } catch {
+    // Do not reveal debugger/browser details or retry a potentially stale click.
+  } finally {
+    await chrome.debugger.detach(target).catch(() => {});
+    checkingNavigation.delete(tabId);
+  }
+}
+
 async function pollCommand() {
   if (pollInFlight) return;
   pollInFlight = true;
   try {
-    if (!session) await startSession();
+    if (!session) { await startSession(); await probeExistingWellsTabs(); }
     const response = await fetch(`${LOCAL_BRIDGE}/v1/command`, {
       headers: { "X-Budget-Collector-Session": session }, cache: "no-store",
     });
@@ -65,7 +102,7 @@ async function pollCommand() {
     if (!response.ok) return;
     const command = await response.json();
     if (!command || command.version !== 1 || !["none", "open_wells", "capture_wells_activity"].includes(command.command)) return;
-    if (command.command === "open_wells") await openWells();
+    if (command.command === "open_wells" && !await probeExistingWellsTabs()) await openWells();
     if (command.command === "capture_wells_activity" && Number.isInteger(wellsTabId)) {
       await chrome.tabs.sendMessage(wellsTabId, { command: "capture_wells_activity" });
     }
@@ -101,6 +138,12 @@ chrome.action.onClicked.addListener(async () => {
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const event = message.event;
+  const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
+  if (event === "checking_navigation_required" && tabId !== null) {
+    wellsTabId = tabId;
+    void navigateChecking(tabId);
+    return;
+  }
   if (!session) return;
   if (event === "activity_capture") {
     if (Number.isInteger(sender.tab?.id) && sender.tab.id === wellsTabId && message.candidate) {
@@ -111,7 +154,6 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (!["auth_required", "authenticated_page"].includes(event)) return;
   // A tab ID is not financial evidence; it allows the local bridge to correlate
   // non-sensitive progress only. It is kept in memory and never written to disk.
-  const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
   if (event === "authenticated_page") wellsTabId = tabId;
   void send("/v1/progress", { method: "POST", body: JSON.stringify({ version: 1, event, tabId }) }).then(() => void pollCommand());
   void chrome.action.setBadgeText({ text: event === "auth_required" ? "AUTH" : "READY" });

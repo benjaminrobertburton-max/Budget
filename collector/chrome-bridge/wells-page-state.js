@@ -5,6 +5,7 @@
   let previous = null;
   let readinessAttempts = 0;
   let readinessTimer = null;
+  let navigationRequested = false;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
   const currentState = () => {
@@ -27,12 +28,13 @@
     // payments, statements, profile settings, or another product.
     const checking = [...document.querySelectorAll("a")].find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
     if (!checking) return false;
-    // Wells may reject a synthetic click as untrusted. Use the card's already
-    // rendered same-site destination immediately, without retaining its URL or
-    // account parameters. This only changes the current tab's read-only view.
-    const destination = new URL(checking.href);
-    if (destination.protocol !== "https:" || !/(^|\.)wellsfargo\.com$/i.test(destination.hostname)) return false;
-    location.assign(destination.href);
+    // Wells rejects ordinary synthetic clicks. The background script performs
+    // one constrained, trusted click using only this card's viewport rectangle.
+    // No href, account parameter, balance, or page text leaves this page.
+    if (!navigationRequested) {
+      navigationRequested = true;
+      chrome.runtime.sendMessage({ event: "checking_navigation_required" });
+    }
     return true;
   };
   const report = () => {
@@ -75,6 +77,7 @@
     return candidate;
   };
   chrome.runtime.onMessage.addListener(message => {
+    if (message?.command === "probe_wells_state") { previous = null; navigationRequested = false; report(); return; }
     if (message?.command !== "capture_wells_activity") return;
     const candidate = capture();
     if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
