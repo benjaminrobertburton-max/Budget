@@ -101,9 +101,13 @@ No actual workbook has been updated by this collector.
   environment/preflight correction; it does not establish an ordinary-Chrome
   collector connection.
 - The next gate is still a least-privilege connection to ordinary home Chrome.
-  No collector extension, persistent browser permission, debugging endpoint or
-  profile attachment has been installed or enabled. Obtain the user's approval at
-  the exact installation/permission step, then prove one full read-only Wells
+  The feature branch now contains an **uninstalled** manifest-V3 Chrome bridge
+  and a loopback-only session handshake, both covered by fictional tests. Its
+  permissions are restricted to Wells Fargo and `127.0.0.1`; it can report only
+  bounded non-financial connection state and rejects raw page data. No collector
+  extension, persistent browser permission, debugging endpoint or profile
+  attachment has been installed or enabled. Obtain the user's approval at the
+  exact installation/permission step, then prove one full read-only Wells
   collection before creating another institution adapter.
 
 For the publishing commit, use the Git commit containing this section and version

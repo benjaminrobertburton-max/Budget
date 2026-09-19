@@ -25,6 +25,30 @@ No complete real Wells run or workbook update has succeeded. The intended weekly
 run uses local code without an AI session; that production workflow is unfinished.
 Older pilot instructions below are implementation reference, not the new plan.
 
+### Ordinary Chrome bridge — uninstalled connection foundation
+
+`chrome-bridge/` contains an **uninstalled** Manifest V3 extension and
+`src/chrome-bridge.mjs` contains its loopback-only local handshake. It is the
+first candidate for a supported ordinary-Chrome connection; it does not attach to
+or copy a browser profile, enable a debugging endpoint, or require Chrome sync.
+
+- Its sole remote host permission is the Wells Fargo domain family; its only other
+  host permission is `127.0.0.1` for the local collector process.
+- A user click on the extension action opens the official Wells sign-on page and
+  creates an in-memory, per-run local session. It does not read, fill, submit,
+  save, or transmit credentials, cookies, form values, page text, balances, or
+  transactions.
+- It may report only bounded connection state: Wells opened, authentication
+  control visible, or authenticated page visible. The local bridge rejects raw
+  page content and binds only to loopback.
+- It has not been installed, granted a persistent permission, exercised against
+  Wells, or connected to the financial workbook. Installing an extension requires
+  the user's confirmation at that exact step. The required saved-credential/
+  autofill sign-in behavior and complete Wells source reader remain unverified.
+
+The bridge's connection tests are entirely local and fictional. They do not
+access a bank page or browser profile.
+
 This is the development foundation for the user's Tuesday **Refresh Budget** workflow.
 It is runnable software with fictional test data, a tested Windows encryption
 layer, disposable Chrome demonstrations, and a separately gated manual Wells pilot.

@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Budget Collector Bridge",
+  "version": "0.1.0",
+  "description": "Local, read-only Wells connection for the Budget Collector.",
+  "permissions": ["tabs"],
+  "host_permissions": [
+    "https://*.wellsfargo.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Start Budget Collector Wells check"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.wellsfargo.com/*"],
+      "js": ["wells-page-state.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
