@@ -20,7 +20,50 @@ test("loopback bridge accepts only one Chrome-extension origin and bounded progr
     assert.equal((await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": "wrong" }, JSON.stringify({ version: 1, event: "wells_opened", tabId: 1 }))).status, 403);
     assert.equal((await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, event: "authenticated_page", tabId: 1 }))).status, 204);
     assert.deepEqual(observed, [{ event: "authenticated_page" }]);
-    assert.deepEqual(bridge.status(), { listening: true, extensionConnected: true, lastEvent: "authenticated_page" });
+    assert.deepEqual(bridge.status(), { listening: true, extensionConnected: true, lastEvent: "authenticated_page", commandQueued: false });
+  } finally { await bridge.close(); }
+});
+
+test("loopback status is bounded local-only diagnostic state", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
+  try {
+    const status = await fetch(`http://127.0.0.1:${bridge.port}/v1/status`);
+    assert.equal(status.status, 200);
+    assert.deepEqual(await status.json(), { version: 1, listening: true,
+      extensionConnected: false, lastEvent: null, commandQueued: true });
+    assert.equal((await fetch(`http://127.0.0.1:${bridge.port}/v1/status`, { headers: { Origin: origin } })).status, 403);
+  } finally { await bridge.close(); }
+});
+
+test("loopback bridge delivers one Wells-open command only to its connected extension", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
+  try {
+    const sessionResponse = await post(bridge.port, "/v1/session");
+    const { session } = await sessionResponse.json();
+    const get = headers => fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
+      headers: { Origin: origin, ...headers },
+    });
+    assert.equal((await get({})).status, 403);
+    const first = await get({ "X-Budget-Collector-Session": session });
+    assert.equal(first.status, 200);
+    assert.deepEqual(await first.json(), { version: 1, command: "open_wells" });
+    assert.equal(bridge.status().commandQueued, false);
+    assert.deepEqual(await (await get({ "X-Budget-Collector-Session": session })).json(), { version: 1, command: "none" });
+  } finally { await bridge.close(); }
+});
+
+test("command polling accepts Chromium's origin-less extension GET only with its session", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const command = await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
+      headers: { "X-Budget-Collector-Session": session },
+    });
+    assert.equal(command.status, 200);
+    assert.deepEqual(await command.json(), { version: 1, command: "open_wells" });
+    assert.equal((await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
+      headers: { "X-Budget-Collector-Session": "wrong" },
+    })).status, 403);
   } finally { await bridge.close(); }
 });
 

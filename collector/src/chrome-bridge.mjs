@@ -5,12 +5,13 @@ import { requireEvidence as check } from "./errors.mjs";
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 const events = new Set(["wells_opened", "auth_required", "authenticated_page"]);
 const MAX_BODY_BYTES = 1024;
+const commands = new Set(["none", "open_wells"]);
 
 function response(res, status, origin, body = null) {
   const headers = {
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-Budget-Collector-Session",
   };
   if (origin) headers["Access-Control-Allow-Origin"] = origin;
@@ -41,8 +42,9 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, onProgress = () => {} } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", onProgress = () => {} } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
+  check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
   let origin = null;
   let session = null;
   let lastEvent = null;
@@ -50,7 +52,25 @@ export async function startChromeBridge({ port = 43811, onProgress = () => {} } 
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
       if (req.method === "OPTIONS") return response(res, 204, requestOrigin === origin ? origin : null);
-      if (req.method !== "POST") return response(res, 405, requestOrigin);
+      if (req.url === "/v1/status") {
+        // Deliberately bounded local diagnostic. It is not CORS-enabled and
+        // contains no page, account, credential, or financial information.
+        if (req.method !== "GET" || requestOrigin) return response(res, 403, null);
+        return response(res, 200, null, { version: 1, listening: server.listening,
+          extensionConnected: session !== null, lastEvent, commandQueued: nextCommand !== "none" });
+      }
+      if (req.url === "/v1/command") {
+        if (req.method !== "GET") return response(res, 405, requestOrigin === origin ? origin : null);
+        // Chromium may omit Origin for an extension GET with a host permission.
+        // The unguessable, in-memory per-run session remains mandatory; reject a
+        // present mismatched origin rather than requiring a header Chromium does
+        // not consistently provide.
+        if (!origin || (requestOrigin && requestOrigin !== origin) || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
+        const command = nextCommand;
+        nextCommand = "none"; // One-shot command: a later retry never opens a second Wells tab.
+        return response(res, 200, origin, { version: 1, command });
+      }
+      if (req.method !== "POST") return response(res, 405, requestOrigin === origin ? origin : null);
       if (req.url === "/v1/session") {
         if (!extensionOrigin.test(requestOrigin ?? "")) return response(res, 403, null);
         origin = requestOrigin;
@@ -78,7 +98,7 @@ export async function startChromeBridge({ port = 43811, onProgress = () => {} } 
   check(address && typeof address === "object" && address.address === "127.0.0.1", "BRIDGE_BIND_FAILED", "The local bridge did not bind to loopback.");
   return {
     port: address.port,
-    status: () => ({ listening: server.listening, extensionConnected: session !== null, lastEvent }),
+    status: () => ({ listening: server.listening, extensionConnected: session !== null, lastEvent, commandQueued: nextCommand !== "none" }),
     close: () => new Promise(resolve => server.close(resolve)),
   };
 }

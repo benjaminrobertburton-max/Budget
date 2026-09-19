@@ -58,6 +58,20 @@ profile or financial data, or change the workbook. It is not the future weekly
 launcher. The user must be present and confirm at the exact Chrome-extension
 installation step before this can connect to Chrome.
 
+`pnpm --dir collector wells:auto` is the corresponding **development-only**
+local command path. It queues one non-financial `open_wells` instruction; the
+installed bridge polls the loopback process and opens the official sign-on page
+without an extension-toolbar click. The command remains running until stopped so
+it can report bounded sign-in state, but it cannot read credentials, capture
+financial information, update the workbook, or schedule itself. The production
+Tuesday launcher will replace this development command only after the encrypted
+Wells adapter and complete source-validation gates exist.
+
+Version `0.1.1` is the first bridge build with the one-shot local-command path.
+After a source update, Chrome must reload the unpacked extension once from its
+Extensions page before that code can run. Reloading the extension is a
+development/setup action, not part of the intended Tuesday routine.
+
 This is the development foundation for the user's Tuesday **Refresh Budget** workflow.
 It is runnable software with fictional test data, a tested Windows encryption
 layer, disposable Chrome demonstrations, and a separately gated manual Wells pilot.

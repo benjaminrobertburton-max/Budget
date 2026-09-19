@@ -115,6 +115,22 @@ No actual workbook has been updated by this collector.
   Tuesday launcher. It was tested with fictional HTTP clients only. Starting it
   does not open Chrome or Wells; extension installation and its permission remain
   a present-user confirmation gate.
+- **Attended connection check (September 19):** the user installed the reviewed
+  extension into ordinary home Chrome and initiated Wells through its action.
+  Chrome reached an authenticated checking activity page without the collector
+  reading, storing, logging, or exporting credentials. This establishes that the
+  supported extension/loopback connection and ordinary Chrome session path can
+  reach Wells. It is not a Wells collection pass: the bridge intentionally has
+  no financial capture endpoint, source-specific mapping, pagination coverage,
+  encrypted persistent evidence, or workbook update. No source values were saved
+  by collector code or added to Git.
+- The next portable increment is a local one-shot command handoff: a launcher
+  can queue `open_wells`, and the installed extension polls only the loopback
+  bridge while it is running, consumes that command once, and opens Wells without
+  a toolbar click. It does not create a daily schedule or a background financial
+  data connection. This is a replacement for the manual extension-action step,
+  not the completed Tuesday refresh: encrypted capture, source mapping,
+  navigation/pagination, validation and workbook gates still remain.
 
 For the publishing commit, use the Git commit containing this section and version
 0.6.1; verify the exact local HEAD equals the remote feature-branch hash. Do not

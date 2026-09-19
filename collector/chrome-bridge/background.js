@@ -1,10 +1,13 @@
 // This bridge deliberately never reads, fills, submits, stores, or transmits
 // credentials, cookies, form values, page text, balances, or transactions.
-// It only opens Wells after a user clicks the extension action and sends bounded
-// non-financial state to the local collector process.
+// A local collector can issue one bounded, read-only Wells-open command. The
+// extension polls only while the local collector is running; it does not create
+// a schedule, open Wells spontaneously, or make a financial decision.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
 const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
+const POLL_ALARM = "budget-collector-local-command";
 let session = null;
+let pollInFlight = false;
 
 async function send(path, options = {}) {
   if (!session) return false;
@@ -38,15 +41,43 @@ async function startSession() {
   session = body.session;
 }
 
+async function openWells() {
+  const tab = await chrome.tabs.create({ url: WELLS_SIGN_ON, active: true });
+  await send("/v1/progress", {
+    method: "POST",
+    body: JSON.stringify({ version: 1, event: "wells_opened", tabId: Number.isInteger(tab.id) ? tab.id : null }),
+  });
+  await chrome.action.setBadgeText({ text: "AUTH" });
+}
+
+async function pollCommand() {
+  if (pollInFlight) return;
+  pollInFlight = true;
+  try {
+    if (!session) await startSession();
+    const response = await fetch(`${LOCAL_BRIDGE}/v1/command`, {
+      headers: { "X-Budget-Collector-Session": session }, cache: "no-store",
+    });
+    if (response.status === 403) { session = null; return; }
+    if (!response.ok) return;
+    const command = await response.json();
+    if (!command || command.version !== 1 || !["none", "open_wells"].includes(command.command)) return;
+    if (command.command === "open_wells") await openWells();
+  } catch {
+    // The normal state is no local collector. Never surface host/process details.
+    session = null;
+  } finally { pollInFlight = false; }
+}
+
+chrome.alarms.create(POLL_ALARM, { periodInMinutes: 0.5 });
+chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === POLL_ALARM) void pollCommand(); });
+chrome.runtime.onStartup.addListener(() => void pollCommand());
+chrome.runtime.onInstalled.addListener(() => void pollCommand());
+
 chrome.action.onClicked.addListener(async () => {
   try {
     await startSession();
-    const tab = await chrome.tabs.create({ url: WELLS_SIGN_ON, active: true });
-    await send("/v1/progress", {
-      method: "POST",
-      body: JSON.stringify({ version: 1, event: "wells_opened", tabId: Number.isInteger(tab.id) ? tab.id : null }),
-    });
-    await chrome.action.setBadgeText({ text: "AUTH" });
+    await openWells(); // Development fallback only; routine collection uses a local command.
   } catch {
     session = null;
     await chrome.action.setBadgeText({ text: "OFF" });
