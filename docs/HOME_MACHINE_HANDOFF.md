@@ -91,7 +91,7 @@ No actual workbook has been updated by this collector.
   private financial file was migrated, overwritten, or published.
 - Confirmed Windows, Node.js 24.19.0, installed Chrome 152.0.7977.84 and the
   pinned `playwright-core` dependency. The full local fictional core suite
-  (201 tests) and serial browser suite (15 tests) now pass on this machine.
+  (204 tests) and serial browser suite (15 tests) now pass on this machine.
   No bank page, browser profile, account, workbook, or financial evidence was
   accessed by those tests.
 - This Windows profile blocks `.ps1` files through execution policy. The private
