@@ -23,6 +23,10 @@ timers, permissions, or parsing logic, the next investigation must:
 5. Stop after one failed targeted live attempt and return to evidence collection;
    do not stack speculative revisions or make the user repeat sign-in.
 
+For frame-based pages, offline QC must also exercise the event sequence: top-frame
+status, child-frame readiness, child-frame candidate, and terminal bridge decision.
+An early top-frame empty result must never be allowed to terminate the run.
+
 Generic external research is supporting context, not a substitute for inspecting
 the actual authenticated Wells DOM. The assistant owns this diagnostic sequence;
 the user should only need to authenticate, approve 2FA, or provide a screenshot
