@@ -10,14 +10,10 @@ if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(command[
   try {
     const { startChromeBridge } = await import("./chrome-bridge.mjs");
     const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
-    const { readLocalRefreshConfig, launchLocalRefresh } = await import("./local-refresh-trigger.mjs");
-    const refreshConfig = command[0] === "wells-refresh" ? await readLocalRefreshConfig() : null;
-    if (command[0] === "wells-refresh" && !refreshConfig) throw new Error("LOCAL_TRIGGER_UNAVAILABLE");
     let evidenceStore = null;
     bridge = await startChromeBridge({
       nextCommand: command[0] === "wells-refresh" ? "open_wells" : "none",
       captureAfterAuth: command[0] === "wells-refresh",
-      triggerExtensionId: refreshConfig?.extensionId ?? null,
       onActivityCapture: command[0] === "wells-refresh" ? async candidate => {
         if (!evidenceStore) {
           const [{ defaultPrivateRoot }, { openPrivateEvidenceStore }] = await Promise.all([
@@ -32,8 +28,7 @@ if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(command[
     });
     console.log(`Local Chrome bridge is listening only on 127.0.0.1:${bridge.port}.`);
     if (command[0] === "wells-refresh") {
-      console.log("One local Wells refresh is queued. It opens or reuses one Wells tab and closes its local trigger automatically.");
-      launchLocalRefresh({ config: refreshConfig, triggerUrl: bridge.triggerUrl });
+      console.log("One local Wells refresh is queued. The installed extension polls loopback and opens or reuses one Wells tab; no helper tab is created.");
     } else {
       console.log("It accepts only the installed Budget Collector Bridge extension and reports no financial data.");
     }

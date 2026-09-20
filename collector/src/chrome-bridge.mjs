@@ -26,13 +26,6 @@ function response(res, status, origin, body = null) {
   res.end(body === null ? "" : JSON.stringify(body));
 }
 
-function triggerPage(res, extensionId, token) {
-  const body = `<!doctype html><meta charset="utf-8"><script>chrome.runtime.sendMessage(${JSON.stringify(extensionId)},{version:1,action:"start_refresh",token:${JSON.stringify(token)}},()=>{});</script>`;
-  res.writeHead(200, { "Cache-Control": "no-store", "Content-Type": "text/html; charset=utf-8",
-    "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" });
-  res.end(body);
-}
-
 function readJson(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -56,15 +49,13 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, triggerExtensionId = null, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
-  check(triggerExtensionId === null || /^[a-p]{32}$/.test(triggerExtensionId), "INVALID_BRIDGE", "The local trigger extension is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
   let origin = null;
   let session = null;
   let lastEvent = null;
-  const triggerToken = triggerExtensionId ? randomBytes(32).toString("hex") : null;
   const server = createServer(async (req, res) => {
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
@@ -75,13 +66,6 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (req.method !== "GET" || requestOrigin) return response(res, 403, null);
         return response(res, 200, null, { version: 1, listening: server.listening,
           extensionConnected: session !== null, lastEvent, commandQueued: nextCommand !== "none" });
-      }
-      if (req.url === "/v1/trigger") {
-        if (req.method === "GET" && !requestOrigin && triggerExtensionId && triggerToken) return triggerPage(res, triggerExtensionId, triggerToken);
-        if (req.method !== "POST" || !origin || requestOrigin !== origin || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
-        const body = await readJson(req);
-        if (!body || typeof body !== "object" || Object.keys(body).sort().join(",") !== "token,version" || body.version !== 1 || body.token !== triggerToken) return response(res, 400, origin);
-        return response(res, 204, origin);
       }
       if (req.url === "/v1/command") {
         if (req.method !== "GET") return response(res, 405, requestOrigin === origin ? origin : null);
@@ -136,7 +120,6 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
   check(address && typeof address === "object" && address.address === "127.0.0.1", "BRIDGE_BIND_FAILED", "The local bridge did not bind to loopback.");
   return {
     port: address.port,
-    triggerUrl: triggerExtensionId ? `http://127.0.0.1:${address.port}/v1/trigger` : null,
     status: () => ({ listening: server.listening, extensionConnected: session !== null, lastEvent, commandQueued: nextCommand !== "none" }),
     close: () => new Promise(resolve => server.close(resolve)),
   };
