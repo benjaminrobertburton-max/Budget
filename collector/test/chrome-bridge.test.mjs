@@ -101,6 +101,24 @@ test("empty or unsupported activity states never invoke the private evidence wri
   } finally { await bridge.close(); }
 });
 
+test("a top-frame empty result can precede a child-frame candidate without terminating capture", async () => {
+  const saved = [];
+  const bridge = await startChromeBridge({ port: 0, onActivityCapture: async value => saved.push(value) });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const headers = { "X-Budget-Collector-Session": session };
+    const empty = fictionalActivityCandidate();
+    empty.finding = "no_activity_table";
+    empty.tables = [];
+    assert.equal((await post(bridge.port, "/v1/activity", headers, JSON.stringify(empty))).status, 204);
+    assert.equal(bridge.status().lastEvent, "activity_capture_no_table");
+    const candidate = fictionalActivityCandidate();
+    assert.equal((await post(bridge.port, "/v1/activity", headers, JSON.stringify(candidate))).status, 204);
+    assert.equal(bridge.status().lastEvent, "activity_candidate_captured");
+    assert.deepEqual(saved, [candidate]);
+  } finally { await bridge.close(); }
+});
+
 test("loopback bridge rejects raw page content and invalid paths", async () => {
   const bridge = await startChromeBridge({ port: 0 });
   try {
