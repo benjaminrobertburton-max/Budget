@@ -46,6 +46,7 @@ export async function runCollectorQc({ repositoryRoot }) {
     for (const [id, pattern, detail] of [
       ["checking navigation request", /checking_navigation_required/, "summary-to-detail navigation"],
       ["ARIA activity support", /\[role=grid\]|\[role=table\]/, "Wells accessible table/grid variants"],
+      ["composed DOM search", /const roots = \(\) =>|deepQueryAll/, "open shadow-root and same-origin-frame traversal"],
       ["flexible activity headings", /headerKind|deposits\?\\s\*\//, "heading spacing around slash"],
       ["bounded rendering wait", /readinessAttempts < 150/, "30-second maximum"],
     ]) {

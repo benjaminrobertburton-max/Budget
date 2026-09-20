@@ -8,8 +8,28 @@
   let checkingNavigationStarted = false;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
+  // Wells has used both ordinary DOM and open web-component roots for the
+  // account shell. Search only the current page's DOM, open shadow roots and
+  // same-origin frames; never inspect browser storage, URLs or credentials.
+  const roots = () => {
+    const found = [], seen = new Set(), queue = [document];
+    while (queue.length && found.length < 64) {
+      const root = queue.shift();
+      if (!root || seen.has(root)) continue;
+      seen.add(root); found.push(root);
+      for (const node of root.querySelectorAll("*")) {
+        if (node.shadowRoot) queue.push(node.shadowRoot);
+        if (node.tagName === "IFRAME") {
+          try { if (node.contentDocument) queue.push(node.contentDocument); } catch { /* cross-origin frame */ }
+        }
+      }
+    }
+    return found;
+  };
+  const deepQueryAll = selector => roots().flatMap(root => [...root.querySelectorAll(selector)]);
+  const hasShadowRoots = () => roots().some(root => root !== document && root.host);
   const currentState = () => {
-    const controls = [...document.querySelectorAll("input")];
+    const controls = deepQueryAll("input");
     return controls.some(input => visible(input) && !input.disabled
       && (input.type === "password" || /^(username|current-password|new-password|one-time-code)$/.test(input.autocomplete)))
       ? "auth_required" : "authenticated_page";
@@ -22,7 +42,7 @@
     return headers.some(value => /^date$/i.test(value)) && headers.some(value => /^description$/i.test(value))
       && headers.some(value => /^(deposits?\s*\/\s*credits|withdrawals?\s*\/\s*debits)$/i.test(value));
   };
-  const activityContainers = () => [...document.querySelectorAll("table,[role=table],[role=grid]")];
+  const activityContainers = () => deepQueryAll("table,[role=table],[role=grid]");
   const activityRows = container => [...container.querySelectorAll("tr,[role=row]")]
     .filter(row => visible(row) && (!row.closest("tr,[role=row]") || row.closest("tr,[role=row]") === row));
   const hasActivityTable = () => activityContainers().some(container => activityRows(container).some(activityHeader));
@@ -31,7 +51,7 @@
     // Account-summary cards expose this stable product label. Opening the
     // checking detail is read-only navigation; this never opens transfers,
     // payments, statements, profile settings, or another product.
-    const checking = [...document.querySelectorAll("a")].find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
+    const checking = deepQueryAll("a").find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
     if (!checking) return false;
     // Wells ignores synthetic content-script clicks on this card. Ask the
     // extension for one narrowly scoped trusted click at the visible card; the
@@ -68,7 +88,7 @@
     const table = tables.find(candidate => activityRows(candidate).some(activityHeader));
     const empty = { version: 1, kind: "activity_candidate", coverageVerified: false, workbookReady: false,
       finding: "no_activity_table", hasFrames: !!document.querySelector("iframe,frame"), tables: [],
-      layout: { tableCount: tables.length, rowCount: 0, headerCount: 0, hasShadowRoots: false, tables: [] } };
+      layout: { tableCount: tables.length, rowCount: 0, headerCount: 0, hasShadowRoots: hasShadowRoots(), tables: [] } };
     if (!table) return empty;
     const rows = activityRows(table);
     const header = rows.find(activityHeader);
@@ -79,7 +99,7 @@
     if (!columns.includes("date") || !columns.includes("description") || (!columns.includes("credit") && !columns.includes("debit"))) return empty;
     const data = rows.filter(row => row !== header).map(row => rowCells(row).map(text));
     const candidate = { ...empty, finding: "candidate_read", tables: [{ columns, headers, rows: data, issues: [] }],
-      layout: { tableCount: tables.length, rowCount: rows.length, headerCount: 1, hasShadowRoots: false,
+      layout: { tableCount: tables.length, rowCount: rows.length, headerCount: 1, hasShadowRoots: hasShadowRoots(),
         tables: [{ kind: "html_table", rows: rows.length, headerRows: 1, reason: "candidate_read", columns }] } };
     return candidate;
   };
