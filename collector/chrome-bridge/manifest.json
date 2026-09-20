@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local, read-only Wells connection for the Budget Collector.",
   "permissions": ["tabs"],
   "host_permissions": [
@@ -11,6 +11,9 @@
   "background": {
     "service_worker": "background.js",
     "type": "module"
+  },
+  "externally_connectable": {
+    "matches": ["http://127.0.0.1/*"]
   },
   "content_scripts": [
     {

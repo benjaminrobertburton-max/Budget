@@ -36,6 +36,25 @@ test("loopback status is bounded local-only diagnostic state", async () => {
   } finally { await bridge.close(); }
 });
 
+test("local trigger page permits only its paired extension to start a refresh", async () => {
+  const bridge = await startChromeBridge({ port: 0, triggerExtensionId: "abcdefghijklmnopabcdefghijklmnop" });
+  try {
+    assert.match(bridge.triggerUrl, /^http:\/\/127\.0\.0\.1:\d+\/v1\/trigger$/);
+    const page = await fetch(bridge.triggerUrl);
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    const token = html.match(/token:"([a-f0-9]{64})"/)?.[1];
+    assert.ok(token);
+    assert.match(html, /runtime\.sendMessage/);
+    assert.doesNotMatch(html, /balance|transaction|credential|wells/i);
+    assert.equal((await fetch(bridge.triggerUrl, { method: "POST", headers: { Origin: origin } })).status, 403);
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const accepted = await post(bridge.port, "/v1/trigger", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, token }));
+    assert.equal(accepted.status, 204);
+    assert.equal((await post(bridge.port, "/v1/trigger", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, token: "0".repeat(64) }))).status, 400);
+  } finally { await bridge.close(); }
+});
+
 test("loopback bridge delivers one capture command only to its connected extension", async () => {
   const bridge = await startChromeBridge({ port: 0, nextCommand: "capture_wells_activity" });
   try {
