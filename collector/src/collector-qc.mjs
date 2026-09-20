@@ -30,8 +30,8 @@ export async function runCollectorQc({ repositoryRoot }) {
       }
       if (manifest.externally_connectable) fail("no visible trigger route", "externally_connectable is still configured");
       else pass("no visible trigger route", "no externally-connectable localhost page");
-      if (manifest.version === "0.3.5") pass("extension version", "0.3.5 frame-command bridge");
-      else fail("extension version", `expected 0.3.5, found ${String(manifest.version)}`);
+      if (manifest.version === "0.3.6") pass("extension version", "0.3.6 render-aware bridge");
+      else fail("extension version", `expected 0.3.6, found ${String(manifest.version)}`);
       if (permissions.has("webNavigation")) pass("frame command delivery", "capture commands can reach every Wells frame");
       else fail("frame command delivery", "webNavigation permission is missing");
       if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");
@@ -55,6 +55,7 @@ export async function runCollectorQc({ repositoryRoot }) {
       ["composed DOM search", /const roots = \(\) =>|deepQueryAll/, "open shadow-root and same-origin-frame traversal"],
       ["flexible activity headings", /headerKind|deposits\?\\s\*\//, "heading spacing around slash"],
       ["bounded rendering wait", /readinessAttempts < 150/, "30-second maximum"],
+      ["capture render wait", /captureAttempts < 150|captureWhenReady/, "capture waits for rendered activity"],
     ]) {
       if (pattern.test(reader)) pass(id, detail); else fail(id, `missing ${detail}`);
     }

@@ -5,6 +5,8 @@
   let previous = null;
   let readinessAttempts = 0;
   let readinessTimer = null;
+  let captureAttempts = 0;
+  let captureTimer = null;
   let checkingNavigationStarted = false;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
@@ -112,11 +114,22 @@
         tables: [{ kind: "html_table", rows: rows.length, headerRows: 1, reason: "candidate_read", columns }] } };
     return candidate;
   };
+  const captureWhenReady = () => {
+    if (currentState() === "auth_required") return;
+    if (!hasActivityTable() && captureAttempts < 150) {
+      captureAttempts++;
+      if (captureTimer === null) captureTimer = setTimeout(() => { captureTimer = null; captureWhenReady(); }, 200);
+      return;
+    }
+    captureAttempts = 0;
+    const candidate = capture();
+    if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
+  };
   chrome.runtime.onMessage.addListener(message => {
     if (message?.command === "probe_wells_state") { previous = null; checkingNavigationStarted = false; report(); return; }
     if (message?.command !== "capture_wells_activity") return;
-    const candidate = capture();
-    if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
+    captureAttempts = 0;
+    captureWhenReady();
   });
   // The content script is the sole wake path. A small heartbeat lets a local
   // command begin after Wells was already open without alarms or helper tabs.

@@ -50,6 +50,7 @@ preserves the observed Wells table structure without retaining real account data
 | Authenticated run still reported no table after navigation/readiness wait | The reader searched only the top document; Wells account shells can place accessible grids inside open web-component roots or same-origin frames | Reader now performs a bounded semantic search across the document, open shadow roots, and accessible same-origin frames. Cross-origin frames remain untouched. |
 | Screenshot showed the final Wells activity grid but the reader still saw no table | The activity panel can be hosted in a child Wells frame; top-frame-only content scripts cannot see it | The reader is injected into all Wells frames. Only frame 0 can report authentication/navigation; any Wells frame may submit a bounded activity candidate. |
 | DevTools showed a real `transaction-table`, but header text was not reliably exposed as cell text | Wells supplies stable `data-testid` values on header cells while rendering some labels through nested controls | Header detection now uses the bounded Wells transaction test IDs as structural labels, without relying on private page text. |
+| 0.3.5 reached authentication but returned no candidate while the table was visibly present | Live accessibility inspection showed the table rendered after the one-shot capture command; the reader sent an empty result too early | Capture now waits up to the existing bounded render window for the activity table before sending its candidate. |
 | Ten-second render bound could report a false missing table | Authenticated Wells shell can appear before activity rows | Bound increased to 30 seconds; a missing table remains an exception, never zero activity. |
 | Saved-credential/autofill approval-only path | Not yet proven through the supported extension | Remains an explicit acceptance gate. The extension never extracts or submits credentials. |
 | Complete source coverage and workbook import | Not implemented by the bridge | Remains blocked until Wells identity, balance meanings, pending/posted coverage, date range, pagination and overlap checks pass. |
@@ -72,7 +73,7 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Acceptance gates for the next run
 
-1. Extension reload shows version 0.3.5 and the new debugger permission.
+1. Extension reload shows version 0.3.6 and the new debugger permission.
 2. `wells-refresh` produces no localhost/helper tabs.
 3. Wells reaches the checking activity view without manual account navigation.
 4. A candidate contains the activity headers and bounded rows; no raw values are
