@@ -60,6 +60,8 @@ export async function runCollectorQc({ repositoryRoot }) {
   if (files["R&D record"]) {
     if (/Failure inventory/.test(files["R&D record"]) && /External research applied/.test(files["R&D record"])) pass("lessons learned", "failure inventory and external research recorded");
     else fail("lessons learned", "R&D record is incomplete");
+    if (/Practical debugging protocol/.test(files["R&D record"]) && /DevTools Elements\/Frames/.test(files["R&D record"])) pass("practical debugging", "evidence-first targeted revisions are required");
+    else fail("practical debugging", "evidence-first protocol is missing");
   }
   return { ok: results.every(result => result.status === "pass"), results };
 }

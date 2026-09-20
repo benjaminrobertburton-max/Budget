@@ -7,6 +7,27 @@ wake page, launch a second Chrome profile, copy browser state, read credentials,
 or send raw banking data to the agent. The next live test is gated behind this
 revision; this document is not a claim that a complete Wells import has passed.
 
+## Practical debugging protocol
+
+The project must optimize for the user's real goal—one-button capture of visible
+local account activity—not architectural novelty. Before changing navigation,
+timers, permissions, or parsing logic, the next investigation must:
+
+1. Reproduce the exact user-visible failure once and record the bounded status.
+2. Inspect the designated authenticated page with the most direct available
+   evidence: DevTools Elements/Frames, extension Errors, and the visible control
+   the user expects the collector to read. Do not infer private page structure
+   from generic web research when local evidence is available.
+3. State the smallest concrete mismatch and make one targeted change.
+4. Run offline QC/tests before asking for another attended run.
+5. Stop after one failed targeted live attempt and return to evidence collection;
+   do not stack speculative revisions or make the user repeat sign-in.
+
+Generic external research is supporting context, not a substitute for inspecting
+the actual authenticated Wells DOM. The assistant owns this diagnostic sequence;
+the user should only need to authenticate, approve 2FA, or provide a screenshot
+when the local page is otherwise inaccessible to the tools.
+
 ## Failure inventory
 
 | Failure | Evidence | Resolution or status |
