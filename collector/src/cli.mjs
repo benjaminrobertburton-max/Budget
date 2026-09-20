@@ -5,9 +5,18 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(command[0])) {
+if (command.length === 1 && command[0] === "collector-qc") {
+  const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
+  const report = await runCollectorQc({ repositoryRoot: fileURLToPath(new URL("../../", import.meta.url)) });
+  console.log(formatCollectorQc(report));
+  if (!report.ok) process.exitCode = 1;
+}
+else if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(command[0])) {
   let bridge = null;
   try {
+    const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
+    const qc = await runCollectorQc({ repositoryRoot: fileURLToPath(new URL("../../", import.meta.url)) });
+    if (!qc.ok) throw new Error(`COLLECTOR_QC_BLOCKED: ${formatCollectorQc(qc)}`);
     const { startChromeBridge } = await import("./chrome-bridge.mjs");
     const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
     let evidenceStore = null;

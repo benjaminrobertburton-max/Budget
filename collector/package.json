@@ -13,6 +13,7 @@
     "demo:browser": "node src/cli.mjs browser-demo",
     "demo:interactive": "node src/cli.mjs browser-interactive",
     "bridge:chrome": "node src/cli.mjs chrome-bridge",
+    "qc": "node src/cli.mjs collector-qc",
     "wells:auto": "node src/cli.mjs wells-auto",
     "pilot:rehearsal": "node src/cli.mjs pilot-rehearsal",
     "pilot:wells": "node src/cli.mjs wells-pilot"
