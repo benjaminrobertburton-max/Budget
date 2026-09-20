@@ -39,13 +39,24 @@
   const rowCells = row => [...row.querySelectorAll("th,td,[role=cell],[role=columnheader]")]
     .filter(cell => !cell.closest("tr,[role=row]") || cell.closest("tr,[role=row]") === row);
   const headerKind = value => value.toLowerCase().replace(/\s+/g, " ").trim();
+  const headerLabel = cell => {
+    const testId = (cell.getAttribute("data-testid") || "").toLowerCase();
+    const byTestId = {
+      "transaction-heading-date": "Date",
+      "transaction-heading-description": "Description",
+      "transaction-heading-deposits_or_credits": "Deposits/Credits",
+      "transaction-heading-withdrawals_or_debits": "Withdrawals/Debits",
+      "transaction-heading-ending_daily_balance": "Ending Daily Balance",
+    }[testId];
+    return byTestId || text(cell);
+  };
   const activityHeader = row => {
     // Wells renders a visible label and a stable transaction-heading-* test id
     // on the same header cell. Keep those signals separate: concatenating them
     // ("Date transaction-heading-DATE") makes an exact-label detector miss a
     // valid table even though DevTools/accessibility exposes the header.
     const headers = rowCells(row).flatMap(cell => {
-      const label = headerKind(text(cell));
+      const label = headerKind(headerLabel(cell));
       const testId = headerKind(cell.getAttribute("data-testid") || "");
       const testLabel = testId.replace(/^transaction-heading-/, "").replace(/_/g, " ");
       return [label, testLabel].filter(Boolean);
@@ -113,7 +124,7 @@
     const rows = activityRows(table);
     const header = rows.find(activityHeader);
     if (!header || rows.length > 500) return empty;
-    const headers = rowCells(header).map(text);
+    const headers = rowCells(header).map(headerLabel);
     const normalize = value => value.toLowerCase().replace(/[^a-z]/g, "");
     const columns = headers.map(value => ({ date: "date", description: "description", depositscredits: "credit", withdrawalsdebits: "debit", endingdailybalance: "balance" })[normalize(value)] || "unknown");
     if (!columns.includes("date") || !columns.includes("description") || (!columns.includes("credit") && !columns.includes("debit"))) return empty;
