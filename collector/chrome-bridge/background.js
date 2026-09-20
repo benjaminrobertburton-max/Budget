@@ -110,7 +110,10 @@ async function pollCommand() {
     const command = await nextCommand();
     if (command === "open_wells") await openOrReuseWells();
     if (command === "capture_wells_activity" && Number.isInteger(wellsTabId)) {
-      await chrome.tabs.sendMessage(wellsTabId, { command: "capture_wells_activity" }).catch(() => {});
+      const frames = await chrome.webNavigation.getAllFrames({ tabId: wellsTabId }).catch(() => []);
+      const frameIds = frames.map(frame => frame.frameId).filter(Number.isInteger);
+      await Promise.all((frameIds.length ? frameIds : [0]).map(frameId =>
+        chrome.tabs.sendMessage(wellsTabId, { command: "capture_wells_activity" }, { frameId }).catch(() => {})));
     }
   } finally { pollInFlight = false; }
 }

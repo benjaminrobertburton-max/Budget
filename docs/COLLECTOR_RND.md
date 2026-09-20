@@ -72,7 +72,7 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Acceptance gates for the next run
 
-1. Extension reload shows version 0.3.4 and the new debugger permission.
+1. Extension reload shows version 0.3.5 and the new debugger permission.
 2. `wells-refresh` produces no localhost/helper tabs.
 3. Wells reaches the checking activity view without manual account navigation.
 4. A candidate contains the activity headers and bounded rows; no raw values are
