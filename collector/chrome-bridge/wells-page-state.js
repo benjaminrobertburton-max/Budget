@@ -5,7 +5,7 @@
   let previous = null;
   let readinessAttempts = 0;
   let readinessTimer = null;
-  let navigationRequested = false;
+  let checkingNavigationStarted = false;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
   const currentState = () => {
@@ -28,12 +28,12 @@
     // payments, statements, profile settings, or another product.
     const checking = [...document.querySelectorAll("a")].find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
     if (!checking) return false;
-    // Wells rejects ordinary synthetic clicks. The background script performs
-    // one constrained, trusted click using only this card's viewport rectangle.
-    // No href, account parameter, balance, or page text leaves this page.
-    if (!navigationRequested) {
-      navigationRequested = true;
-      chrome.runtime.sendMessage({ event: "checking_navigation_required" });
+    // Ordinary same-tab, read-only link navigation. The collector never creates
+    // or reloads a tab and never observes the link target. Only one click is
+    // attempted for this document, so a blocked navigation cannot loop.
+    if (!checkingNavigationStarted) {
+      checkingNavigationStarted = true;
+      checking.click();
     }
     return true;
   };
@@ -77,11 +77,16 @@
     return candidate;
   };
   chrome.runtime.onMessage.addListener(message => {
-    if (message?.command === "probe_wells_state") { previous = null; navigationRequested = false; report(); return; }
+    if (message?.command === "probe_wells_state") { previous = null; checkingNavigationStarted = false; report(); return; }
     if (message?.command !== "capture_wells_activity") return;
     const candidate = capture();
     if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
   });
+  // The content script is the sole wake path. A small heartbeat lets a local
+  // command begin after Wells was already open without alarms or helper tabs.
+  const announce = () => chrome.runtime.sendMessage({ event: "collector_page_ready" }).catch(() => {});
+  announce();
+  setInterval(announce, 2000);
   report();
   new MutationObserver(report).observe(document.documentElement, { childList: true, subtree: true, attributes: true,
     attributeFilter: ["hidden", "aria-hidden", "style", "disabled", "autocomplete", "type"] });

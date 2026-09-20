@@ -2,6 +2,19 @@
 
 ## Resume at home: development checkpoint, not a finished collector
 
+### Direct-page-reader reset — September 20
+
+The earlier extension wake, Chrome-launch, alarm, and debugger paths were
+removed after they produced invalid extension tabs and never established a
+reliable command handshake. The installed bridge is now intentionally simple:
+an existing Wells tab's content script wakes the extension, and a local
+`wells-capture` command queues exactly one activity-table read. It never opens,
+reloads, navigates, or attaches a debugger to a browser tab. This is still a
+development capture only—not a complete Wells source verification or workbook
+update. A content-script update requires one development-time extension reload
+and one refresh of an already-open Wells page; neither belongs in the eventual
+weekly routine.
+
 Sync `codex/budget-collector`, not just `main`, and read the
 [latest home continuation instructions](../docs/HOME_MACHINE_HANDOFF.md#home-development-resume--latest-decision-overrides-older-next-step-guidance).
 Preserve local financial files and edits before any branch change. Work-machine

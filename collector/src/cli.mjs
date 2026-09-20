@@ -5,23 +5,15 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])) {
+if (command.length === 1 && ["chrome-bridge", "wells-capture"].includes(command[0])) {
   let bridge = null;
   try {
     const { startChromeBridge } = await import("./chrome-bridge.mjs");
     const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
-    const { readBridgeLaunchConfig, wakeInstalledBridge } = await import("./chrome-launcher.mjs");
-    const launchConfig = command[0] === "wells-auto" ? await readBridgeLaunchConfig({ repositoryRoot }) : null;
     let evidenceStore = null;
     bridge = await startChromeBridge({
-      nextCommand: command[0] === "wells-auto" ? "open_wells" : "none",
-      captureAfterAuth: command[0] === "wells-auto",
-      wakeExtensionId: launchConfig?.extensionId ?? null,
-      onConnected: async ({ origin }) => {
-        const { saveBridgeLaunchConfig } = await import("./chrome-launcher.mjs");
-        await saveBridgeLaunchConfig({ extensionOrigin: origin, repositoryRoot });
-      },
-      onActivityCapture: command[0] === "wells-auto" ? async candidate => {
+      nextCommand: command[0] === "wells-capture" ? "capture_wells_activity" : "none",
+      onActivityCapture: command[0] === "wells-capture" ? async candidate => {
         if (!evidenceStore) {
           const [{ defaultPrivateRoot }, { openPrivateEvidenceStore }] = await Promise.all([
             import("./private-paths.mjs"), import("./private-evidence-store.mjs"),
@@ -34,14 +26,13 @@ if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])
       onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
     });
     console.log(`Local Chrome bridge is listening only on 127.0.0.1:${bridge.port}.`);
-    if (command[0] === "wells-auto") {
-      console.log("One read-only Wells-open command is queued for the installed local bridge. No extension click is required.");
-      if (launchConfig) await wakeInstalledBridge({ config: launchConfig, port: bridge.port });
+    if (command[0] === "wells-capture") {
+      console.log("One read-only capture is queued for an already-open Wells page. This command never opens, reloads, or navigates a browser tab.");
     } else {
       console.log("It accepts only the installed Budget Collector Bridge extension and reports no financial data.");
     }
-    console.log(command[0] === "wells-auto"
-      ? "After authentication, a bounded activity-table candidate is sealed locally for development. It is not a verified import or workbook update."
+    console.log(command[0] === "wells-capture"
+      ? "After the already-open page reports an authenticated activity view, a bounded activity-table candidate is sealed locally for development. It is not a verified import or workbook update."
       : "Press Ctrl+C to stop it. This command does not install an extension, read credentials, capture financial data, or update the workbook.");
     await new Promise(resolve => {
       const stop = () => {
@@ -90,7 +81,7 @@ if (command.length === 1 && ["chrome-bridge", "wells-auto"].includes(command[0])
     process.exitCode = 1;
   }
 } else if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
-  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive | chrome-bridge | wells-auto");
+  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive | chrome-bridge | wells-capture");
   console.error("Live account collection is not installed. Collection demos use fictional data; the Wells development pilot can capture unverified activity tables privately.");
   console.error("Stopped-test inspection: node collector/src/cli.mjs recover-test [--confirm-cleanup]");
   console.error("Separate, manual pilot controls: node collector/src/cli.mjs pilot-rehearsal | wells-pilot");

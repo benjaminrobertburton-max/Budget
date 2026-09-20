@@ -1,160 +1,75 @@
-// This bridge never reads, fills, submits, stores, or transmits credentials,
-// cookies, form values, or browser state. A bounded activity candidate is sent
-// only after an explicit local capture command and is immediately encrypted by
-// the local collector. The extension polls only while that collector is running;
-// it does not schedule itself, open Wells spontaneously, or make a financial
-// decision.
+// Direct local page reader. It never opens, reloads, or controls browser tabs;
+// a Wells document that is already open wakes this worker through its content
+// script. It never reads/fills/submits credentials, cookies, form values, or
+// browser storage. Activity is sent only after the local command requests it.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
-const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
-const POLL_ALARM = "budget-collector-local-command";
 let session = null;
-let pollInFlight = false;
 let wellsTabId = null;
-const checkingNavigation = new Set();
+let connecting = null;
 
-async function send(path, options = {}) {
+async function startSession() {
+  if (session) return true;
+  if (connecting) return connecting;
+  connecting = (async () => {
+    try {
+      const response = await fetch(`${LOCAL_BRIDGE}/v1/session`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+      });
+      if (!response.ok) return false;
+      const body = await response.json();
+      if (!body || typeof body.session !== "string" || !/^[a-f0-9]{64}$/.test(body.session)) return false;
+      session = body.session;
+      return true;
+    } catch { return false; }
+    finally { connecting = null; }
+  })();
+  return connecting;
+}
+
+async function send(path, body) {
   if (!session) return false;
   try {
     const response = await fetch(`${LOCAL_BRIDGE}${path}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Budget-Collector-Session": session,
-        ...(options.headers ?? {}),
-      },
-      cache: "no-store",
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Budget-Collector-Session": session },
+      body: JSON.stringify(body), cache: "no-store",
     });
+    if (response.status === 403) session = null;
     return response.ok;
-  } catch {
-    return false;
-  }
+  } catch { session = null; return false; }
 }
 
-async function startSession() {
-  const response = await fetch(`${LOCAL_BRIDGE}/v1/session`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("LOCAL_COLLECTOR_UNAVAILABLE");
-  const body = await response.json();
-  if (!body || typeof body.session !== "string" || !/^[a-f0-9]{64}$/.test(body.session)) {
-    throw new Error("INVALID_LOCAL_COLLECTOR_SESSION");
-  }
-  session = body.session;
-}
-
-async function openWells() {
-  const tab = await chrome.tabs.create({ url: WELLS_SIGN_ON, active: true });
-  wellsTabId = Number.isInteger(tab.id) ? tab.id : null;
-  await send("/v1/progress", {
-    method: "POST",
-    body: JSON.stringify({ version: 1, event: "wells_opened", tabId: Number.isInteger(tab.id) ? tab.id : null }),
-  });
-  await chrome.action.setBadgeText({ text: "AUTH" });
-}
-
-async function probeExistingWellsTabs() {
-  const tabs = await chrome.tabs.query({ url: ["https://*.wellsfargo.com/*"] });
-  for (const tab of tabs) {
-    if (!Number.isInteger(tab.id) || !/Account (Summary|Detail) - Wells Fargo/.test(tab.title || "")) continue;
-    wellsTabId = tab.id;
-    try { await chrome.tabs.sendMessage(tab.id, { command: "probe_wells_state" }); } catch {}
-    return true;
-  }
-  return false;
-}
-
-async function navigateChecking(tabId) {
-  if (!Number.isInteger(tabId) || checkingNavigation.has(tabId)) return;
-  checkingNavigation.add(tabId);
-  const target = { tabId };
+async function requestCapture(tabId) {
+  if (!session || !Number.isInteger(tabId)) return;
   try {
-    await chrome.debugger.attach(target, "1.3");
-    // This fixed expression returns a viewport rectangle only. It never returns
-    // DOM text, account identifiers, URLs, balances, transactions, credentials,
-    // cookies, form values, or network data.
-    const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", { returnByValue: true,
-      expression: `(() => { const a = [...document.querySelectorAll('a')].find(x => /^\\s*everyday checking\\b/i.test(x.innerText || '')); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()` });
-    const rect = response?.result?.value;
-    if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return;
-    const x = rect[0] + rect[2] / 2;
-    const y = rect[1] + rect[3] / 2;
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
-  } catch {
-    // Do not reveal debugger/browser details or retry a potentially stale click.
-  } finally {
-    await chrome.debugger.detach(target).catch(() => {});
-    checkingNavigation.delete(tabId);
-  }
-}
-
-async function pollCommand() {
-  if (pollInFlight) return;
-  pollInFlight = true;
-  try {
-    if (!session) { await startSession(); await probeExistingWellsTabs(); }
     const response = await fetch(`${LOCAL_BRIDGE}/v1/command`, {
       headers: { "X-Budget-Collector-Session": session }, cache: "no-store",
     });
     if (response.status === 403) { session = null; return; }
     if (!response.ok) return;
     const command = await response.json();
-    if (!command || command.version !== 1 || !["none", "open_wells", "capture_wells_activity"].includes(command.command)) return;
-    if (command.command === "open_wells" && !await probeExistingWellsTabs()) await openWells();
-    if (command.command === "capture_wells_activity" && Number.isInteger(wellsTabId)) {
-      await chrome.tabs.sendMessage(wellsTabId, { command: "capture_wells_activity" });
+    if (command?.version === 1 && command.command === "capture_wells_activity") {
+      await chrome.tabs.sendMessage(tabId, { command: "capture_wells_activity" });
     }
-  } catch {
-    // The normal state is no local collector. Never surface host/process details.
-    session = null;
-  } finally { pollInFlight = false; }
+  } catch { session = null; }
 }
 
-chrome.alarms.create(POLL_ALARM, { periodInMinutes: 0.5 });
-chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === POLL_ALARM) void pollCommand(); });
-chrome.runtime.onStartup.addListener(() => void pollCommand());
-chrome.runtime.onInstalled.addListener(() => void pollCommand());
-
-chrome.runtime.onConnect.addListener(port => {
-  if (port.name !== "collector-wake" || port.sender?.id !== chrome.runtime.id
-    || port.sender?.url !== chrome.runtime.getURL("wake.html")) return;
-  port.onMessage.addListener(message => {
-    if (message?.event === "collector_wake") void pollCommand();
-  });
-});
-
-chrome.action.onClicked.addListener(async () => {
-  try {
-    await startSession();
-    await openWells(); // Development fallback only; routine collection uses a local command.
-  } catch {
-    session = null;
-    await chrome.action.setBadgeText({ text: "OFF" });
-  }
-});
+async function probe(tabId) {
+  if (!Number.isInteger(tabId) || !await startSession()) return;
+  wellsTabId = tabId;
+  await chrome.tabs.sendMessage(tabId, { command: "probe_wells_state" }).catch(() => {});
+}
 
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
-  const event = message.event;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
-  if (event === "checking_navigation_required" && tabId !== null) {
-    wellsTabId = tabId;
-    void navigateChecking(tabId);
+  if (message.event === "collector_page_ready" && tabId !== null) { void probe(tabId); return; }
+  if (!session || tabId === null || tabId !== wellsTabId) return;
+  if (message.event === "activity_capture" && message.candidate) {
+    void send("/v1/activity", message.candidate);
     return;
   }
-  if (!session) return;
-  if (event === "activity_capture") {
-    if (Number.isInteger(sender.tab?.id) && sender.tab.id === wellsTabId && message.candidate) {
-      void send("/v1/activity", { method: "POST", body: JSON.stringify(message.candidate) });
-    }
-    return;
-  }
-  if (!["auth_required", "authenticated_page"].includes(event)) return;
-  // A tab ID is not financial evidence; it allows the local bridge to correlate
-  // non-sensitive progress only. It is kept in memory and never written to disk.
-  if (event === "authenticated_page") wellsTabId = tabId;
-  void send("/v1/progress", { method: "POST", body: JSON.stringify({ version: 1, event, tabId }) }).then(() => void pollCommand());
-  void chrome.action.setBadgeText({ text: event === "auth_required" ? "AUTH" : "READY" });
+  if (!['auth_required', 'authenticated_page'].includes(message.event)) return;
+  void send("/v1/progress", { version: 1, event: message.event, tabId })
+    .then(sent => { if (sent && message.event === "authenticated_page") void requestCapture(tabId); });
 });

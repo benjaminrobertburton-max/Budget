@@ -26,7 +26,7 @@ test("loopback bridge accepts only one Chrome-extension origin and bounded progr
 });
 
 test("loopback status is bounded local-only diagnostic state", async () => {
-  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "capture_wells_activity" });
   try {
     const status = await fetch(`http://127.0.0.1:${bridge.port}/v1/status`);
     assert.equal(status.status, 200);
@@ -36,22 +36,8 @@ test("loopback status is bounded local-only diagnostic state", async () => {
   } finally { await bridge.close(); }
 });
 
-test("local wake relay is available only when paired to the configured extension", async () => {
-  const bridge = await startChromeBridge({ port: 0, wakeExtensionId: "abcdefghijklmnopabcdefghijklmnop" });
-  try {
-    const page = await fetch(`http://127.0.0.1:${bridge.port}/v1/wake`);
-    assert.equal(page.status, 200);
-    const html = await page.text();
-    assert.match(html, /chrome-extension:\/\/abcdefghijklmnopabcdefghijklmnop\/wake\.html/);
-    assert.doesNotMatch(html, /balance|transaction|credential/i);
-  } finally { await bridge.close(); }
-  const absent = await startChromeBridge({ port: 0 });
-  try { assert.equal((await fetch(`http://127.0.0.1:${absent.port}/v1/wake`)).status, 404); }
-  finally { await absent.close(); }
-});
-
-test("loopback bridge delivers one Wells-open command only to its connected extension", async () => {
-  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
+test("loopback bridge delivers one capture command only to its connected extension", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "capture_wells_activity" });
   try {
     const sessionResponse = await post(bridge.port, "/v1/session");
     const { session } = await sessionResponse.json();
@@ -61,21 +47,21 @@ test("loopback bridge delivers one Wells-open command only to its connected exte
     assert.equal((await get({})).status, 403);
     const first = await get({ "X-Budget-Collector-Session": session });
     assert.equal(first.status, 200);
-    assert.deepEqual(await first.json(), { version: 1, command: "open_wells" });
+    assert.deepEqual(await first.json(), { version: 1, command: "capture_wells_activity" });
     assert.equal(bridge.status().commandQueued, false);
     assert.deepEqual(await (await get({ "X-Budget-Collector-Session": session })).json(), { version: 1, command: "none" });
   } finally { await bridge.close(); }
 });
 
 test("command polling accepts Chromium's origin-less extension GET only with its session", async () => {
-  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_wells" });
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "capture_wells_activity" });
   try {
     const { session } = await (await post(bridge.port, "/v1/session")).json();
     const command = await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
       headers: { "X-Budget-Collector-Session": session },
     });
     assert.equal(command.status, 200);
-    assert.deepEqual(await command.json(), { version: 1, command: "open_wells" });
+    assert.deepEqual(await command.json(), { version: 1, command: "capture_wells_activity" });
     assert.equal((await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
       headers: { "X-Budget-Collector-Session": "wrong" },
     })).status, 403);
@@ -112,18 +98,6 @@ test("empty or unsupported activity states never invoke the private evidence wri
       assert.match(bridge.status().lastEvent, /^activity_capture_/);
     }
     assert.deepEqual(saved, []);
-  } finally { await bridge.close(); }
-});
-
-test("authenticated state queues one capture command only when an explicit capture run requested it", async () => {
-  const bridge = await startChromeBridge({ port: 0, captureAfterAuth: true, onActivityCapture: async () => {} });
-  try {
-    const { session } = await (await post(bridge.port, "/v1/session")).json();
-    await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, event: "authenticated_page", tabId: 1 }));
-    const command = await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
-      headers: { "X-Budget-Collector-Session": session },
-    });
-    assert.deepEqual(await command.json(), { version: 1, command: "capture_wells_activity" });
   } finally { await bridge.close(); }
 });
 

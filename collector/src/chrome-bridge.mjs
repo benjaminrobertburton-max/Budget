@@ -12,7 +12,7 @@ const captureStates = Object.freeze({
   page_limit: "activity_capture_page_limit",
 });
 const MAX_BODY_BYTES = 300000;
-const commands = new Set(["none", "open_wells", "capture_wells_activity"]);
+const commands = new Set(["none", "capture_wells_activity"]);
 
 function response(res, status, origin, body = null) {
   const headers = {
@@ -24,12 +24,6 @@ function response(res, status, origin, body = null) {
   if (origin) headers["Access-Control-Allow-Origin"] = origin;
   res.writeHead(status, headers);
   res.end(body === null ? "" : JSON.stringify(body));
-}
-
-function relayPage(res, extensionId) {
-  const body = `<!doctype html><meta charset="utf-8"><script>location.replace("chrome-extension://${extensionId}/wake.html")</script>`;
-  res.writeHead(200, { "Cache-Control": "no-store", "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" });
-  res.end(body);
 }
 
 function readJson(req) {
@@ -55,10 +49,9 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, wakeExtensionId = null, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", onProgress = () => {}, onConnected = () => {}, onActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
-  check(wakeExtensionId === null || /^[a-p]{32}$/.test(wakeExtensionId), "INVALID_BRIDGE", "The local bridge wake target is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
   let origin = null;
   let session = null;
@@ -73,10 +66,6 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (req.method !== "GET" || requestOrigin) return response(res, 403, null);
         return response(res, 200, null, { version: 1, listening: server.listening,
           extensionConnected: session !== null, lastEvent, commandQueued: nextCommand !== "none" });
-      }
-      if (req.url === "/v1/wake") {
-        if (req.method !== "GET" || requestOrigin || !wakeExtensionId) return response(res, 404, null);
-        return relayPage(res, wakeExtensionId);
       }
       if (req.url === "/v1/command") {
         if (req.method !== "GET") return response(res, 405, requestOrigin === origin ? origin : null);
@@ -102,7 +91,6 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         const body = await readJson(req);
         if (!validProgress(body)) return response(res, 400, origin);
         lastEvent = body.event;
-        if (captureAfterAuth && body.event === "authenticated_page" && nextCommand === "none") nextCommand = "capture_wells_activity";
         onProgress({ event: body.event });
         return response(res, 204, origin);
       }
