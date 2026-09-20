@@ -14,13 +14,18 @@
       && (input.type === "password" || /^(username|current-password|new-password|one-time-code)$/.test(input.autocomplete)))
       ? "auth_required" : "authenticated_page";
   };
+  const rowCells = row => [...row.querySelectorAll("th,td,[role=cell],[role=columnheader]")]
+    .filter(cell => !cell.closest("tr,[role=row]") || cell.closest("tr,[role=row]") === row);
+  const headerKind = value => value.toLowerCase().replace(/\s+/g, " ").trim();
   const activityHeader = row => {
-    const cells = [...row.querySelectorAll("th,td")].filter(cell => cell.closest("tr") === row);
-    const headers = cells.map(text);
+    const headers = rowCells(row).map(text).map(headerKind);
     return headers.some(value => /^date$/i.test(value)) && headers.some(value => /^description$/i.test(value))
-      && headers.some(value => /^(deposits\/credits|withdrawals\/debits)$/i.test(value));
+      && headers.some(value => /^(deposits?\s*\/\s*credits|withdrawals?\s*\/\s*debits)$/i.test(value));
   };
-  const hasActivityTable = () => [...document.querySelectorAll("table tr")].some(activityHeader);
+  const activityContainers = () => [...document.querySelectorAll("table,[role=table],[role=grid]")];
+  const activityRows = container => [...container.querySelectorAll("tr,[role=row]")]
+    .filter(row => visible(row) && (!row.closest("tr,[role=row]") || row.closest("tr,[role=row]") === row));
+  const hasActivityTable = () => activityContainers().some(container => activityRows(container).some(activityHeader));
   const openCheckingActivity = () => {
     if (currentState() === "auth_required" || hasActivityTable()) return false;
     // Account-summary cards expose this stable product label. Opening the
@@ -59,16 +64,15 @@
   const text = cell => (cell.innerText || "").replace(/\s+/g, " ").trim().slice(0, 700);
   const capture = () => {
     if (currentState() === "auth_required") return null;
-    const tables = [...document.querySelectorAll("table")];
-    const table = tables.find(candidate => [...candidate.querySelectorAll("tr")].some(activityHeader));
+    const tables = activityContainers();
+    const table = tables.find(candidate => activityRows(candidate).some(activityHeader));
     const empty = { version: 1, kind: "activity_candidate", coverageVerified: false, workbookReady: false,
       finding: "no_activity_table", hasFrames: !!document.querySelector("iframe,frame"), tables: [],
       layout: { tableCount: tables.length, rowCount: 0, headerCount: 0, hasShadowRoots: false, tables: [] } };
     if (!table) return empty;
-    const rows = [...table.querySelectorAll("tr")].filter(row => visible(row));
+    const rows = activityRows(table);
     const header = rows.find(activityHeader);
     if (!header || rows.length > 500) return empty;
-    const rowCells = row => [...row.querySelectorAll("th,td")].filter(cell => cell.closest("tr") === row);
     const headers = rowCells(header).map(text);
     const normalize = value => value.toLowerCase().replace(/[^a-z]/g, "");
     const columns = headers.map(value => ({ date: "date", description: "description", depositscredits: "credit", withdrawalsdebits: "debit", endingdailybalance: "balance" })[normalize(value)] || "unknown");
