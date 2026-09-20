@@ -134,6 +134,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   }
   if (!session || tabId === null) return;
   if (message.event === "activity_capture" && tabId === wellsTabId && message.candidate) {
+    // The top Wells shell often reports an empty candidate while the child
+    // activity frame is still loading. That is not terminal; wait for the
+    // frame that owns transaction-table to submit its candidate.
+    if (sender.frameId === 0 && message.candidate.finding === "no_activity_table") return;
     void send("/v1/activity", message.candidate);
     return;
   }
