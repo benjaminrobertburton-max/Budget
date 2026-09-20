@@ -49,6 +49,7 @@ export async function runCollectorQc({ repositoryRoot }) {
       ["checking navigation request", /checking_navigation_required/, "summary-to-detail navigation"],
       ["checking clickable variants", /a,button,\[role=link\],\[role=button\]/, "anchor, button and ARIA link/button cards"],
       ["ARIA activity support", /\[role=grid\]|\[role=table\]/, "Wells accessible table/grid variants"],
+      ["Wells transaction test IDs", /transaction-heading-|transaction-table/, "stable Wells transaction table identifiers"],
       ["composed DOM search", /const roots = \(\) =>|deepQueryAll/, "open shadow-root and same-origin-frame traversal"],
       ["flexible activity headings", /headerKind|deposits\?\\s\*\//, "heading spacing around slash"],
       ["bounded rendering wait", /readinessAttempts < 150/, "30-second maximum"],

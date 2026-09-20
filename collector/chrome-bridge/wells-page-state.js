@@ -38,7 +38,7 @@
     .filter(cell => !cell.closest("tr,[role=row]") || cell.closest("tr,[role=row]") === row);
   const headerKind = value => value.toLowerCase().replace(/\s+/g, " ").trim();
   const activityHeader = row => {
-    const headers = rowCells(row).map(text).map(headerKind);
+    const headers = rowCells(row).map(cell => `${text(cell)} ${cell.getAttribute("data-testid") || ""}`).map(headerKind);
     return headers.some(value => /^date$/i.test(value)) && headers.some(value => /^description$/i.test(value))
       && headers.some(value => /^(deposits?\s*\/\s*credits|withdrawals?\s*\/\s*debits)$/i.test(value));
   };
@@ -82,7 +82,15 @@
     previous = event;
     chrome.runtime.sendMessage({ event });
   };
-  const text = cell => (cell.innerText || "").replace(/\s+/g, " ").trim().slice(0, 700);
+  const text = cell => {
+    const visibleText = (cell.innerText || "").replace(/\s+/g, " ").trim();
+    if (visibleText) return visibleText.slice(0, 700);
+    const testId = cell.getAttribute("data-testid") || "";
+    const match = /^transaction-heading-(DATE|DESCRIPTION|DEPOSITS_OR_CREDITS|WITHDRAWALS_OR_DEBITS|ENDING_DAILY_BALANCE)$/i.exec(testId);
+    const labels = { DATE: "Date", DESCRIPTION: "Description", DEPOSITS_OR_CREDITS: "Deposits/Credits",
+      WITHDRAWALS_OR_DEBITS: "Withdrawals/Debits", ENDING_DAILY_BALANCE: "Ending Daily Balance" };
+    return match ? labels[match[1].toUpperCase()] : "";
+  };
   const capture = () => {
     if (currentState() === "auth_required") return null;
     const tables = activityContainers();
