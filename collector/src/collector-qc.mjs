@@ -32,6 +32,8 @@ export async function runCollectorQc({ repositoryRoot }) {
       else pass("no visible trigger route", "no externally-connectable localhost page");
       if (manifest.version === "0.3.3") pass("extension version", "0.3.3 researched bridge");
       else fail("extension version", `expected 0.3.3, found ${String(manifest.version)}`);
+      if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");
+      else fail("child-frame reader coverage", "content script is not enabled for Wells frames");
     } catch { fail("manifest JSON", "manifest is not valid JSON"); }
   }
   if (files["bridge worker"]) {

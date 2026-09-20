@@ -137,6 +137,9 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     void send("/v1/activity", message.candidate);
     return;
   }
+  // Authentication/navigation status belongs to the top document. Activity
+  // candidates may legitimately come from a Wells child frame.
+  if (sender.frameId !== undefined && sender.frameId !== 0) return;
   if (!['auth_required', 'authenticated_page'].includes(message.event)) return;
   wellsTabId = tabId;
   void send("/v1/progress", { version: 1, event: message.event, tabId }).then(sent => {
