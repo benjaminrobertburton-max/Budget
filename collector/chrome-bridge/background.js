@@ -86,7 +86,7 @@ async function navigateChecking(tabId) {
     // text, URL, account identifier, balance, cookie, or form value is read.
     const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", {
       returnByValue: true,
-      expression: `(() => { const a = [...document.querySelectorAll('a')].find(x => /^\\s*everyday checking\\b/i.test(x.innerText || '')); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
+      expression: `(() => { const a = [...document.querySelectorAll('a,button,[role="link"],[role="button"]')].find(x => /^\\s*everyday checking\\b/i.test(x.innerText || '')); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
     });
     const rect = response?.result?.value;
     if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return;

@@ -51,7 +51,8 @@
     // Account-summary cards expose this stable product label. Opening the
     // checking detail is read-only navigation; this never opens transfers,
     // payments, statements, profile settings, or another product.
-    const checking = deepQueryAll("a").find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
+    const checking = deepQueryAll("a,button,[role=link],[role=button]")
+      .find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
     if (!checking) return false;
     // Wells ignores synthetic content-script clicks on this card. Ask the
     // extension for one narrowly scoped trusted click at the visible card; the
