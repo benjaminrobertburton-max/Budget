@@ -28,6 +28,9 @@ the actual authenticated Wells DOM. The assistant owns this diagnostic sequence;
 the user should only need to authenticate, approve 2FA, or provide a screenshot
 when the local page is otherwise inaccessible to the tools.
 
+The fictional contract fixture at `collector/fixtures/wells-transaction-page.html`
+preserves the observed Wells table structure without retaining real account data.
+
 ## Failure inventory
 
 | Failure | Evidence | Resolution or status |
