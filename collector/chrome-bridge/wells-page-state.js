@@ -46,7 +46,10 @@
     // Wells renders account cards asynchronously. Do not signal an authenticated
     // page to the bridge until an activity table is present, or until a short
     // bounded wait proves that the expected checking card never appeared.
-    if (event === "authenticated_page" && !hasActivityTable() && readinessAttempts < 50) {
+    // Wells can finish the account-detail table well after the authenticated
+    // shell appears. Keep this bounded at 30 seconds without emitting a false
+    // no-table result during normal rendering.
+    if (event === "authenticated_page" && !hasActivityTable() && readinessAttempts < 150) {
       readinessAttempts++;
       if (readinessTimer === null) readinessTimer = setTimeout(() => { readinessTimer = null; report(); }, 200);
       return;
