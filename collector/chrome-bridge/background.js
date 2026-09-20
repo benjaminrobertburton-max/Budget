@@ -8,6 +8,7 @@ const POLL_ALARM = "budget-collector-local-command";
 let session = null;
 let pollInFlight = false;
 let wellsTabId = null;
+const checkingNavigation = new Set();
 
 async function send(path, body) {
   if (!session) return false;
@@ -75,6 +76,32 @@ async function openOrReuseWells() {
   await send("/v1/progress", { version: 1, event: "wells_opened", tabId: wellsTabId });
 }
 
+async function navigateChecking(tabId) {
+  if (!Number.isInteger(tabId) || checkingNavigation.has(tabId)) return;
+  checkingNavigation.add(tabId);
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, "1.3");
+    // Return only a viewport rectangle for the visible product link. No page
+    // text, URL, account identifier, balance, cookie, or form value is read.
+    const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", {
+      returnByValue: true,
+      expression: `(() => { const a = [...document.querySelectorAll('a')].find(x => /^\\s*everyday checking\\b/i.test(x.innerText || '')); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
+    });
+    const rect = response?.result?.value;
+    if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return;
+    const x = rect[0] + rect[2] / 2;
+    const y = rect[1] + rect[3] / 2;
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+  } catch {
+    // A stale tab or unsupported page fails closed; no retry loop is allowed.
+  } finally {
+    await chrome.debugger.detach(target).catch(() => {});
+    checkingNavigation.delete(tabId);
+  }
+}
+
 async function pollCommand() {
   if (pollInFlight) return;
   pollInFlight = true;
@@ -100,6 +127,11 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
   if (message.event === "collector_page_ready") { void pollCommand(); return; }
+  if (message.event === "checking_navigation_required" && tabId !== null) {
+    wellsTabId = tabId;
+    void navigateChecking(tabId);
+    return;
+  }
   if (!session || tabId === null) return;
   if (message.event === "activity_capture" && tabId === wellsTabId && message.candidate) {
     void send("/v1/activity", message.candidate);

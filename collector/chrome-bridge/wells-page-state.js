@@ -28,15 +28,12 @@
     // payments, statements, profile settings, or another product.
     const checking = [...document.querySelectorAll("a")].find(link => /^\s*everyday checking\b/i.test(link.innerText || ""));
     if (!checking) return false;
-    // Ordinary same-tab, read-only link navigation. Wells ignores synthetic
-    // click events on this card, so use its already-rendered same-origin target
-    // directly. The target is never logged, sent to the bridge, or persisted.
-    // Only one navigation is attempted for this document, so it cannot loop.
+    // Wells ignores synthetic content-script clicks on this card. Ask the
+    // extension for one narrowly scoped trusted click at the visible card; the
+    // extension receives no URL or page data and will not retry stale tabs.
     if (!checkingNavigationStarted) {
       checkingNavigationStarted = true;
-      const target = new URL(checking.href, location.href);
-      if (target.protocol !== "https:" || target.origin !== location.origin) return false;
-      location.assign(target.href);
+      chrome.runtime.sendMessage({ event: "checking_navigation_required" });
     }
     return true;
   };
