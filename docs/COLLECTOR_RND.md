@@ -20,8 +20,10 @@ timers, permissions, or parsing logic, the next investigation must:
    from generic web research when local evidence is available.
 3. State the smallest concrete mismatch and make one targeted change.
 4. Run offline QC/tests before asking for another attended run.
-5. Stop after one failed targeted live attempt and return to evidence collection;
-   do not stack speculative revisions or make the user repeat sign-in.
+5. Do not stop at the first error. Treat it as a diagnostic signal and continue
+   tracing the dependent path—frame, reader, bridge, validation—until the root
+   cause is fixed or a concrete external limitation is proven. Do not stack
+   speculative revisions or make the user repeat sign-in without new evidence.
 
 For frame-based pages, offline QC must also exercise the event sequence: top-frame
 status, child-frame readiness, child-frame candidate, and terminal bridge decision.

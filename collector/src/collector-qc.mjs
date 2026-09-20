@@ -60,7 +60,7 @@ export async function runCollectorQc({ repositoryRoot }) {
   if (files["R&D record"]) {
     if (/Failure inventory/.test(files["R&D record"]) && /External research applied/.test(files["R&D record"])) pass("lessons learned", "failure inventory and external research recorded");
     else fail("lessons learned", "R&D record is incomplete");
-    if (/Practical debugging protocol/.test(files["R&D record"]) && /DevTools Elements\/Frames/.test(files["R&D record"])) pass("practical debugging", "evidence-first targeted revisions are required");
+    if (/Practical debugging protocol/.test(files["R&D record"]) && /DevTools Elements\/Frames/.test(files["R&D record"]) && /Do not stop at the first error/.test(files["R&D record"])) pass("practical debugging", "evidence-first root-cause tracing is required");
     else fail("practical debugging", "evidence-first protocol is missing");
     if (/event sequence:\s*top-frame\s+status/.test(files["R&D record"]) && /early top-frame empty result/.test(files["R&D record"])) pass("frame lifecycle", "top-frame and child-frame sequencing is an explicit gate");
     else fail("frame lifecycle", "frame event sequencing gate is missing");
