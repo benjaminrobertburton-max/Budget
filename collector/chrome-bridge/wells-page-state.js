@@ -40,9 +40,18 @@
     .filter(cell => !cell.closest("tr,[role=row]") || cell.closest("tr,[role=row]") === row);
   const headerKind = value => value.toLowerCase().replace(/\s+/g, " ").trim();
   const activityHeader = row => {
-    const headers = rowCells(row).map(cell => `${text(cell)} ${cell.getAttribute("data-testid") || ""}`).map(headerKind);
-    return headers.some(value => /^date$/i.test(value)) && headers.some(value => /^description$/i.test(value))
-      && headers.some(value => /^(deposits?\s*\/\s*credits|withdrawals?\s*\/\s*debits)$/i.test(value));
+    // Wells renders a visible label and a stable transaction-heading-* test id
+    // on the same header cell. Keep those signals separate: concatenating them
+    // ("Date transaction-heading-DATE") makes an exact-label detector miss a
+    // valid table even though DevTools/accessibility exposes the header.
+    const headers = rowCells(row).flatMap(cell => {
+      const label = headerKind(text(cell));
+      const testId = headerKind(cell.getAttribute("data-testid") || "");
+      const testLabel = testId.replace(/^transaction-heading-/, "").replace(/_/g, " ");
+      return [label, testLabel].filter(Boolean);
+    });
+    return headers.some(value => /^(date)$/i.test(value)) && headers.some(value => /^(description)$/i.test(value))
+      && headers.some(value => /^(deposits?\s*\/?\s*credits|withdrawals?\s*\/?\s*debits)$/i.test(value));
   };
   const activityContainers = () => deepQueryAll("table,[role=table],[role=grid]");
   const activityRows = container => [...container.querySelectorAll("tr,[role=row]")]
