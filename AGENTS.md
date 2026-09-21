@@ -4,6 +4,14 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**September 21 work extension update:** the user loaded the unpacked bridge here
+and reports it working. Do not keep treating extension installation as blocked.
+This confirms setup, not source coverage or collector-led authentication.
+Work-test evidence must remain temporary/encrypted and be removed after the test;
+do not run the existing home refresh CLI here against its persistent default
+store. Preserve ordinary personal Chrome and do not claim its cookies/cache are
+erased by collector-evidence cleanup. Resolve that boundary before a live capture.
+
 **Current direction — September 21, 2026:** develop the core functionality for
 all required account adapters and the portable Chrome extension on this work
 machine, then sync software to the home machine for installation and acceptance.

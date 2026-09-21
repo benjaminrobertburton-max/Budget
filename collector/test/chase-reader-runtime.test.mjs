@@ -4,17 +4,20 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {validateActivityCandidate} from '../src/activity-probe.mjs';
 
-test('actual Chase content script acknowledges Chrome callbacks and captures both sections', async () => {
+async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
+  posted = ['Sep 1, 2031','FICTIONAL B','$2.00',''], single = false,
+  duplicateHeader = false } = {}) {
   const messages=[], listeners=[];
   const row = values => {
     const r={getClientRects:()=>[{}],closest:()=>r};
     r.querySelectorAll=()=>values.map(innerText=>({innerText,closest:()=>r}));
     return r;
   };
+  const headings = ['Date','Description','Amount','Action'];
   const table = (id,data) => ({id,tagName:'TABLE',querySelectorAll:()=>[
-    row(['Date','Description','Amount','Action']),row(data)],getAttribute:()=>null});
-  const tables=[table('PENDING-dataTableId-mds-diy-data-table',['Pending','FICTIONAL A','$1.00','']),
-    table('ACTIVITY-dataTableId-mds-diy-data-table',['Sep 1, 2031','FICTIONAL B','$2.00',''])];
+    row(headings),...(duplicateHeader ? [row(headings)] : []),row(data)],getAttribute:()=>null});
+  const tables=[...(single ? [] : [table('PENDING-dataTableId-mds-diy-data-table',pending)]),
+    table('ACTIVITY-dataTableId-mds-diy-data-table',posted)];
   const document={documentElement:{},querySelector:()=>null,querySelectorAll:s=>s==='table,[role=table],[role=grid]'?tables:
     s==='a,button,[role=button],[role=link]'?[{innerText:'Sign out',getClientRects:()=>[{}]}]:[]};
   const context={document,getComputedStyle:()=>({visibility:'visible',display:'table-row'}),
@@ -26,7 +29,39 @@ test('actual Chase content script acknowledges Chrome callbacks and captures bot
   assert.equal(ack.accepted,true);
   const candidate=JSON.parse(JSON.stringify(messages.find(m=>m.event==='chase_activity_capture').candidate));
   validateActivityCandidate(candidate);
+  return candidate;
+}
+
+test('actual Chase content script acknowledges Chrome callbacks and captures both sections', async () => {
+  const candidate = await captureFixture();
   assert.equal(candidate.tables.length,2);
   assert.equal(candidate.tables[0].rows[0][0],'Pending Transactions');
   assert.equal(candidate.tables[1].rows[0][0],'Posted Transactions');
+});
+
+for (const single of [false, true]) {
+  test(`Chase ${single ? 'single' : 'paired'} tables reject an incomplete row`, async () => {
+    const candidate = await captureFixture({ single, posted: ['Sep 1, 2031', 'FICTIONAL INCOMPLETE'] });
+    assert.equal(candidate.finding, 'no_activity_table');
+    assert.deepEqual(candidate.tables, []);
+  });
+  test(`Chase ${single ? 'single' : 'paired'} tables report overlong text rather than silently cutting evidence`, async () => {
+    const candidate = await captureFixture({ single, posted: ['Sep 1, 2031', 'X'.repeat(701), '$2.00', ''] });
+    assert.equal(candidate.finding, 'page_limit');
+    assert.deepEqual(candidate.tables, []);
+  });
+  test(`Chase ${single ? 'single' : 'paired'} tables reject ambiguous repeated column headings`, async () => {
+    const candidate = await captureFixture({ single, duplicateHeader: true });
+    assert.equal(candidate.finding, 'no_activity_table');
+    assert.deepEqual(candidate.tables, []);
+  });
+}
+
+test('Chase preserves exactly-at-limit text and signs without certifying coverage', async () => {
+  const candidate = await captureFixture({posted: ['Sep 1, 2031', 'X'.repeat(700), '-$2.00', '']});
+  assert.equal(candidate.finding, 'candidate_read');
+  assert.equal(candidate.tables[1].rows[1][1].length, 700);
+  assert.equal(candidate.tables[1].rows[1][2], '-$2.00');
+  assert.equal(candidate.coverageVerified, false);
+  assert.equal(candidate.workbookReady, false);
 });

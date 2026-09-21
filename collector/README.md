@@ -2,6 +2,13 @@
 
 ## Current checkpoint — September 21
 
+Latest extension: **0.4.4** (collector package remains 0.6.1). Chase now validates
+row shape/text limits consistently for both activity sections and rejects ambiguous
+column headings. Reload the unpacked extension once after syncing. The user
+successfully loaded it on the work machine; this is not yet live source certification.
+Do not run the home persistent-evidence refresh commands for temporary work tests;
+the temporary encrypted storage/cleanup boundary must be used first.
+
 Core development for all account adapters now takes place on the work machine;
 tested code/extension is then synced to home. Follow the newest
 [handoff checkpoint](../docs/HOME_MACHINE_HANDOFF.md), not older home-only or

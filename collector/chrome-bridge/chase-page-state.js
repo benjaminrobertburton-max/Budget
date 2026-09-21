@@ -24,7 +24,9 @@
   };
   const deepQueryAll = selector => roots().flatMap(root => [...root.querySelectorAll(selector)]);
   const hasShadowRoots = () => roots().some(root => root !== document && root.host);
-  const text = cell => (cell.innerText || "").replace(/\s+/g, " ").trim().slice(0, 700);
+  // Keep an extra character solely to detect overflow. Never emit a silently
+  // shortened source value as valid evidence.
+  const text = cell => (cell.innerText || "").replace(/\s+/g, " ").trim().slice(0, 701);
   const rowCells = row => [...row.querySelectorAll("th,td,[role=cell],[role=gridcell],[role=columnheader]")]
     .filter(cell => !cell.closest("tr,[role=row]") || cell.closest("tr,[role=row]") === row);
   const rows = container => [...container.querySelectorAll("tr,[role=row]")]
@@ -73,13 +75,28 @@
     const matches = [];
     for (const table of found) {
       const tableRows = rows(table);
-      const header = tableRows.find(activityHeader);
+      const headersFound = tableRows.filter(activityHeader);
+      if (headersFound.length > 1) return candidate;
+      const header = headersFound[0];
       if (!header) continue;
       const headerCells = rowCells(header);
       const headers = headerCells.map(text);
       const columns = headers.map(classify);
       if (tableRows.length > 500 || headerCells.length < 3 || headerCells.length > 16) return { ...candidate, finding: "page_limit" };
       matches.push({ table, tableRows, header, headers, columns });
+    }
+    // Apply the same checks before either the one-table or two-section path.
+    // The synthetic section marker added below is not a malformed source row.
+    let textLength = 0;
+    for (const match of matches) {
+      match.data = match.tableRows.filter(row => row !== match.header).map(row => rowCells(row).map(text));
+      if (match.data.some(row => row.length !== match.columns.length)) return candidate;
+      for (const row of [match.headers, ...match.data]) {
+        for (const value of row) {
+          textLength += value.length;
+          if (value.length > 700 || textLength > 190000) return { ...candidate, finding: "page_limit" };
+        }
+      }
     }
     // Observed Chase detail pages have distinct PENDING and ACTIVITY tables.
     // Preserve their section identity as explicit evidence rows. A dashboard
@@ -89,8 +106,8 @@
     if (matches.length > 1) {
       if (matches.length !== 2 || new Set(sections).size !== 2 || sections.includes(null)) return candidate;
       candidate.finding = "candidate_read";
-      candidate.tables = matches.map(({ tableRows, header, headers, columns }, index) => ({
-        columns, headers, rows: [[sections[index]], ...tableRows.filter(row => row !== header).map(row => rowCells(row).map(text))],
+      candidate.tables = matches.map(({ data, headers, columns }, index) => ({
+        columns, headers, rows: [[sections[index]], ...data],
         issues: columns.includes("unknown") ? ["unknown_columns"] : [],
       }));
       candidate.layout.tables = matches.map(({ tableRows, columns }) => ({kind: "html_table", rows: tableRows.length,
@@ -99,9 +116,7 @@
     }
     if (matches.length !== 1) return candidate;
     if (sections[0] === null) return candidate;
-    const { table, tableRows, header, headers, columns } = matches[0];
-    const data = tableRows.filter(row => row !== header).map(row => rowCells(row).map(text));
-    if (data.some(row => row.length !== columns.length) || data.some(row => row.some(value => value.length > 700))) return candidate;
+    const { table, tableRows, headers, columns, data } = matches[0];
     let hash = 2166136261;
     for (const character of `${headers.join("|")}\n${data.map(row => row.join("|")).join("\n")}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
     candidate.source.pageToken = (hash >>> 0).toString(16).padStart(8, "0");

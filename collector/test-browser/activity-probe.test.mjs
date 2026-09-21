@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { withDisposableTestRun } from "../src/disposable-run.mjs";
 import { startPilotInScope } from "../src/pilot-session.mjs";
-import { readActivityCandidate, activitySummary } from "../src/activity-probe.mjs";
+import { readActivityCandidate, activitySummary, validateActivityCandidate } from "../src/activity-probe.mjs";
 import { repositoryRoot, tempDirectory } from "../test/store-helpers.mjs";
 import { windowsProtector } from "../src/protection.mjs";
 
@@ -27,6 +27,52 @@ async function fixture(t, task) {
 }
 const table = (rows, headers = "<th>Date</th><th>Description</th><th>Amount</th><th>Status</th>") =>
   `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+
+test("actual Chase extension reader validates paired tables in Chrome without cutting source text", async t => {
+  await fixture(t, async ({ page }) => {
+    const headers = "<tr><th>Date</th><th>Description</th><th>Amount</th><th>Action</th></tr>";
+    await page.setContent('<button>Sign out</button><table id="PENDING-fictional">' + headers
+      + '<tr><td>Pending</td><td>FICTIONAL PENDING</td><td>$3.00</td><td></td></tr></table>'
+      + '<table id="ACTIVITY-fictional">' + headers
+      + '<tr id="posted"><td>Sep 1, 2031</td><td>FICTIONAL POSTED</td><td>-$2.00</td><td></td></tr></table>');
+    await page.evaluate(() => {
+      window.chaseMessages = [];
+      window.chrome = { runtime: { sendMessage: async message => { window.chaseMessages.push(message); },
+        onMessage: { addListener: listener => { window.chaseListener = listener; } } } };
+    });
+    // Execute as test-injected code, not an inline page script: the fictional
+    // bank deliberately disallows inline scripts through its page CSP.
+    await page.evaluate(await fs.readFile(new URL("../chrome-bridge/chase-page-state.js", import.meta.url), "utf8"));
+    const capture = async () => {
+      const candidate = await page.evaluate(() => {
+        window.chaseMessages = [];
+        window.chaseListener({ command: "capture_chase_activity" }, {}, () => {});
+        return window.chaseMessages.find(message => message.event === "chase_activity_capture")?.candidate;
+      });
+      return validateActivityCandidate(candidate);
+    };
+    const original = await capture();
+    assert.equal(original.tables.length, 2);
+    assert.equal(original.tables[1].rows[1][2], "-$2.00");
+    assert.equal(original.workbookReady, false);
+    await page.evaluate(() => document.querySelector("#posted").lastElementChild.remove());
+    assert.equal((await capture()).finding, "no_activity_table");
+    await page.evaluate(() => {
+      document.querySelector("#posted").append(document.createElement("td"));
+      document.querySelector("#posted").children[1].textContent = "X".repeat(701);
+    });
+    assert.equal((await capture()).finding, "page_limit");
+    await page.evaluate(() => {
+      document.querySelector("#posted").children[1].textContent = "X".repeat(700);
+    });
+    assert.equal((await capture()).tables[1].rows[1][1].length, 700);
+    await page.evaluate(() => {
+      const table = document.querySelector("#ACTIVITY-fictional");
+      table.querySelector("tbody").append(table.querySelector("tr").cloneNode(true));
+    });
+    assert.equal((await capture()).finding, "no_activity_table");
+  });
+});
 
 test("Chrome reads invented activity exactly, encrypts evidence, and shows only an opt-in local preview", async t => {
   await fixture(t, async ({ run, scope }) => {

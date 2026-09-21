@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Local, read-only Wells and Chase connection for the Budget Collector.",
   "permissions": ["tabs", "alarms", "debugger", "webNavigation"],
   "host_permissions": [

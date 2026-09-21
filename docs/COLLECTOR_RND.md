@@ -39,6 +39,14 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 Chase QC found reproducible source-validation gaps: the paired-table
+branch bypassed row-width validation, both paths silently sliced long text, and
+multiple qualifying column rows were accepted. Version 0.4.4 validates the shared
+data path before branching and rejects ambiguity/limits. Fictional runtime tests
+reproduced five failures first; Chrome-level tests exercise the actual content
+script, not only source-code pattern matching. These are parser safeguards, not
+a diagnosis of the unresolved live Chase navigation/identity path.
+
 | Failure | Evidence | Resolution or status |
 | --- | --- | --- |
 | Visible `127.0.0.1` trigger pages appeared repeatedly | Local refresh runs opened three helper tabs and the extension was not connected reliably | Removed external-message trigger pages and Chrome-launch handoff. MV3 alarm polling is now the only invisible wake path. |

@@ -2,6 +2,34 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Work extension QC and first Chase fix
+
+The user has now loaded the unpacked extension at work and reports it working.
+Baseline QC and all 257 core/browser tests passed on the repeat full run, including
+the previously intermittent recovery test. This does not establish its earlier
+root cause or prove live account coverage.
+
+Bridge 0.4.4 applies common row-width/text-size checks to both single and paired
+Chase tables. It rejects ambiguous repeated column headings and reports overlong
+text as a limit instead of silently cutting it. Five new failing regressions
+reproduced the prior gaps before the fix. No Wells reader, financial formula or
+workbook changed. Reload the unpacked extension once after syncing this code.
+
+Before live testing here, use an explicitly temporary encrypted evidence path
+with verified cleanup, not the home refresh CLI's persistent default store.
+Evidence cleanup must never delete the personal Chrome profile or claim to erase
+its browser-managed bank sessions/cache. No live capture was performed during QC.
+
+Post-change validation: QC and all **242 core tests** pass. The added actual-Chrome
+Chase reader test passes after correcting the test injection method (inline page
+scripts were blocked by the fictional page CSP; test-injected execution now models
+the content script). The full rerun also reproduced the pre-existing forced-exit
+recovery failure, this time `ownership_or_process_check_failed`. Do not call the
+complete post-change suite green or the recovery issue fixed. Default recovery
+inspection reports no disposable test files remain. Next work: diagnose the
+recovery failure without weakening ownership checks, then provide temporary
+encrypted evidence/cleanup for ordinary-Chrome work testing before live capture.
+
 The user moved core development for **all required accounts** back to the work
 machine because home-plan usage prevented practical progress. Port the existing
 code/extension to home through `codex/budget-collector`; do not start over or
