@@ -2,6 +2,27 @@
 
 ## Current checkpoint — September 21
 
+### Temporary Chase testing on the work machine
+
+Use `node collector/src/cli.mjs chase-work-test` (or
+`pnpm --dir collector chase:work-test`) for an explicitly attended development
+capture. This queues one Chase discovery in the installed ordinary-Chrome bridge,
+not a certified card import. Reload the extension to **0.4.4** before testing.
+Normal home `chase-refresh` commands still use persistent storage; do not use
+them for temporary work evidence.
+
+The work command checks encryption before opening a bank-command connection,
+stores only in an owned `BudgetCollectorTesting/run-<id>` outside Git/OneDrive,
+and stops after a candidate, a terminal failure, Ctrl+C, or ten minutes. It drains
+encrypted writes and closes the local bridge before verified removal. Cleanup
+failure blocks further tests and never prints a false deletion confirmation.
+Status is structural only; no raw financial text, workbook writes, or home-store
+access. A crash requires the existing explicit recovery checks.
+
+This mode does not own, close, copy or clear personal Chrome. Its bank cookies/
+cache, employer/OS logs and previous chat images are NOT removed by collector
+cleanup. The intended approval-only sign-in workflow is still unverified.
+
 Latest extension: **0.4.4** (collector package remains 0.6.1). Chase now validates
 row shape/text limits consistently for both activity sections and rejects ambiguous
 column headings. Reload the unpacked extension once after syncing. The user

@@ -14,7 +14,8 @@ import { fixtureBrowserReader } from "../fixtures/browser-reader.mjs";
 import { FIXTURE_NOW, makeCaptures } from "../fixtures/synthetic.mjs";
 import { repositoryRoot, tempDirectory } from "../test/store-helpers.mjs";
 import { inspectPageStructure } from "../src/page-structure.mjs";
-import { recoverDisposableTest } from "../src/test-recovery.mjs";
+import { recoverDisposableTest, recoveryProcessDecision } from "../src/test-recovery.mjs";
+import { windowsTestProcesses } from "../src/test-processes.mjs";
 
 async function runBrowser(t, task) {
   const parent = path.join(await tempDirectory(t), "browser-run");
@@ -188,7 +189,35 @@ test("forced collector exit leaves a blocked run which can be recovered after re
   while (ready.pids.some(alive) && performance.now() < deadline) await delay(50);
   assert.ok(!ready.pids.some(alive), "fictional Chrome processes must exit before recovery");
   assert.ok((await fs.readdir(parent)).length > 0, "forced exit must leave recoverable files");
-  const result = await recoverDisposableTest({ repositoryRoot, parent, confirm: true });
+  const marker = JSON.parse(await fs.readFile(path.join(parent, ".active-test.json"), "utf8"));
+  const runName = (await fs.readdir(parent)).find(name => name.startsWith("run-"));
+  const guard = JSON.parse(await fs.readFile(path.join(parent, runName, ".browser-starting.json"), "utf8"));
+  const decisions = [];
+  const processProbe = async ownerPid => {
+    try {
+      const snapshot = await windowsTestProcesses(ownerPid);
+      decisions.push(recoveryProcessDecision(marker, guard, snapshot));
+      return snapshot;
+    } catch (error) {
+      decisions.push("process_probe_failed");
+      throw error;
+    }
+  };
+  const config = { repositoryRoot, parent, processProbe,
+    onDiagnostic: ({stage,code}) => decisions.push(`${stage}:${code}`) };
+  // The startup PID list cannot include every later Chrome descendant. Wait for
+  // the complete, read-only ownership decision, not merely the recorded PIDs.
+  const recoveryDeadline = performance.now() + 10000;
+  let readiness = await recoverDisposableTest(config);
+  while (readiness.status === "blocked" && readiness.reason === "browser_may_be_running"
+    && performance.now() < recoveryDeadline) {
+    await delay(100);
+    readiness = await recoverDisposableTest(config);
+  }
+  const result = readiness.status === "ready"
+    ? await recoverDisposableTest({ ...config, confirm: true }) : readiness;
+  // Fixed outcomes only; never print process metadata, paths or source evidence.
+  if (result.status !== "cleaned") t.diagnostic(`Recovery probe decisions: ${decisions.join(",")}`);
   assert.equal(result.status, "cleaned", `Recovery must be verified: ${result.reason ?? result.status}`);
   assert.deepEqual(await fs.readdir(parent), []);
 });

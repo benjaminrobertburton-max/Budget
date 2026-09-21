@@ -16,6 +16,7 @@
     "qc": "node src/cli.mjs collector-qc",
     "wells:auto": "node src/cli.mjs wells-refresh",
     "chase:auto": "node src/cli.mjs chase-refresh",
+    "chase:work-test": "node src/cli.mjs chase-work-test",
     "chase:sapphire": "node src/cli.mjs chase-sapphire-refresh",
     "chase:prime": "node src/cli.mjs chase-prime-refresh",
     "pilot:rehearsal": "node src/cli.mjs pilot-rehearsal",

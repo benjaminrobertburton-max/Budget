@@ -2,6 +2,32 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Recovery and temporary work capture continuation
+
+Validation: **273/273** serial core/browser tests passed with zero failures or
+skips, including actual Chrome crash recovery and Windows encryption. QC and
+`git diff --check` pass. Extension version remains 0.4.4; this continuation
+changes the local launcher/recovery/tests, not the extension reader.
+
+Reproduced the intermittent crash-test failure as `tree:ENOENT`: the startup
+PID list had exited but Chrome descendants could still mutate cache files.
+Process readiness is now checked before tree traversal and again under the
+recovery lock. The crash regression waits boundedly for the full read-only
+readiness decision; it does not bypass an unknown/running process or unsafe tree.
+
+New `chase-work-test` CLI uses the existing owned disposable lifecycle for
+encrypted evidence, not the persistent home store. It preflights encryption,
+stops after a candidate/failure/cancellation/ten-minute timeout, drains writes
+and bridge connections under bounded cleanup, and verifies deletion. Fictional
+tests cover actual Windows encryption, failure, cancellation during writing,
+timeout and failed preflight. Ordinary Chrome is not collector-owned and its
+cookies/cache are not cleared. No source is certified by these tests.
+
+Before the next live attempt, confirm the running extension was reloaded to
+0.4.4; on-disk QC alone does not prove Chrome loaded the updated reader. Keep
+real source contents out of agent output. Use only the new temporary command at
+work and retain only fixed structural results after cleanup.
+
 ### Work extension QC and first Chase fix
 
 The user has now loaded the unpacked extension at work and reports it working.

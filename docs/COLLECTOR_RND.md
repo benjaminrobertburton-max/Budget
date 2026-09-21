@@ -39,6 +39,15 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 recovery tracing reproduced `tree:ENOENT` before the process probe:
+Chrome shutdown was still changing its disposable cache after the initial PID
+list exited. Recovery now checks the full process/ancestry guard before traversing
+the tree, and repeats ownership, process and tree checks under the deletion lock.
+The crash test waits boundedly for read-only readiness instead of treating the
+startup PID list as complete. Unknown new processes, PID reuse, links and changed
+ownership still block; no Chrome processes are killed. Diagnostic hooks expose
+only fixed stage/error codes, never process IDs, paths or exception messages.
+
 September 21 Chase QC found reproducible source-validation gaps: the paired-table
 branch bypassed row-width validation, both paths silently sliced long text, and
 multiple qualifying column rows were accepted. Version 0.4.4 validates the shared

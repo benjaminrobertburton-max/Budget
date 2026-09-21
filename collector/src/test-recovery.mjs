@@ -47,6 +47,8 @@ export function recoveryProcessDecision(marker, guard, snapshot) {
 }
 
 async function inspect(config, recoveryToken) {
+  let stage = "path";
+  try {
   const boundaries = { repositoryRoot: config.repositoryRoot, cloudRoots: config.cloudRoots ?? [] };
   const parent = await assertPrivateDirectory(config.parent, boundaries);
   let names;
@@ -65,6 +67,7 @@ async function inspect(config, recoveryToken) {
     && names.length === roots.length + 1,
   "RECOVERY_OWNERSHIP_UNKNOWN", "Unexpected test files prevent safe recovery.");
   const markerText = await smallFile(lock);
+  stage = "marker";
   const marker = JSON.parse(markerText);
   check(exactKeys(marker, ["version", "purpose", "id", "pid"]) && marker.version === 2
     && marker.purpose === "disposable-collector-test" && uuid.test(marker.id)
@@ -77,6 +80,7 @@ async function inspect(config, recoveryToken) {
   const parentIdentity = await fs.lstat(parent);
   const resolvedParent = await fs.realpath(parent);
   if (roots.length) {
+    stage = "run_ownership";
     root = path.join(parent, roots[0]);
     await assertPrivateDirectory(root, boundaries);
     identity = await fs.lstat(root);
@@ -85,7 +89,7 @@ async function inspect(config, recoveryToken) {
       && await smallFile(path.join(root, ".owner.json")) === markerText
       && await smallFile(path.join(root, ".browser-unused.json")) === markerText,
     "RECOVERY_OWNERSHIP_UNKNOWN", "Test ownership could not be established.");
-    await noLinksInTestTree(root);
+    stage = "browser_guard";
     try {
       guardText = await smallFile(path.join(root, ".browser-starting.json"), 2 * 1024 * 1024);
       guard = validateBrowserGuard(JSON.parse(guardText), marker.id, marker.pid);
@@ -95,10 +99,24 @@ async function inspect(config, recoveryToken) {
         "RECOVERY_OWNERSHIP_UNKNOWN", "An unregistered browser profile prevents recovery.");
     }
   }
+  stage = "process_probe";
   const snapshot = await config.processProbe(marker.pid);
   const decision = recoveryProcessDecision(marker, guard, snapshot);
+  // Browser descendants may still be shutting down and changing cache files.
+  // Establish process readiness before scanning a tree that must be stable.
+  // The same complete check runs again under the recovery lock before deletion.
+  if (decision === "ready" && root) {
+    stage = "tree";
+    await noLinksInTestTree(root);
+  }
   return { parent, parentIdentity, resolvedParent, root, identity, lock, markerText, guardText,
     result: decision === "ready" ? { status: "ready", removed: false } : blocked(decision) };
+  } catch (error) {
+    // Only fixed stage/error vocabulary is observable; never paths or messages.
+    const code = ["ENOENT", "EPERM", "EBUSY", "PROCESS_CHECK_FAILED"].includes(error.code) ? error.code : "check_failed";
+    config.onDiagnostic({ stage, code });
+    throw error;
+  }
 }
 
 function sameDirectory(before, after) {
@@ -107,14 +125,14 @@ function sameDirectory(before, after) {
 
 /** Default is inspection only. Explicit cleanup affects only an owned disposable run. */
 export async function recoverDisposableTest({ repositoryRoot, parent = defaultTestRoot(), cloudRoots = [],
-  processProbe = windowsTestProcesses, confirm = false } = {}) {
+  processProbe = windowsTestProcesses, confirm = false, onDiagnostic = () => {} } = {}) {
   let recoveryFile;
   let recoveryToken;
   let ownsRecoveryLock = false;
   let result;
   try {
     check(typeof confirm === "boolean", "RECOVERY_OWNERSHIP_UNKNOWN", "Recovery requires an explicit mode.");
-    const config = { repositoryRoot, parent, cloudRoots, processProbe };
+    const config = { repositoryRoot, parent, cloudRoots, processProbe, onDiagnostic };
     const initial = await inspect(config);
     if (!confirm || initial.result.status !== "ready") return initial.result;
     recoveryFile = path.join(initial.parent, ".recovery.lock");

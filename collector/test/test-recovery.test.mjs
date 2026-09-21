@@ -45,6 +45,24 @@ test("storage-only crash can be recovered without a browser or a reboot", async 
   assert.equal((await recoverDisposableTest({ ...config, confirm: true })).status, "cleaned");
 });
 
+test("active Chrome is checked before traversing its still-changing tree", async t => {
+  const config = await orphan(t, {armed:true});
+  // A dangling link would fail the tree check. While Chrome is active, recovery
+  // must first report the process blocker; after exit the unsafe link still blocks.
+  await fs.symlink(path.join(config.root,"missing-target"),path.join(config.root,"moving-cache"),"junction");
+  const diagnostics = [];
+  const active = await recoverDisposableTest({...config,
+    processProbe:async()=>snapshot([row(999999)]),onDiagnostic:value=>diagnostics.push(value)});
+  assert.equal(active.reason,"browser_may_be_running");
+  assert.deepEqual(diagnostics,[]);
+  const stopped = await recoverDisposableTest({...config,confirm:true,
+    onDiagnostic:value=>diagnostics.push(value)});
+  assert.equal(stopped.status,"blocked");
+  assert.equal(diagnostics[0].stage,"tree");
+  assert.doesNotMatch(JSON.stringify(diagnostics),/moving-cache|missing-target|FICTIONAL/);
+  await fs.unlink(path.join(config.root,"moving-cache"));
+});
+
 test("no leftover test means no process lookup or directory creation", async t => {
   const parent = path.join(await tempDirectory(t), "not-created");
   const result = await recoverDisposableTest({ repositoryRoot, parent, confirm: true, processProbe: () => assert.fail("No lookup needed") });

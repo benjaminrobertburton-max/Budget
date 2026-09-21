@@ -11,6 +11,37 @@ if (command.length === 1 && command[0] === "collector-qc") {
   console.log(formatCollectorQc(report));
   if (!report.ok) process.exitCode = 1;
 }
+else if (command.length === 1 && command[0] === "chase-work-test") {
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+  try {
+    const { runCollectorQc } = await import("./collector-qc.mjs");
+    const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
+    const qc = await runCollectorQc({ repositoryRoot });
+    if (!qc.ok) throw new Error("COLLECTOR_QC_BLOCKED");
+    const { runChaseWorkTest } = await import("./chase-work-test.mjs");
+    console.log("Temporary Chase test: encrypted collector evidence is deleted after capture, cancellation or timeout.");
+    console.log("Your ordinary Chrome profile, bank cookies and cache are NOT deleted. No workbook or home store is used.");
+    console.log("Press Ctrl+C to cancel. The test expires after ten minutes; sign-in automation is not certified.");
+    const result = await runChaseWorkTest({ repositoryRoot, signal: controller.signal,
+      onReady: () => console.log("One read-only Chase discovery is queued for the installed extension."),
+      onStatus: event => console.log(`Chrome bridge state: ${event}.`),
+    });
+    console.log(`Temporary Chase result: ${result.status}.`);
+    if (result.summary) console.log(`Structural result only: ${JSON.stringify(result.summary)}`);
+    console.log("Collector evidence was removed and deletion verified. Personal Chrome was not closed or cleared.");
+    if (result.status !== "candidate_captured") process.exitCode = 1;
+  } catch (error) {
+    const issue = safeIssue(null, error);
+    console.error(`${issue.code}: ${issue.message}`);
+    process.exitCode = 1;
+  } finally {
+    process.removeListener("SIGINT", stop);
+    process.removeListener("SIGTERM", stop);
+  }
+}
 else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh"].includes(command[0])) {
   let bridge = null;
   try {
