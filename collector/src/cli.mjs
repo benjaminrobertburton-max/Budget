@@ -11,7 +11,7 @@ if (command.length === 1 && command[0] === "collector-qc") {
   console.log(formatCollectorQc(report));
   if (!report.ok) process.exitCode = 1;
 }
-else if (command.length === 1 && command[0] === "chase-work-test") {
+else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "chase-sapphire-work-test"].includes(command[0])) {
   const controller = new AbortController();
   const stop = () => controller.abort();
   process.once("SIGINT", stop);
@@ -25,7 +25,9 @@ else if (command.length === 1 && command[0] === "chase-work-test") {
     console.log("Temporary Chase test: encrypted collector evidence is deleted after capture, cancellation or timeout.");
     console.log("Your ordinary Chrome profile, bank cookies and cache are NOT deleted. No workbook or home store is used.");
     console.log("Press Ctrl+C to cancel. The test expires after ten minutes; sign-in automation is not certified.");
-    const result = await runChaseWorkTest({ repositoryRoot, signal: controller.signal,
+    const target = command[0] === "chase-prime-work-test" ? "prime_visa"
+      : command[0] === "chase-sapphire-work-test" ? "sapphire_preferred" : "overview";
+    const result = await runChaseWorkTest({ repositoryRoot, signal: controller.signal, target,
       onReady: () => console.log("One read-only Chase discovery is queued for the installed extension."),
       onStatus: event => console.log(`Chrome bridge state: ${event}.`),
     });

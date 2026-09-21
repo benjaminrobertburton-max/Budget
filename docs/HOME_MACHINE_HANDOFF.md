@@ -2,6 +2,38 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Chase frame-window continuation
+
+Reviewed the successful Wells history before changing Chase: trusted account
+clicks, frame/shadow-root traversal, stable Wells header test IDs (`b382ff3`),
+child-frame response handling (`16b9890`), bounded rendering wait, and encrypted
+normalization/posted-anchor overlap. Wells did not switch to a CSV/API reader.
+Its bank-specific header IDs must not be guessed for Chase.
+
+A failing fictional regression proved the temporary Chase runner stopped on the
+first empty frame and rejected a later valid candidate. It now waits a bounded
+35-second response window after dispatch; silence is incomplete, not zero.
+New temporary per-card commands are `chase-prime-work-test` and
+`chase-sapphire-work-test`; they use the existing extension navigation and do not
+auto-capture Overview on authentication. Extension remains 0.4.4, unchanged.
+
+Validation for this continuation: targeted runner/bridge/CLI tests **27/27**;
+QC and `git diff --check` pass. Full serial suite: **278 passed / 1 failed**
+(279 total). The existing fictional manual-approval concurrency test asserted
+`firstCollected === true` but observed false; its isolated rerun passed. Cause
+is not established, and the full suite must not be called green. Recovery
+inspection reports no disposable test files remain. Preserve this failure for
+follow-up rather than weakening the test or increasing timeouts speculatively.
+
+Live results: overview discovery and the subsequent Prime-targeted retry both
+reported `activity_capture_no_table`. Each run verified deletion of its temporary
+collector evidence, without closing/clearing personal Chrome. No financial data
+was retained, no workbook changed, and no Chase account was verified. The runner
+bug is fixed, but is NOT established as the cause of the live failure. Next,
+establish whether Prime activity actually opened before changing the reader.
+The worker's capture-dispatched event proves delivery, not successful navigation
+or correct card identity. Do not repeat sign-ins or stack speculative selectors.
+
 ### Recovery and temporary work capture continuation
 
 Validation: **273/273** serial core/browser tests passed with zero failures or

@@ -39,6 +39,22 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 Chase frame-window check reproduced a temporary-runner bug: a
+`no_activity_table` reply immediately closed the run and a later fictional valid
+frame was rejected. The local runner now waits a bounded 35 seconds from dispatch
+for independent frame replies, or from the first negative reply if dispatch was
+not observed. Negative replies do not extend that deadline; no reply is incomplete.
+Tests cover late success, all-empty replies, and missing replies. This is not
+frame-completeness verification or permission to import the first candidate.
+
+The subsequent attended Prime-targeted test still returned
+`activity_capture_no_table`; collector evidence deletion was verified. Destination
+and actual table layout remain unproven. Do not treat this as proof of a parser
+failure, and do not copy Wells-specific header mappings into Chase. The Wells
+weekend solution remained a DOM reader with trusted navigation, frame/shadow-root
+traversal, stable structural header IDs, delayed child-frame response handling,
+and encrypted normalization/anchor overlap—not a replacement CSV/API collector.
+
 September 21 recovery tracing reproduced `tree:ENOENT` before the process probe:
 Chrome shutdown was still changing its disposable cache after the initial PID
 list exited. Recovery now checks the full process/ancestry guard before traversing

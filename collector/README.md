@@ -4,6 +4,20 @@
 
 ### Temporary Chase testing on the work machine
 
+Card-specific temporary commands are `node collector/src/cli.mjs
+chase-prime-work-test` and `node collector/src/cli.mjs chase-sapphire-work-test`
+(run each as one line). They request the existing product-selection path without
+automatically capturing Overview on an authentication event. Product selection
+is not evidence of captured account identity. Authentication/card navigation is
+still not certified; these are development commands, not the weekly workflow.
+
+The temporary runner now allows 35 seconds after capture dispatch for independent
+frame responses. An early empty frame cannot reject a later valid candidate;
+no response is incomplete, never zero activity. This changes the local runner,
+not extension 0.4.4, and needs no extension reload. The attended Prime retry still
+reported `activity_capture_no_table`; encrypted test evidence deletion was verified.
+Do not change table selectors without establishing the actual destination/layout.
+
 Use `node collector/src/cli.mjs chase-work-test` (or
 `pnpm --dir collector chase:work-test`) for an explicitly attended development
 capture. This queues one Chase discovery in the installed ordinary-Chrome bridge,

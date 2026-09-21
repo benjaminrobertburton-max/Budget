@@ -8,6 +8,78 @@ import { fictionalActivityCandidate } from "../fixtures/activity-candidate.mjs";
 import { windowsProtector } from "../src/protection.mjs";
 
 const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
+
+test("an early empty Chase frame must not close the work run before a later activity candidate", async t => {
+  const parent = path.join(await tempDirectory(t),"frames");
+  const result = await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,
+    onReady:async ({port})=>{
+      const {base,headers} = await connect(port);
+      const empty = fictionalActivityCandidate();
+      empty.finding = "no_activity_table"; empty.tables = [];
+      assert.equal((await fetch(base+"/v1/chase-activity",{method:"POST",headers,
+        body:JSON.stringify(empty)})).status,204);
+      await new Promise(resolve=>setTimeout(resolve,30));
+      assert.equal((await fetch(base+"/v1/chase-activity",{method:"POST",headers,
+        body:JSON.stringify(fictionalActivityCandidate())})).status,204);
+    }});
+  assert.equal(result.status,"candidate_captured");
+  assert.deepEqual(await fs.readdir(parent),[]);
+});
+
+test("all-empty Chase replies end at the bounded response window and never certify an account", async t => {
+  const parent = path.join(await tempDirectory(t),"empty-frames");
+  const result = await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,
+    captureWindowMs:80,durationMs:3000,onReady:async ({port})=>{
+      const {base,headers} = await connect(port);
+      await fetch(base+"/v1/progress",{method:"POST",headers,
+        body:JSON.stringify({version:1,event:"chase_capture_dispatched",tabId:2})});
+      const empty = fictionalActivityCandidate();
+      empty.finding = "no_activity_table"; empty.tables = [];
+      await fetch(base+"/v1/chase-activity",{method:"POST",headers,body:JSON.stringify(empty)});
+    }});
+  assert.equal(result.status,"activity_capture_no_table");
+  assert.equal(result.summary,null);
+  assert.equal(result.workbookReady,false);
+  assert.deepEqual(await fs.readdir(parent),[]);
+});
+
+test("a dispatched Chase capture with no reply ends as incomplete, not zero activity", async t => {
+  const parent = path.join(await tempDirectory(t),"missing-frames");
+  const result = await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,
+    captureWindowMs:60,durationMs:3000,onReady:async ({port})=>{
+      const {base,headers} = await connect(port);
+      await fetch(base+"/v1/progress",{method:"POST",headers,
+        body:JSON.stringify({version:1,event:"chase_capture_dispatched",tabId:2})});
+    }});
+  assert.equal(result.status,"capture_incomplete");
+  assert.equal(result.summary,null);
+  assert.deepEqual(await fs.readdir(parent),[]);
+});
+
+for (const [target,command] of [["prime_visa","open_chase_prime"],["sapphire_preferred","open_chase_sapphire"]]) {
+  test(`temporary ${target} requests only its configured card and does not auto-capture Overview`, async t => {
+    const parent = path.join(await tempDirectory(t),"card-work");
+    const controller = new AbortController();
+    const result = await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),
+      port:0,target,signal:controller.signal,onReady:async ({port})=>{
+        const {base,headers} = await connect(port);
+        assert.equal((await (await fetch(base+"/v1/command",{headers})).json()).command,command);
+        await fetch(base+"/v1/progress",{method:"POST",headers,
+          body:JSON.stringify({version:1,event:"chase_authenticated_page",tabId:2})});
+        assert.equal((await (await fetch(base+"/v1/command",{headers})).json()).command,"none");
+        controller.abort();
+      }});
+    assert.equal(result.status,"cancelled");
+    assert.deepEqual(await fs.readdir(parent),[]);
+  });
+}
+
+test("temporary Chase rejects arbitrary navigation targets before creating files", async t => {
+  const parent = path.join(await tempDirectory(t),"must-not-exist");
+  await assert.rejects(runChaseWorkTest({repositoryRoot,parent,target:"https://unreviewed.example"}),
+    {code:"INVALID_TEST_RUN"});
+  await assert.rejects(fs.stat(parent),{code:"ENOENT"});
+});
 async function connect(port) {
   const base = `http://127.0.0.1:${port}`;
   const sessionResponse = await fetch(base + "/v1/session", {method:"POST",headers:{Origin:origin}});
