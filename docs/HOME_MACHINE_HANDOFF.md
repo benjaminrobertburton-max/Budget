@@ -2,6 +2,41 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Citi first-page collector — current development checkpoint
+
+Extension **0.4.13** adds the observed Citi single-card dashboard reader on
+`citi.com` and reuses the existing loopback bridge, money parser and encrypted
+disposable-test lifecycle. It reads the labeled account suffix, current/available
+credit/last-statement balances, minimum payment and due date, separate pending and
+posted transactions, selected date range and the source's signed section totals.
+It opens only the observed **Filter By** panel when collapsed; selections remain
+unchanged. No financial actions, credential reads or broad account navigation.
+
+Run `node collector/src/citi-work-test.mjs` with exactly one authenticated Citi
+tab and the reloaded extension. The two-minute temporary test captures the first
+page and repeats it against its in-memory posted anchors, then verifies deletion
+of encrypted test evidence. It does not clear ordinary Chrome cookies/cache,
+touch the home store or update any workbook. Only structural checks/counts appear
+in output. The initial live capture matched both section totals and read identity,
+balances and due date; it safely blocked on collapsed filter labels. The targeted
+fix passed 23 focused normalizer/bridge/worker/real-Chrome fictional tests.
+
+**Live 0.4.13 acceptance:** captured the identified account, all four labeled
+balance/payment amounts and due date; both posted and pending source totals matched
+with no parsing/coverage issues. Same-session repeat matched posted overlap without
+loading older activity. Temporary encrypted evidence deletion was verified. This
+proves the observed dashboard reader and replay, not cross-week home acceptance.
+
+Always collect new posted activity through accepted overlap plus all current
+pending. Never sweep history. "All" type/member filters prevent omitted payments,
+refunds or cardmembers, not an unlimited history request. Missing overlap stops
+with `anchor_missing_from_range`; older-range navigation is not yet supported.
+First capture is a proposed baseline, not accepted financial history. Citi's
+absent pending section remains unknown (the Chase exception does not apply).
+Persistent Citi/home binding, saved sign-in, workbook mapping and cross-week
+acceptance are not supplied by this temporary reader test. Preserve the working
+Wells/Chase paths; do not rebuild them to add Citi.
+
 ### Direct Wells/Chase workbook import (supersedes review-only checkpoint)
 
 `work/run_weekly_import.ps1 -CollectorConfig <private-config>` now applies fresh

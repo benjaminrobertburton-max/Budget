@@ -4,6 +4,15 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**All collectors — anchor-first scope (user reconfirmed September 21):** collect
+new posted activity through the accepted posted anchor/overlap plus ALL current
+pending. Inspect every row already loaded (posts can arrive out of order), but
+never request older pages when the anchor is present. Only missing overlap can
+justify bounded older-page collection. First-page bootstrap is a proposed baseline,
+not accepted history. "All" transaction-type/member filters ensure payments/refunds
+are not omitted; they do not authorize all-history collection. Citi currently blocks
+on a missing anchor rather than widening its date range or guessing pagination.
+
 **Newest direct integration checkpoint — September 21:** `workbook-import` (or
 `run_weekly_import.ps1 -CollectorConfig`) now updates the configured private workbook
 itself: accepted ledger, Wells cash, both Chase balances, source controls and spending

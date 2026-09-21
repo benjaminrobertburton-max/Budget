@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 import { requireEvidence as check } from "./errors.mjs";
 import { validateActivityCandidate } from "./activity-probe.mjs";
+import {validateCitiCandidate} from './citi-normalize.mjs';
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 const events = new Set(["wells_opened", "auth_required", "authenticated_page", "chase_opened", "chase_auth_required", "chase_authenticated_page", "chase_capture_dispatched", "chase_delivery_failed"]);
@@ -13,6 +14,7 @@ const captureStates = Object.freeze({
 });
 const MAX_BODY_BYTES = 300000;
 const commands = new Set(["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime"]);
+commands.add('capture_citi_activity');
 
 function response(res, status, origin, body = null) {
   const headers = {
@@ -49,7 +51,7 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null, onChaseActivityCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null, onChaseActivityCapture = null, onCitiActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
@@ -87,6 +89,14 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         return response(res, 200, origin, { version: 1, command, ...(command==='capture_chase_more'?{pageToken}:{}) });
       }
       if (req.method !== "POST") return response(res, 405, requestOrigin === origin ? origin : null);
+      if(req.url==='/v1/citi-activity'){
+        if(!origin||requestOrigin!==origin||req.headers['x-budget-collector-session']!==session)return response(res,403,null);
+        if(typeof onCitiActivityCapture!=='function')return response(res,503,origin);
+        const candidate=validateCitiCandidate(await readJson(req));
+        const decision=await onCitiActivityCapture(candidate);
+        if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_citi_activity';
+        return response(res,204,origin);
+      }
       if (req.url === "/v1/session") {
         if (!extensionOrigin.test(requestOrigin ?? "")) return response(res, 403, null);
         origin = requestOrigin;

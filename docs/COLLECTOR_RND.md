@@ -2,6 +2,21 @@
 
 ## Decision
 
+September 21 Citi: inspected the authenticated first-page DOM without retaining
+financial values. The dashboard has `#cardsBalanceTile .card-title`, labeled
+balance boxes and payment date, plus a standard `table.transaction-table` with
+Date/Description/Name/Amount/Running Balance headers. Read only date, description,
+amount and explicit row pending class; skip the unrelated name column. Section
+`tr.total-header` rows provide independent signed posted/pending totals. Hidden
+print/mobile copies must not duplicate evidence. The range and type/member filter
+buttons are `ums-*Dropdown`; type/member labels become visible only after the
+observed `#filter-by-cta` **Filter By** expansion. First live capture reconciled
+both totals but correctly blocked on the hidden filters; 0.4.13 expands that panel
+once and waits within the elapsed-time deadline. No history/date-filter changes.
+The 0.4.13 live retest passed both source-total checks, all observed balance/payment
+fields, identity and same-session posted-anchor replay. No older activity was
+loaded; encrypted test evidence was deleted with verified cleanup.
+
 September 21 subsequent user decision: Chase-wide absent pending on a loaded,
 identified activity page means inferred zero (Prime Visa AND Sapphire Preferred).
 The normalizer labels the user-approved inference separately from bank controls,

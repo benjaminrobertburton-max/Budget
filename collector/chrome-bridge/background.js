@@ -11,6 +11,9 @@ let session = null;
 let pollInFlight = false;
 let wellsTabId = null;
 let chaseTabId = null;
+let citiTabId = null;
+let pendingCitiCapture = false;
+let citiReloaded = false;
 let pendingChaseCapture = false;
 let chaseDeliveryInFlight = false;
 let chaseReloadAttempted = false;
@@ -57,7 +60,7 @@ async function nextCommand() {
     if (body?.version===1 && body.command==='capture_chase_more' && /^[a-f0-9]{8}$/.test(body.pageToken)) {
       chaseMoreToken=body.pageToken; return body.command;
     }
-    return body?.version === 1 && ["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime"].includes(body.command)
+    return body?.version === 1 && ["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime", "capture_citi_activity"].includes(body.command)
       ? body.command : "none";
   } catch { session = null; return "none"; }
 }
@@ -268,6 +271,16 @@ async function pollCommand() {
   try {
     if (!await startSession()) return;
     const command = await nextCommand();
+    if(command==='capture_citi_activity'){
+      const tabs=await chrome.tabs.query({url:['https://*.citi.com/*']});
+      // Never select an arbitrary account tab if more than one Citi page is open.
+      if(tabs.length===1&&Number.isInteger(tabs[0].id)){
+        citiTabId=tabs[0].id;pendingCitiCapture=true;
+        const delivered=await chrome.tabs.sendMessage(citiTabId,{command:'capture_citi_activity'},{frameId:0}).then(r=>r?.accepted===true).catch(()=>false);
+        if(delivered)pendingCitiCapture=false;
+        else if(!citiReloaded){citiReloaded=true;await chrome.tabs.reload(citiTabId);}
+      }
+    }
     if (command === "open_wells") await openOrReuseWells();
     if (command === "open_chase") await openOrReuseChase();
     if (command === 'capture_chase_more') { const token=chaseMoreToken; chaseMoreToken=null; await loadMoreChase(chaseTabId,token); }
@@ -298,6 +311,18 @@ chrome.runtime.onInstalled.addListener(() => void pollCommand());
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
+  if(message.event==='citi_page_ready'){
+    if(tabId===citiTabId&&pendingCitiCapture){
+      pendingCitiCapture=false;
+      void chrome.tabs.sendMessage(tabId,{command:'capture_citi_activity'},{frameId:0}).catch(()=>{});
+    }else void pollCommand();
+    return;
+  }
+  if(message.event==='citi_activity_capture'){
+    if(session&&tabId===citiTabId&&sender.frameId===0&&/^https:\/\/([a-z0-9-]+\.)*citi\.com\//i.test(sender.url||'')&&message.candidate)
+      void send('/v1/citi-activity',message.candidate).then(()=>pollCommand());
+    return;
+  }
   if (message.event === "collector_page_ready") { void pollCommand(); return; }
   if (message.event === "chase_page_ready") {
     if (tabId === chaseTabId && pendingChaseCapture) void deliverChaseCapture(tabId);
