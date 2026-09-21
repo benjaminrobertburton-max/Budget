@@ -4,6 +4,22 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Newest direct integration checkpoint — September 21:** `workbook-import` (or
+`run_weekly_import.ps1 -CollectorConfig`) now updates the configured private workbook
+itself: accepted ledger, Wells cash, both Chase balances, source controls and spending
+week. It uses existing rules and accepted posted anchors, preserves duplicate
+occurrences, handles pending snapshots, retains an exact backup, and blocks unsafe
+publication. User approved freezing recorded prior History I/J totals so settlement
+does not rewrite closed weeks. Unknown classifications/payment requirements remain
+flagged. Remaining sources and a new Tuesday plan are NOT completed by this import.
+The older review-copy checkpoint below is superseded for integration; keep its
+optional diagnostic command. No home financial workbook was changed here.
+
+**Cost/scope constraint:** use targeted checks and preserve working collectors.
+Propose material extra work before doing it; do not substitute another intermediate
+review artifact for the requested integration or run broad expensive regressions
+without a relevant reason.
+
 **Newest workbook checkpoint — September 21:** collector intake can now create a
 separate private review workbook from fresh encrypted Wells/both-Chase evidence.
 Read `docs/COLLECTOR_WORKBOOK_INTAKE.md`. It preserves the authoritative local

@@ -1,9 +1,10 @@
 # Local weekly budget runbook — screenshot fallback only
 
-Collector development now has a separate review-copy entry point:
+Collector development now has a direct private-workbook entry point:
 `work/run_weekly_import.ps1 -CollectorConfig <absolute-private-config>`.
-Read `docs/COLLECTOR_WORKBOOK_INTAKE.md` before using it. It imports source evidence
-into a review tab, not the accepted ledger or a new payment plan. The ordinary
+Read `docs/COLLECTOR_WORKBOOK_INTAKE.md` before using it. It reconciles Wells/Chase
+into the ledger and balance inputs, keeping a backup. It does not create a new
+payment plan before remaining sources are checked. The ordinary
 builder below still contains dated snapshots; never use it to replace the newer
 home workbook during collector setup. Financial files remain private.
 

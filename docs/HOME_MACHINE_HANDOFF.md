@@ -2,6 +2,22 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Direct Wells/Chase workbook import (supersedes review-only checkpoint)
+
+`work/run_weekly_import.ps1 -CollectorConfig <private-config>` now applies fresh
+Wells and both Chase captures to the existing private workbook, with an exact
+pre-import backup. Ledger matching, classification using existing rules, pending
+transitions, source counts/totals, cash/card inputs and prior-week selection are
+connected. Closed History spending totals are preserved (user-approved). Native
+workbook parts and other financial assumptions remain intact. No extension reload.
+
+Read the direct-mode section of `COLLECTOR_WORKBOOK_INTAKE.md`. Home acceptance
+still must bind the actual private workbook/captures and verify its accepted anchors;
+missing/mismatched legacy anchors stop safely rather than guess. The home workbook
+has not been changed on this work machine. Remaining account collection, final
+payment-plan refresh and approval-only sign-in/launcher are outside this completed
+Wells/Chase ledger integration. Do not rebuild working capture adapters.
+
 ### Workbook intake connection (newest implementation checkpoint)
 
 The builder/collector now share a working encrypted-source-to-review-workbook path.

@@ -1,6 +1,44 @@
 # Collector workbook intake — September 21 checkpoint
 
-## What works
+## Current default: direct Wells/Chase import
+
+Using the private configuration below, run
+`node collector/src/cli.mjs workbook-import <absolute-private-config>` or
+`work/run_weekly_import.ps1 -CollectorConfig <absolute-private-config>`.
+The builder equivalent is `--collector-import=<absolute-private-config>`.
+This updates `baseWorkbook` itself; it does not add an intake tab. The original
+bytes are retained as `before.xlsx` in the private run folder alongside an encrypted
+receipt and previews. Keep Excel closed during publication. Financial files never
+belong in GitHub or a cloud-synced directory.
+
+All three fresh captures and their accepted workbook anchors are required. Matching
+uses date, description, signed amount and duplicate occurrence, never display order
+alone. A missing initial anchor or legacy/source mismatch blocks publication; resolve
+that one-time private baseline against evidence, not fuzzy guesses. Current pending
+is reconciled separately; disappeared pending remains recorded as previous pending,
+not asserted cancelled. Unclear dates, merchants and matches remain flagged.
+
+The import updates the ledger, existing classification rules' results, Wells cash,
+Chase balances, independent source controls and the prior Tuesday–Monday analysis
+period. It preserves the existing workbook layout and financial assumptions. With
+the user's approval, recorded earlier History posted/pending totals become fixed
+values so later settlement cannot rewrite closed weeks; downstream History formulas
+remain. Unknown card payment requirements are not assumed zero; only explicit bank
+no-payment-due evidence permits zero. Other account checks remain required.
+
+Before replacement: recalculate, scan errors, verify source counts/signed totals,
+compare saved values, preserve native workbook parts, render changed input sheets,
+and check the original has not changed. Any failure leaves the workbook unchanged.
+Tests cover replay, duplicate purchases, pending settlement/ambiguity, cleared dates,
+backup integrity and failure cleanup. Actual-template compatibility passed with zero
+formula errors and no change to the original. Private home acceptance remains.
+
+`workbookReady: false` means the full household payment plan is not ready, **not**
+that the Wells/Chase ledger import failed. The old optional `workbook-intake` command
+still creates a review-only copy; the historical sections below describe that mode
+and its former limitations, not the new direct import.
+
+## Older optional review-only mode
 
 The existing builder now has an explicit collector-intake mode. It reads fresh,
 Windows-user-encrypted RAW Wells and both Chase card captures from private local

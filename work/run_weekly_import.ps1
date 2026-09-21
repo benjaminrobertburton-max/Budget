@@ -19,7 +19,7 @@ Push-Location $repo
 try {
   if ($CollectorConfig -ne "") {
     if ($OutputDir -ne "") { throw "Collector intake uses the private output location in its configuration, not OutputDir." }
-    node $builder "--collector-intake=$CollectorConfig" --quiet
+    node $builder "--collector-import=$CollectorConfig" --quiet
   } else {
     node $builder --phase=import --quiet
   }

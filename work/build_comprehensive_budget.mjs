@@ -4,16 +4,17 @@ import { fileURLToPath } from "node:url";
 import { SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 import { applyBudgetUi, addWorkbookNavigation } from "./style_budget_ui.mjs";
 
-// Explicit private collector mode imports into a review copy of the CURRENT
-// workbook. Never run the historical hardcoded builder over a home workbook.
-const collectorArgs=process.argv.slice(2).filter(arg=>arg.startsWith('--collector-intake'));
+// Explicit private collector modes use the CURRENT workbook: direct import or
+// optional review copy. Never rebuild a home workbook from historical snapshots.
+const collectorArgs=process.argv.slice(2).filter(arg=>arg.startsWith('--collector-intake')||arg.startsWith('--collector-import'));
 if(collectorArgs.length){
-  if(collectorArgs.length!==1||!collectorArgs[0].startsWith('--collector-intake=')||collectorArgs[0]==='--collector-intake='){
-    console.error('Collector intake requires one --collector-intake=<absolute-private-config> argument. No workbook was updated.');
+  if(collectorArgs.length!==1||!/^--collector-(?:intake|import)=.+$/.test(collectorArgs[0])){
+    console.error('Collector mode requires one --collector-import=<absolute-private-config> or --collector-intake=<absolute-private-config> argument. No workbook was updated.');
     process.exitCode=1;
   }else{
-  const {workbookIntakeCli}=await import('./collector_workbook.mjs');
-  process.exitCode=await workbookIntakeCli(collectorArgs[0].slice('--collector-intake='.length));
+  const {workbookIntakeCli,workbookImportCli}=await import('./collector_workbook.mjs');
+  const action=collectorArgs[0].startsWith('--collector-import=')?workbookImportCli:workbookIntakeCli;
+  process.exitCode=await action(collectorArgs[0].slice(collectorArgs[0].indexOf('=')+1));
   }
 }else{
 const workDir = path.dirname(fileURLToPath(import.meta.url));

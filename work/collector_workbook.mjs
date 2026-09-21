@@ -38,6 +38,8 @@ const updates={
     C8:'See Collector Intake tab',E4:'Prior source checkpoints'},
   '2. Tuesday Review':{A2:'PRIOR REVIEW ONLY — collector intake is not verified. Do not execute this checklist for the new import.'},
 };
+// Shared native-preservation helpers for the direct ledger importer.
+export const workbookXml={ns,lname,elements,child,root,xml,serial,node,stringCell,cellNodes,getCell,sheetMap};
 async function sheetMap(zip){
   const document=xml(await zip.file('xl/workbook.xml').async('string'));
   const relationships=xml(await zip.file('xl/_rels/workbook.xml.rels').async('string'));
@@ -225,7 +227,7 @@ async function formulaScanAndRender(filename,outputRoot,original){
   return {formulaErrors:errors,comparedCells};
 }
 
-export async function runWorkbookIntake(configFile,{protector=windowsProtector(),now=new Date()}={}){
+export async function runWorkbookIntake(configFile,{protector=windowsProtector(),now=new Date(),apply=false}={}){
   const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
   const policy={repositoryRoot};
   check(path.isAbsolute(configFile),'UNSAFE_STORAGE_PATH','The intake configuration must be an absolute private path.');
@@ -244,21 +246,37 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   const intake=prepareWorkbookIntake({records,bindings:config.bindings,now});
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
   const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
-  const bytes=await buildCollectorWorkbook(original,intake);
+  const direct=apply?await import('./collector_apply.mjs'):null;
+  const imported=apply?await direct.buildDirectWorkbook(original,intake):null;
+  const bytes=imported?.bytes??await buildCollectorWorkbook(original,intake);
   await fs.mkdir(config.outputRoot,{recursive:true,mode:0o700});await assertPrivateDirectory(config.outputRoot,policy);
   const folder=await fs.mkdtemp(path.join(config.outputRoot,'intake-'));
   const pending=path.join(folder,'review.partial.xlsx'),output=path.join(folder,'budget_collector_review.xlsx');
+  const replacement=apply?path.join(path.dirname(config.baseWorkbook),`.budget-import-${randomUUID()}.xlsx`):null;
   let published=false;
   try{
     await fs.writeFile(pending,bytes,{flag:'wx',mode:0o600});
-    const checks=await formulaScanAndRender(pending,folder,original);
+    const checks=apply?imported.checks:await formulaScanAndRender(pending,folder,original);
+    if(apply)await direct.renderDirectWorkbook(bytes,folder);
     await assertRegularFile(config.baseWorkbook,40*1024*1024);
     check(sha(await fs.readFile(config.baseWorkbook))===originalHash,'WORKBOOK_CHANGED','The original workbook changed during intake; rerun against the current file.');
-    const [encrypted]=await protector.sealMany([{version:1,kind:'workbook_intake_receipt',baseHash:originalHash,
+    const [encrypted]=await protector.sealMany([{version:1,kind:apply?'workbook_import_receipt':'workbook_intake_receipt',baseHash:originalHash,
       workbookHash:sha(bytes),createdAt:intake.createdAt,references:intake.accounts.map(a=>a.evidenceRef).filter(Boolean),workbookReady:false}]);
     await fs.writeFile(path.join(folder,'receipt.enc'),encrypted,{flag:'wx',mode:0o600});
+    if(apply){
+      await fs.writeFile(path.join(folder,'before.xlsx'),original,{flag:'wx',mode:0o600});
+      await assertPrivateDirectory(path.dirname(config.baseWorkbook),policy);
+      const handle=await fs.open(replacement,'wx',0o600);
+      try{await handle.writeFile(bytes);await handle.sync();}finally{await handle.close();}
+      await fs.unlink(pending);
+    }
     await assertRegularFile(config.baseWorkbook,40*1024*1024);
     check(sha(await fs.readFile(config.baseWorkbook))===originalHash,'WORKBOOK_CHANGED','The original changed before publication; rerun against the current file.');
+    if(apply){
+      await fs.rename(replacement,config.baseWorkbook);
+      return {status:'ledger_updated',workbookReady:false,output:config.baseWorkbook,backup:path.join(folder,'before.xlsx'),checks,
+        accounts:3,rows:imported.rows,added:imported.added,promoted:imported.promoted,retired:imported.retired};
+    }
     // Exclusive publication: unlike rename on POSIX, link cannot replace a file.
     await fs.link(pending,output);published=true;await fs.unlink(pending);
     return {status:'intake_review_created',workbookReady:false,output,checks,accounts:intake.accounts.filter(a=>a.capturedAt).length,rows:intake.rows.length};
@@ -266,10 +284,24 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
     // Remove only the files created by this invocation. Never remove a source,
     // profile, directory tree, or another run's output on validation failure.
     if(published)await fs.unlink(output);
-    for(const name of ['review.partial.xlsx','Start.png','Tuesday.png','Collector_Intake.png','receipt.enc'])
+    if(replacement)await fs.unlink(replacement).catch(e=>{if(e.code!=='ENOENT')throw e;});
+    for(const name of ['review.partial.xlsx','Start.png','Tuesday.png','Collector_Intake.png','Ledger.png','History.png','Snapshots.png','Debt.png','before.xlsx','receipt.enc'])
       await fs.unlink(path.join(folder,name)).catch(e=>{if(e.code!=='ENOENT')throw e;});
     await fs.rmdir(folder);
     throw error;
+  }
+}
+
+export async function workbookImportCli(configFile){
+  try{
+    const result=await runWorkbookIntake(configFile,{apply:true});
+    console.log(`Workbook updated: ${result.output}`);
+    console.log(`Private backup: ${result.backup}`);
+    console.log(`Wells and both Chase accounts imported: ${result.added} added, ${result.promoted} posted transitions. Remaining source checks still gate the payment plan.`);
+    return 0;
+  }catch(error){
+    const code=typeof error?.code==='string'&&/^[A-Z_]+$/.test(error.code)?error.code:'WORKBOOK_IMPORT_FAILED';
+    console.error(`Workbook import blocked: ${code}. Existing workbook preserved.`);return 1;
   }
 }
 

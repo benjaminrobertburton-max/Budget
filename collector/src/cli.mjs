@@ -5,7 +5,12 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if(command[0]==='workbook-intake'){
+if(command[0]==='workbook-import'){
+  if(command.length!==2){console.error('Usage: workbook-import <absolute-private-config>');process.exitCode=1;}
+  else{try{const {workbookImportCli}=await import('../../work/collector_workbook.mjs');process.exitCode=await workbookImportCli(command[1]);}
+    catch{console.error('Workbook runtime unavailable; no workbook updated.');process.exitCode=1;}}
+}
+else if(command[0]==='workbook-intake'){
   if(command.length!==2){console.error('Usage: workbook-intake <absolute-private-config>');process.exitCode=1;}
   else{
   try{

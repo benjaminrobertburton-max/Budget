@@ -55,7 +55,7 @@ export function prepareWorkbookIntake({records,bindings,now=new Date()}){
     accounts.push({...base,capturedAt:record.capturedAt,balances,posted:data.length-pending.length,
       pending:pending.length,pendingBasis,evidenceRef:reference,
       status:normalized.issues.length?'Source checks needed':'Captured — not imported',
-      issues:[...normalized.issues]});
+      issues:[...normalized.issues],bankPaymentStatus:normalized.bankPaymentStatus??null});
     for(const row of data)rows.push({account:account.label,state:row.state,
       date:account.source==='wells'?row.effectiveDate:row.sourceDate,
       description:row.description,
