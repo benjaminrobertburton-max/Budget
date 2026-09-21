@@ -7,13 +7,20 @@ const REASONS = ["hidden", "form_excluded", "nested_table", "ambiguous_headers",
 const keys = (value, expected) => value && typeof value === "object" && !Array.isArray(value)
   && Object.keys(value).sort().join(",") === expected.sort().join(",");
 const boundedText = value => typeof value === "string" && value.length <= 700;
+const sourceValid = source => keys(source, ["accountSuffix", "balances", "nextPage", "pageToken"])
+  && (source.accountSuffix === null || /^\d{4}$/.test(source.accountSuffix))
+  && ["next_enabled", "next_disabled", "next_unavailable", "next_stalled"].includes(source.nextPage)
+  && /^[a-f0-9]{8}$/.test(source.pageToken)
+  && Array.isArray(source.balances) && source.balances.length <= 3
+  && source.balances.every(balance => keys(balance, ["type", "text"])
+    && ["available", "ledger", "pending_debits"].includes(balance.type) && boundedText(balance.text));
 
 // Private evidence contract. Neither this object nor its exceptions may be logged.
 // Raw date/sign/status text is retained; this is NOT a normalized source capture.
 export function validateActivityCandidate(value) {
-  const valid = keys(value, ["version", "kind", "coverageVerified", "workbookReady", "finding", "hasFrames", "tables", "layout"])
+  const valid = keys(value, ["version", "kind", "coverageVerified", "workbookReady", "finding", "hasFrames", "tables", "layout", "source"])
     && value.version === 1 && value.kind === "activity_candidate" && value.coverageVerified === false
-    && value.workbookReady === false && FINDINGS.includes(value.finding) && typeof value.hasFrames === "boolean"
+    && value.workbookReady === false && FINDINGS.includes(value.finding) && typeof value.hasFrames === "boolean" && sourceValid(value.source)
     && keys(value.layout, ["tableCount", "rowCount", "headerCount", "hasShadowRoots", "tables"])
     && [value.layout.tableCount, value.layout.rowCount, value.layout.headerCount].every(count => Number.isInteger(count) && count >= 0 && count <= 12001)
     && typeof value.layout.hasShadowRoots === "boolean" && Array.isArray(value.layout.tables) && value.layout.tables.length <= 12
@@ -42,6 +49,8 @@ export function activitySummary(candidate) {
   return { finding: candidate.finding, hasFrames: candidate.hasFrames,
     layout: structuredClone(candidate.layout),
     tables: candidate.tables.map(table => ({ columns: [...table.columns], rows: table.rows.length, issues: [...table.issues] })),
+    source: { accountIdentified: candidate.source.accountSuffix !== null,
+      balanceTypes: candidate.source.balances.map(balance => balance.type), nextPage: candidate.source.nextPage },
     coverageVerified: false, workbookReady: false };
 }
 
@@ -52,6 +61,7 @@ export async function readActivityCandidate(page) {
     const excluded = 'form,input,textarea,select,button,[contenteditable]:not([contenteditable="false"]),[role="textbox"],script,style,noscript,template,iframe';
     const result = { version: 1, kind: "activity_candidate", coverageVerified: false, workbookReady: false,
       finding: "no_activity_table", hasFrames: !!document.querySelector("iframe,frame"), tables: [],
+      source: { accountSuffix: null, balances: [], nextPage: "next_unavailable", pageToken: "00000000" },
       layout: { tableCount: 0, rowCount: 0, headerCount: 0, hasShadowRoots: false, tables: [] } };
     const visible = node => !node.closest('[hidden],[aria-hidden="true"]') && node.getClientRects().length > 0
       && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";

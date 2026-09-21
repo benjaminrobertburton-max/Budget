@@ -1,13 +1,18 @@
-// This bridge talks only to the loopback collector and Wells. It never reads,
+// This bridge talks only to the loopback collector and reviewed bank sources. It never reads,
 // fills, submits, stores, or transmits credentials, cookies, form values, or
 // browser storage. Chrome's own alarm wakes the installed extension; no helper
 // tab, Chrome launch, debugger, or external web message is used.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
 const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
+const CHASE_SIGN_ON = "https://www.chase.com/";
 const POLL_ALARM = "budget-collector-local-command";
 let session = null;
 let pollInFlight = false;
 let wellsTabId = null;
+let chaseTabId = null;
+let pendingChaseCapture = false;
+let chaseDeliveryInFlight = false;
+let chaseReloadAttempted = false;
 const checkingNavigation = new Set();
 
 async function send(path, body) {
@@ -46,7 +51,7 @@ async function nextCommand() {
     if (response.status === 403) { session = null; return "none"; }
     if (!response.ok) return "none";
     const body = await response.json();
-    return body?.version === 1 && ["none", "open_wells", "capture_wells_activity"].includes(body.command)
+    return body?.version === 1 && ["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime"].includes(body.command)
       ? body.command : "none";
   } catch { session = null; return "none"; }
 }
@@ -76,6 +81,75 @@ async function openOrReuseWells() {
   await send("/v1/progress", { version: 1, event: "wells_opened", tabId: wellsTabId });
 }
 
+async function openOrReuseChase() {
+  const existing = await chrome.tabs.query({ url: ["https://*.chase.com/*"] });
+  const reusable = existing.find(tab => Number.isInteger(tab.id));
+  if (reusable?.id) {
+    chaseTabId = reusable.id;
+    const delivered = await chrome.tabs.sendMessage(reusable.id, { command: "probe_chase_state" })
+      .then(() => true).catch(() => false);
+    if (!delivered) await chrome.tabs.reload(reusable.id).catch(() => {});
+    await send("/v1/progress", { version: 1, event: "chase_opened", tabId: reusable.id });
+    return;
+  }
+  const tab = await chrome.tabs.create({ url: CHASE_SIGN_ON, active: true });
+  chaseTabId = Number.isInteger(tab.id) ? tab.id : null;
+  await send("/v1/progress", { version: 1, event: "chase_opened", tabId: chaseTabId });
+}
+
+async function navigateChaseAccount(tabId, label) {
+  if (!Number.isInteger(tabId) || !["Sapphire Preferred", "Prime Visa"].includes(label)) return false;
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, "1.3");
+    // Read only the visible label needed to identify the requested product and
+    // return its rectangle. No balances, URLs, form values, credentials, or
+    // transaction text leave the Chase page.
+    const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", {
+      returnByValue: true,
+      expression: `(() => { const target = ${JSON.stringify(label)}; const nodes = [...document.querySelectorAll('a,button,[role="link"],[role="button"]')]; const node = nodes.find(x => (x.innerText || '').trim().toLowerCase().startsWith(target.toLowerCase())); if (!node) return null; const r = node.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
+    });
+    const rect = response?.result?.value;
+    if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return false;
+    const x = rect[0] + rect[2] / 2, y = rect[1] + rect[3] / 2;
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    // The Chase reader waits for a recognizable activity table; this one bounded
+    // post-navigation request cannot page or interact with the account.
+    setTimeout(() => { void deliverChaseCapture(tabId); }, 1200);
+    return true;
+  } catch { return false; }
+  finally { await chrome.debugger.detach(target).catch(() => {}); }
+}
+
+async function deliverChaseCapture(tabId) {
+  if (!Number.isInteger(tabId) || chaseDeliveryInFlight) return false;
+  chaseDeliveryInFlight = true;
+  try {
+  pendingChaseCapture = true;
+  const frames = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => []);
+  const frameIds = frames.map(frame => frame.frameId).filter(Number.isInteger);
+  const acknowledgements = await Promise.all((frameIds.length ? frameIds : [0]).map(frameId =>
+    chrome.tabs.sendMessage(tabId, { command: "capture_chase_activity" }, { frameId })
+      .then(response => response?.accepted === true).catch(() => false)));
+  if (acknowledgements.some(Boolean)) {
+    pendingChaseCapture = false;
+    await send("/v1/progress", { version: 1, event: "chase_capture_dispatched", tabId });
+    return true;
+  }
+  // Extension reloads invalidate existing content-script contexts. Reload only
+  // this same Chase tab; its ready event below performs one bounded retry.
+  if (!chaseReloadAttempted) {
+    chaseReloadAttempted = true;
+    await chrome.tabs.reload(tabId).catch(() => {});
+  } else {
+    pendingChaseCapture = false;
+    await send("/v1/progress", { version: 1, event: "chase_delivery_failed", tabId });
+  }
+  return false;
+  } finally { chaseDeliveryInFlight = false; }
+}
+
 async function navigateChecking(tabId) {
   if (!Number.isInteger(tabId) || checkingNavigation.has(tabId)) return;
   checkingNavigation.add(tabId);
@@ -102,6 +176,30 @@ async function navigateChecking(tabId) {
   }
 }
 
+async function navigateNextActivityPage(tabId, pageToken) {
+  if (!Number.isInteger(tabId) || !/^[a-f0-9]{8}$/.test(pageToken)) return false;
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, "1.3");
+    // Find only the visible pagination control and return its rectangle. The
+    // extension never reads the table, account, or any form/credential value.
+    const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", {
+      returnByValue: true,
+      expression: `(() => { const a = [...document.querySelectorAll('a,button,[role="link"],[role="button"]')].filter(x => /^\\s*next\\s*$/i.test((x.innerText || '').trim())).find(x => !x.disabled && x.getAttribute('aria-disabled') !== 'true'); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
+    });
+    const rect = response?.result?.value;
+    if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return false;
+    const x = rect[0] + rect[2] / 2, y = rect[1] + rect[3] / 2;
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    // The content reader waits until the visible table has a new page token.
+    // A bounded delay avoids issuing the next capture against the old page.
+    setTimeout(() => { void chrome.tabs.sendMessage(tabId, { command: "capture_wells_after_next", pageToken }).catch(() => {}); }, 700);
+    return true;
+  } catch { return false; }
+  finally { await chrome.debugger.detach(target).catch(() => {}); }
+}
+
 async function pollCommand() {
   if (pollInFlight) return;
   pollInFlight = true;
@@ -109,12 +207,18 @@ async function pollCommand() {
     if (!await startSession()) return;
     const command = await nextCommand();
     if (command === "open_wells") await openOrReuseWells();
+    if (command === "open_chase") await openOrReuseChase();
+    if (["open_chase_sapphire", "open_chase_prime"].includes(command)) {
+      if (!Number.isInteger(chaseTabId)) await openOrReuseChase();
+      if (Number.isInteger(chaseTabId)) await navigateChaseAccount(chaseTabId, command === "open_chase_sapphire" ? "Sapphire Preferred" : "Prime Visa");
+    }
     if (command === "capture_wells_activity" && Number.isInteger(wellsTabId)) {
       const frames = await chrome.webNavigation.getAllFrames({ tabId: wellsTabId }).catch(() => []);
       const frameIds = frames.map(frame => frame.frameId).filter(Number.isInteger);
       await Promise.all((frameIds.length ? frameIds : [0]).map(frameId =>
         chrome.tabs.sendMessage(wellsTabId, { command: "capture_wells_activity" }, { frameId }).catch(() => {})));
     }
+    if (command === "capture_chase_activity" && Number.isInteger(chaseTabId)) await deliverChaseCapture(chaseTabId);
   } finally { pollInFlight = false; }
 }
 
@@ -130,6 +234,11 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
   if (message.event === "collector_page_ready") { void pollCommand(); return; }
+  if (message.event === "chase_page_ready") {
+    if (tabId === chaseTabId && pendingChaseCapture) void deliverChaseCapture(tabId);
+    else void pollCommand();
+    return;
+  }
   if (message.event === "checking_navigation_required" && tabId !== null) {
     wellsTabId = tabId;
     void navigateChecking(tabId);
@@ -141,13 +250,31 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     // activity frame is still loading. That is not terminal; wait for the
     // frame that owns transaction-table to submit its candidate.
     if (sender.frameId === 0 && message.candidate.finding === "no_activity_table") return;
+    // Weekly collection is incremental. The first visible page is sufficient
+    // whenever it includes the locally saved prior-import anchor. A later
+    // anchor-aware command may call navigateNextActivityPage only if that anchor
+    // is absent; never sweep account history merely because Next is available.
     void send("/v1/activity", message.candidate);
+    return;
+  }
+  if (message.event === "chase_activity_capture" && tabId === chaseTabId && message.candidate) {
+    // Chase discovery needs an explicit fixed no-table outcome on the account
+    // dashboard. Unlike Wells, its current reader has no known child-frame
+    // table contract to wait for; later frame candidates can still supersede it.
+    void send("/v1/chase-activity", message.candidate);
     return;
   }
   // Authentication/navigation status belongs to the top document. Activity
   // candidates may legitimately come from a Wells child frame.
   if (sender.frameId !== undefined && sender.frameId !== 0) return;
-  if (!['auth_required', 'authenticated_page'].includes(message.event)) return;
+  if (!['auth_required', 'authenticated_page', 'chase_auth_required', 'chase_authenticated_page'].includes(message.event)) return;
+  if (message.event.startsWith('chase_')) {
+    chaseTabId = tabId;
+    void send("/v1/progress", { version: 1, event: message.event, tabId }).then(sent => {
+      if (sent) void pollCommand();
+    });
+    return;
+  }
   wellsTabId = tabId;
   void send("/v1/progress", { version: 1, event: message.event, tabId }).then(sent => {
     if (sent) void pollCommand();

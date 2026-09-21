@@ -11,6 +11,7 @@ test("private evidence retains exact strings but public summaries contain only s
   assert.deepEqual(activitySummary(value), { finding: "candidate_read", hasFrames: false,
     layout: value.layout,
     tables: [{ columns: ["date", "description", "amount", "status"], rows: 1, issues: [] }],
+    source: { accountIdentified: true, balanceTypes: ["available", "ledger"], nextPage: "next_disabled" },
     coverageVerified: false, workbookReady: false });
   assert.doesNotMatch(JSON.stringify(activitySummary(value)), /FICTIONAL|2031|7\.43|Pending/);
 });

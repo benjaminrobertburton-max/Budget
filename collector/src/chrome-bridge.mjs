@@ -4,7 +4,7 @@ import { requireEvidence as check } from "./errors.mjs";
 import { validateActivityCandidate } from "./activity-probe.mjs";
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
-const events = new Set(["wells_opened", "auth_required", "authenticated_page"]);
+const events = new Set(["wells_opened", "auth_required", "authenticated_page", "chase_opened", "chase_auth_required", "chase_authenticated_page", "chase_capture_dispatched", "chase_delivery_failed"]);
 const captureStates = Object.freeze({
   candidate_read: "activity_candidate_captured",
   authentication_controls: "activity_capture_auth_required",
@@ -12,7 +12,7 @@ const captureStates = Object.freeze({
   page_limit: "activity_capture_page_limit",
 });
 const MAX_BODY_BYTES = 300000;
-const commands = new Set(["none", "open_wells", "capture_wells_activity"]);
+const commands = new Set(["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime"]);
 
 function response(res, status, origin, body = null) {
   const headers = {
@@ -49,13 +49,15 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null, onChaseActivityCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
+  check(onChaseActivityCapture === null || typeof onChaseActivityCapture === "function", "INVALID_BRIDGE", "The local Chase capture handler is invalid.");
   let origin = null;
   let session = null;
   let lastEvent = null;
+  let chaseAuthenticated = false;
   const server = createServer(async (req, res) => {
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
@@ -91,7 +93,14 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         const body = await readJson(req);
         if (!validProgress(body)) return response(res, 400, origin);
         lastEvent = body.event;
+        if (body.event === "chase_authenticated_page") chaseAuthenticated = true;
+        if (body.event === "chase_auth_required") chaseAuthenticated = false;
         if (captureAfterAuth && body.event === "authenticated_page" && nextCommand === "none") nextCommand = "capture_wells_activity";
+        if (captureAfterAuth && body.event === "chase_authenticated_page" && nextCommand === "none") nextCommand = "capture_chase_activity";
+        // On an already-authenticated Chase tab the content-script state can
+        // arrive while its one-shot open command is still being consumed. Queue
+        // the safe capture when the matching open acknowledgement arrives too.
+        if (captureAfterAuth && body.event === "chase_opened" && chaseAuthenticated && nextCommand === "none") nextCommand = "capture_chase_activity";
         onProgress({ event: body.event });
         return response(res, 204, origin);
       }
@@ -103,6 +112,22 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         // text. Empty/unsupported outcomes become fixed, non-financial states;
         // they are not represented as a successful capture.
         if (candidate.finding === "candidate_read") await onActivityCapture(candidate);
+        lastEvent = captureStates[candidate.finding];
+        onProgress({ event: lastEvent });
+        return response(res, 204, origin);
+      }
+      if (req.url === "/v1/chase-activity") {
+        if (!origin || requestOrigin !== origin || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
+        if (!onChaseActivityCapture) return response(res, 503, origin);
+        const candidate = validateActivityCandidate(await readJson(req));
+        if (candidate.finding === "candidate_read") {
+          try { await onChaseActivityCapture(candidate); }
+          catch {
+            lastEvent = "chase_evidence_save_failed";
+            onProgress({ event: lastEvent });
+            return response(res, 500, origin);
+          }
+        }
         lastEvent = captureStates[candidate.finding];
         onProgress({ event: lastEvent });
         return response(res, 204, origin);

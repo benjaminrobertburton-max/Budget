@@ -10,6 +10,18 @@ const protector = {
   async openMany(values) { return values.map(value => JSON.parse(Buffer.from(value.toString(), "base64").toString("utf8"))); },
 };
 
+test('Chase evidence can be saved and reopened without being mistaken for Wells', async t => {
+  const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'collector-chase-evidence-'));
+  t.after(() => fs.rm(parent, {recursive:true, force:true}));
+  const repositoryRoot = path.join(parent,'repository'); await fs.mkdir(repositoryRoot);
+  const store = await openPrivateEvidenceStore({root:path.join(parent,'private'),repositoryRoot,protector});
+  const payload = {kind:'activity_candidate', rows:[['FICTIONAL ONLY']]};
+  const ref = await store.save({source:'chase', capturedAt:'2031-04-08T12:00:00.000Z',payload});
+  assert.equal((await store.open(ref)).source,'chase');
+  assert.deepEqual(await store.latestPayload({source:'chase',kind:'activity_candidate'}),payload);
+  assert.equal(await store.latestPayload({source:'wells',kind:'activity_candidate'}),null);
+});
+
 test("source evidence is sealed outside the repository and ordinary references contain no source text", async t => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "collector-evidence-"));
   t.after(() => fs.rm(parent, { recursive: true, force: true }));
@@ -26,4 +38,15 @@ test("source evidence is sealed outside the repository and ordinary references c
   const files = await fs.readdir(path.join(root, "source-evidence"));
   assert.equal(files.length, 1);
   assert.doesNotMatch(await fs.readFile(path.join(root, "source-evidence", files[0]), "utf8"), /FICTIONAL|7\.43/);
+});
+
+test('latest normalized evidence stays private and is selected by encrypted record kind', async t => {
+  const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'collector-evidence-'));
+  t.after(() => fs.rm(parent, { recursive: true, force: true }));
+  const repositoryRoot = path.join(parent, 'repository'), root = path.join(parent, 'private');
+  await fs.mkdir(repositoryRoot);
+  const store = await openPrivateEvidenceStore({ root, repositoryRoot, protector });
+  await store.save({ source:'wells', capturedAt:'2031-04-08T12:00:00.000Z', payload:{kind:'raw_candidate', secret:'FICTIONAL'} });
+  await store.save({ source:'wells', capturedAt:'2031-04-08T12:01:00.000Z', payload:{kind:'wells_normalized_activity', rows:3} });
+  assert.deepEqual(await store.latestPayload({source:'wells',kind:'wells_normalized_activity'}),{kind:'wells_normalized_activity',rows:3});
 });

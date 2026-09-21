@@ -11,7 +11,7 @@ if (command.length === 1 && command[0] === "collector-qc") {
   console.log(formatCollectorQc(report));
   if (!report.ok) process.exitCode = 1;
 }
-else if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(command[0])) {
+else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh"].includes(command[0])) {
   let bridge = null;
   try {
     const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
@@ -21,8 +21,11 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(com
     const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
     let evidenceStore = null;
     bridge = await startChromeBridge({
-      nextCommand: command[0] === "wells-refresh" ? "open_wells" : "none",
-      captureAfterAuth: command[0] === "wells-refresh",
+      nextCommand: command[0] === "wells-refresh" ? "open_wells"
+        : command[0] === "chase-refresh" ? "open_chase"
+          : command[0] === "chase-sapphire-refresh" ? "open_chase_sapphire"
+            : command[0] === "chase-prime-refresh" ? "open_chase_prime" : "none",
+      captureAfterAuth: ["wells-refresh", "chase-refresh"].includes(command[0]),
       onActivityCapture: command[0] === "wells-refresh" ? async candidate => {
         if (!evidenceStore) {
           const [{ defaultPrivateRoot }, { openPrivateEvidenceStore }] = await Promise.all([
@@ -31,18 +34,44 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(com
           evidenceStore = await openPrivateEvidenceStore({ root: defaultPrivateRoot(),
             repositoryRoot });
         }
-        await evidenceStore.save({ source: "wells", capturedAt: new Date().toISOString(), payload: candidate });
+        const prior = await evidenceStore.latestPayload({ source: 'wells', kind: 'wells_normalized_activity' });
+        const capturedAt = new Date().toISOString();
+        const reference = await evidenceStore.save({ source: "wells", capturedAt, payload: candidate });
+        const { normalizeWellsActivity, normalizationSummary, reconcileWellsOverlap } = await import('./wells-normalize.mjs');
+        const normalized = normalizeWellsActivity(candidate, reference, capturedAt, { hasPriorAnchor: prior !== null });
+        const reconciled = prior === null ? normalized : reconcileWellsOverlap(normalized, prior);
+        const { mapWellsToLedgerStage } = await import('./workbook-ledger-map.mjs');
+        const staged = reconciled.overlapVerified && reconciled.issues.length === 0
+          ? { ...reconciled, ledgerStage: mapWellsToLedgerStage(reconciled) } : reconciled;
+        await evidenceStore.save({ source: 'wells', capturedAt, payload: staged });
+        console.log(`Wells validation: ${JSON.stringify(normalizationSummary(staged))}`);
+      } : null,
+      onChaseActivityCapture: command[0].startsWith("chase-") ? async candidate => {
+        const [{ defaultPrivateRoot }, { openPrivateEvidenceStore }, { activitySummary }] = await Promise.all([
+          import("./private-paths.mjs"), import("./private-evidence-store.mjs"), import("./activity-probe.mjs"),
+        ]);
+        const store = await openPrivateEvidenceStore({ root: defaultPrivateRoot(), repositoryRoot });
+        await store.save({ source: "chase", capturedAt: new Date().toISOString(), payload: candidate });
+        console.log(`Chase discovery: ${JSON.stringify(activitySummary(candidate))}`);
       } : null,
       onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
     });
     console.log(`Local Chrome bridge is listening only on 127.0.0.1:${bridge.port}.`);
     if (command[0] === "wells-refresh") {
       console.log("One local Wells refresh is queued. The installed extension polls loopback and opens or reuses one Wells tab; no helper tab is created.");
+    } else if (command[0] === "chase-refresh") {
+      console.log("One local Chase discovery refresh is queued. The installed extension polls loopback and opens or reuses one Chase tab; no helper tab is created.");
+    } else if (command[0] === "chase-sapphire-refresh") {
+      console.log("One local Chase Sapphire Preferred activity discovery is queued. It reuses one Chase tab and selects only that visible product label.");
+    } else if (command[0] === "chase-prime-refresh") {
+      console.log("One local Chase Prime Visa activity discovery is queued. It reuses one Chase tab and selects only that visible product label.");
     } else {
       console.log("It accepts only the installed Budget Collector Bridge extension and reports no financial data.");
     }
     console.log(command[0] === "wells-refresh"
       ? "After the page reports an authenticated activity view, a bounded activity-table candidate is sealed locally for development. It is not a verified import or workbook update."
+      : command[0].startsWith("chase-")
+        ? "After authentication, Chase table evidence is captured only if one strict Date/Description/Amount-style table is recognized. It remains encrypted local discovery evidence, not a workbook update."
       : "Press Ctrl+C to stop it. This command does not install an extension, read credentials, capture financial data, or update the workbook.");
     await new Promise(resolve => {
       const stop = () => {
@@ -91,7 +120,7 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh"].includes(com
     process.exitCode = 1;
   }
 } else if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
-  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive | chrome-bridge | wells-refresh");
+  console.error("Available commands: node collector/src/cli.mjs demo | storage-demo | browser-demo | browser-interactive | chrome-bridge | wells-refresh | chase-refresh | chase-sapphire-refresh | chase-prime-refresh");
   console.error("Live account collection is not installed. Collection demos use fictional data; the Wells development pilot can capture unverified activity tables privately.");
   console.error("Stopped-test inspection: node collector/src/cli.mjs recover-test [--confirm-cleanup]");
   console.error("Separate, manual pilot controls: node collector/src/cli.mjs pilot-rehearsal | wells-pilot");

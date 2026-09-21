@@ -28,7 +28,7 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
 
   return Object.freeze({
     async save({ source, capturedAt, payload }) {
-      check(source === "wells" && typeof capturedAt === "string" && Number.isFinite(Date.parse(capturedAt))
+      check(["wells", "chase"].includes(source) && typeof capturedAt === "string" && Number.isFinite(Date.parse(capturedAt))
         && payload && typeof payload === "object" && !Array.isArray(payload),
       "INVALID_EVIDENCE", "The private source evidence is incomplete.");
       const record = { version: 1, kind: "budget-collector-source-evidence", source, capturedAt, payload };
@@ -54,9 +54,25 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       await assertRegularFile(filename, MAX_RECORD_BYTES * 2);
       const [record] = await protector.openMany([await fs.readFile(filename)]);
       check(record?.version === 1 && record.kind === "budget-collector-source-evidence"
-        && record.source === "wells" && typeof record.capturedAt === "string" && record.payload,
+        && ["wells", "chase"].includes(record.source) && typeof record.capturedAt === "string" && record.payload,
       "INVALID_EVIDENCE", "The private evidence record is invalid.");
       return structuredClone(record);
+    },
+    async latestPayload({ source, kind }) {
+      check(["wells", "chase"].includes(source) && typeof kind === "string" && /^[a-z_]+$/.test(kind),
+        "INVALID_EVIDENCE", "The private evidence query is invalid.");
+      await verify();
+      const names = (await fs.readdir(evidence)).filter(name => filePattern.test(name));
+      // File names are random; inspect a bounded newest-first set locally and
+      // fail closed on a damaged newest record rather than guessing an anchor.
+      const candidates = await Promise.all(names.map(async name => ({ name, stat: await fs.stat(path.join(evidence, name)) })));
+      candidates.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+      for (const { name } of candidates.slice(0, 32)) {
+        const id = name.slice(0, -4);
+        const record = await this.open(`local:evidence:${id}`);
+        if (record.source === source && record.payload?.kind === kind) return structuredClone(record.payload);
+      }
+      return null;
     },
   });
 }

@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.3.8",
-  "description": "Local, read-only Wells connection for the Budget Collector.",
+  "version": "0.4.3",
+  "description": "Local, read-only Wells and Chase connection for the Budget Collector.",
   "permissions": ["tabs", "alarms", "debugger", "webNavigation"],
   "host_permissions": [
     "https://*.wellsfargo.com/*",
+    "https://*.chase.com/*",
     "http://127.0.0.1/*"
   ],
   "background": {
@@ -16,6 +17,12 @@
     {
       "matches": ["https://*.wellsfargo.com/*"],
       "js": ["wells-page-state.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://*.chase.com/*"],
+      "js": ["chase-page-state.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

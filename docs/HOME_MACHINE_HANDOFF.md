@@ -1,5 +1,27 @@
 # Collector home-machine handoff and release checklist
 
+## September 20 Chase adapter start
+
+Bridge 0.4.2 adds a separate Chase discovery command and content reader. It is
+not a Chase import: it can only capture one strict visible activity-table
+candidate into the encrypted private store. It does not navigate into accounts,
+paginate, infer a balance/account identity, or stage any workbook row. Validate
+the first live Chase table contract before implementing those source-specific
+rules; keep Wells and Chase evidence/reconciliation paths separate.
+
+## September 20 local continuation: normalization implemented
+
+Ordinary-Chrome bridge 0.3.13 captures live Wells activity and source context.
+It never automatically traverses Next. The local CLI normalizes private table
+evidence, checks the observed totals footer, then uses the newest encrypted
+normalized capture as a three-row overlap anchor on the next refresh. Missing
+overlap blocks instead of sweeping history or guessing. A live rerun completed
+that overlap check with no newly unmatched current-page rows. Raw and normalized
+records remain encrypted outside Git. The full 223-test suite and QC pass. This
+does not certify account-wide pagination or the workbook input boundary; those
+remain explicit development tasks.
+Continue from `collector/src/wells-normalize.mjs`; preserve the working reader.
+
 ## Purpose and authority
 
 The user entrusts this project to preserve the complete path from work-machine
@@ -416,3 +438,17 @@ reasons to shift development to the home machine.
 available through the documented sync path, and accompanied by working setup and
 migration tooling. **Ready for weekly use** additionally requires home acceptance
 and shadow-cycle success. Neither means merely passing fictional collector tests.
+# September 21 Chase audit continuation
+
+Bridge source is now 0.4.3. Corrected real blockers: Chase disallowed in encrypted
+store, invalid Chrome listener acknowledgment, and rejection of separate pending
+and posted tables. Runtime regression tests plus complete suite: 235 passed; QC
+passed. Unknown/dashboard preview tables cannot pass as account detail. Signed-out
+pages cannot be inferred authenticated merely because no password field is present.
+
+Live result remains unverified: Chase signed out during the pause. Desktop reload
+attempt failed with unavailable input geometry, then failed activation. User reload
+and renewed session are needed unless desktop control recovers. No claim of either
+card's successful collection is justified yet. Pair sequencing is not implemented
+just because `CHASE_COLLECTION_SEQUENCE` exists. Continue on real detail-page
+evidence, verify separate card identity and capture coverage before workbook use.

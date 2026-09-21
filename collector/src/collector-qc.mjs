@@ -5,6 +5,7 @@ const required = Object.freeze([
   ["bridge manifest", "chrome-bridge/manifest.json"],
   ["bridge worker", "chrome-bridge/background.js"],
   ["Wells page reader", "chrome-bridge/wells-page-state.js"],
+  ["Chase page reader", "chrome-bridge/chase-page-state.js"],
   ["R&D record", "../docs/COLLECTOR_RND.md"],
 ]);
 
@@ -30,13 +31,25 @@ export async function runCollectorQc({ repositoryRoot }) {
       }
       if (manifest.externally_connectable) fail("no visible trigger route", "externally_connectable is still configured");
       else pass("no visible trigger route", "no externally-connectable localhost page");
-      if (manifest.version === "0.3.8") pass("extension version", "0.3.8 render-aware header detector");
-      else fail("extension version", `expected 0.3.8, found ${String(manifest.version)}`);
+      if (manifest.version === "0.4.3") pass("extension version", "0.4.3 Chase evidence storage and section capture");
+      else fail("extension version", `expected 0.4.3, found ${String(manifest.version)}`);
       if (permissions.has("webNavigation")) pass("frame command delivery", "capture commands can reach every Wells frame");
       else fail("frame command delivery", "webNavigation permission is missing");
       if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");
       else fail("child-frame reader coverage", "content script is not enabled for Wells frames");
     } catch { fail("manifest JSON", "manifest is not valid JSON"); }
+  }
+  if (files["Chase page reader"]) {
+    const reader = files["Chase page reader"];
+    for (const [id, pattern, detail] of [
+      ["Chase generic table gate", /activityHeader|transaction activity|transactions/i, "separate Chase activity-table recognition"],
+      ["Chase bounded render wait", /captureAttempts < 150/, "30-second maximum"],
+      ["Chase privacy boundary", /document\.cookie|localStorage|sessionStorage|\.value/, "must not read browser secrets"],
+    ]) {
+      if (id === "Chase privacy boundary") {
+        if (!pattern.test(reader)) pass(id, detail); else fail(id, detail);
+      } else if (pattern.test(reader)) pass(id, detail); else fail(id, `missing ${detail}`);
+    }
   }
   if (files["bridge worker"]) {
     const worker = files["bridge worker"];

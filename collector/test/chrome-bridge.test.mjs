@@ -68,6 +68,49 @@ test("command polling accepts Chromium's origin-less extension GET only with its
   } finally { await bridge.close(); }
 });
 
+test("loopback bridge exposes Chase as a separate one-shot discovery command", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_chase", captureAfterAuth: true });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const command = await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
+      headers: { "X-Budget-Collector-Session": session },
+    });
+    assert.deepEqual(await command.json(), { version: 1, command: "open_chase" });
+    assert.equal((await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": session },
+      JSON.stringify({ version: 1, event: "chase_authenticated_page", tabId: 2 }))).status, 204);
+    const capture = await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, {
+      headers: { "X-Budget-Collector-Session": session },
+    });
+    assert.deepEqual(await capture.json(), { version: 1, command: "capture_chase_activity" });
+  } finally { await bridge.close(); }
+});
+
+test("already-authenticated Chase state queues capture after the open acknowledgement", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "open_chase", captureAfterAuth: true });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const headers = { "X-Budget-Collector-Session": session };
+    assert.equal((await post(bridge.port, "/v1/progress", headers,
+      JSON.stringify({ version: 1, event: "chase_authenticated_page", tabId: 2 }))).status, 204);
+    assert.deepEqual(await (await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, { headers })).json(), { version: 1, command: "open_chase" });
+    assert.equal((await post(bridge.port, "/v1/progress", headers,
+      JSON.stringify({ version: 1, event: "chase_opened", tabId: 2 }))).status, 204);
+    assert.deepEqual(await (await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, { headers })).json(), { version: 1, command: "capture_chase_activity" });
+  } finally { await bridge.close(); }
+});
+
+test("Chase capture uses its dedicated endpoint and never enters bounded status", async () => {
+  const saved = [];
+  const bridge = await startChromeBridge({ port: 0, onChaseActivityCapture: async value => saved.push(value) });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const candidate = fictionalActivityCandidate();
+    assert.equal((await post(bridge.port, "/v1/chase-activity", { "X-Budget-Collector-Session": session }, JSON.stringify(candidate))).status, 204);
+    assert.deepEqual(saved, [candidate]);
+    assert.doesNotMatch(JSON.stringify(bridge.status()), /FICTIONAL|7\.43/);
+  } finally { await bridge.close(); }
+});
+
 test("activity packets are accepted only for the paired extension and never enter status", async () => {
   const saved = [];
   const bridge = await startChromeBridge({ port: 0, onActivityCapture: async value => saved.push(value) });

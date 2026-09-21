@@ -7,6 +7,7 @@
   let readinessTimer = null;
   let captureAttempts = 0;
   let captureTimer = null;
+  let pageTurnTimer = null;
   let checkingNavigationStarted = false;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
@@ -117,9 +118,39 @@
     if (currentState() === "auth_required") return null;
     const tables = activityContainers();
     const table = tables.find(candidate => activityRows(candidate).some(activityHeader));
+    const summary = () => {
+      const labels = { "available balance": "available", "current posted balance": "ledger", "pending withdrawals/debits": "pending_debits" };
+      const balances = [];
+      const sourceMoney = value => {
+        const matches = value.match(/(?:^|\s)(?:\$|USD\s*)?\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?=\s|$)/g) || [];
+        return matches.length === 1 ? matches[0].trim() : "";
+      };
+      // The production Wells summary uses semantic links and divs in some
+      // releases, rather than a two-cell table. Walk only a few ancestors of
+      // the exact visible label and accept one adjacent money string.
+      for (const cell of deepQueryAll("a,span,div,th,td,[role=cell]")) {
+        if (!visible(cell)) continue;
+        const type = labels[headerKind(text(cell))];
+        if (!type || balances.some(value => value.type === type)) continue;
+        let value = "";
+        for (let parent = cell.parentElement, depth = 0; parent && depth < 4 && !value; parent = parent.parentElement, depth++) {
+          if (visible(parent)) value = sourceMoney(text(parent));
+        }
+        if (value) balances.push({ type, text: value });
+      }
+      const account = deepQueryAll("a,button,span,div,[role=link],[role=button]").find(node => {
+        const value = text(node); return value.length < 100 && /^\s*account\b.*\d{4}\s*$/i.test(value);
+      });
+      const match = account && text(account).match(/(\d{4})\s*$/);
+      const next = deepQueryAll("a,button,[role=link],[role=button]").filter(node => /^\s*next\s*$/i.test(text(node)));
+      return { accountSuffix: match ? match[1] : null, balances,
+        nextPage: !next.length ? "next_unavailable" : next.every(node => node.disabled || node.getAttribute("aria-disabled") === "true") ? "next_disabled" : "next_enabled",
+        pageToken: "00000000" };
+    };
+    const source = summary();
     const empty = { version: 1, kind: "activity_candidate", coverageVerified: false, workbookReady: false,
       finding: "no_activity_table", hasFrames: !!document.querySelector("iframe,frame"), tables: [],
-      layout: { tableCount: tables.length, rowCount: 0, headerCount: 0, hasShadowRoots: hasShadowRoots(), tables: [] } };
+      source, layout: { tableCount: tables.length, rowCount: 0, headerCount: 0, hasShadowRoots: hasShadowRoots(), tables: [] } };
     if (!table) return empty;
     const rows = activityRows(table);
     const header = rows.find(activityHeader);
@@ -129,10 +160,27 @@
     const columns = headers.map(value => ({ date: "date", description: "description", depositscredits: "credit", withdrawalsdebits: "debit", endingdailybalance: "balance" })[normalize(value)] || "unknown");
     if (!columns.includes("date") || !columns.includes("description") || (!columns.includes("credit") && !columns.includes("debit"))) return empty;
     const data = rows.filter(row => row !== header).map(row => rowCells(row).map(text));
+    // A short deterministic token lets the extension verify that Next produced
+    // a different visible page without exporting page text to ordinary status.
+    let hash = 2166136261;
+    for (const character of `${headers.join("|")}\n${data.map(row => row.join("|")).join("\n")}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+    source.pageToken = (hash >>> 0).toString(16).padStart(8, "0");
     const candidate = { ...empty, finding: "candidate_read", tables: [{ columns, headers, rows: data, issues: [] }],
       layout: { tableCount: tables.length, rowCount: rows.length, headerCount: 1, hasShadowRoots: hasShadowRoots(),
         tables: [{ kind: "html_table", rows: rows.length, headerRows: 1, reason: "candidate_read", columns }] } };
     return candidate;
+  };
+  const captureAfterPageTurn = (previousToken, attempts = 0) => {
+    const candidate = capture();
+    if (candidate?.finding === "candidate_read" && candidate.source.pageToken !== previousToken) {
+      chrome.runtime.sendMessage({ event: "activity_capture", candidate }); return;
+    }
+    if (attempts >= 150) {
+      if (candidate?.source) candidate.source.nextPage = "next_stalled";
+      if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
+      return;
+    }
+    pageTurnTimer = setTimeout(() => captureAfterPageTurn(previousToken, attempts + 1), 200);
   };
   const captureWhenReady = () => {
     if (currentState() === "auth_required") return;
@@ -150,6 +198,11 @@
     if (message?.command !== "capture_wells_activity") return;
     captureAttempts = 0;
     captureWhenReady();
+  });
+  chrome.runtime.onMessage.addListener(message => {
+    if (message?.command !== "capture_wells_after_next" || !/^[a-f0-9]{8}$/.test(message.pageToken || "")) return;
+    if (pageTurnTimer !== null) clearTimeout(pageTurnTimer);
+    pageTurnTimer = null; captureAfterPageTurn(message.pageToken);
   });
   // The content script is the sole wake path. A small heartbeat lets a local
   // command begin after Wells was already open without alarms or helper tabs.

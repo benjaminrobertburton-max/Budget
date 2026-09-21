@@ -1,5 +1,49 @@
 # Local Budget Collector — controlled Wells pilot and encrypted storage
 
+## September 20: live normalization checkpoint
+
+The local `wells-refresh` callback now saves raw evidence, parses Wells section
+rows into signed integer amounts and dates, validates an observed Totals footer,
+and saves normalized evidence encrypted locally. Console output contains only
+counts and fixed issue codes. Extension 0.3.13 does not automatically traverse
+Next. A later refresh selects the newest encrypted normalized Wells capture,
+requires a three-row overlap anchor on the current page, and identifies only
+unmatched current-page rows. If that overlap is absent, collection blocks rather
+than sweeping history or guessing.
+Four fictional regression tests cover duplicates, date ambiguity, malformed rows,
+privacy of diagnostics, and mismatched source totals; the full 217-test suite and
+collector QC pass. This is page-level evidence, not certification of account-wide
+coverage. Account identity, summary balances, pagination, history reconciliation,
+and workbook mapping remain explicit gates. No workbook was changed.
+
+## Chase discovery adapter — September 20
+
+Extension `0.4.2` adds a separate, read-only Chase discovery path. It opens or
+reuses one ordinary Chase tab, waits for the existing Chrome session/sign-in
+flow, and only seals an encrypted local candidate when exactly one visible table
+has Date, Description, and Amount-style columns. It does not reuse Wells
+selectors, click a Chase account, guess account identity/balance meaning, page
+history, or write the workbook. An unrecognized layout, authentication control,
+or a source requiring account selection blocks capture rather than producing a
+false import.
+
+Run this development-only path with `pnpm --dir collector chase:auto` after one
+extension reload. The first run records a private Chase table contract and fixed
+structural outcome only. Account mapping, pending/posting treatment, overlap,
+and ledger staging remain Chase-specific gates. Raw rows stay only in the local
+encrypted store and never enter Git, command output, or the workbook.
+
+Chase has two distinct card sources: **Prime Visa** maps to the existing
+workbook account **Prime Visa**, and **Sapphire Preferred** maps to the legacy
+workbook account **Chase**. A source label is never used to infer the workbook
+target. The required future orchestration is Overview → Prime Visa capture →
+Overview → Sapphire Preferred capture → paired validation. A failed return to
+Overview blocks the pair; it cannot reuse one card's activity for the other.
+
+Short source years are resolved only within the ten-year window ending in the
+evidence capture year. Source IDs remain null when unavailable; identical rows
+are preserved. No pending-to-posted match or spending category is inferred.
+
 ## Resume at home: development checkpoint, not a finished collector
 
 ### Direct-page-reader reset — September 20
@@ -576,3 +620,23 @@ acceptable intervention/time, and no AI participation in a normal refresh.
 The repository still contains legacy financial files and old financial commits.
 This feature branch does not add new financial data or remove those older copies.
 Ignore patterns do not untrack files. Historical cleanup is a separate decision.
+# Chase 0.4.3 diagnostic correction
+
+The September 21 audit found three concrete defects missed by source-only tests:
+the private evidence store rejected the `chase` source; the content listener returned
+an object instead of using Chrome's `sendResponse`; and the reader rejected the
+observed pair of PENDING/ACTIVITY tables. These are corrected with runtime reader
+and encrypted-store regression tests. Dashboard preview tables are no longer
+accepted as account-detail evidence. Authentication requires a visible Sign out
+control, and sign-out clears the bridge's remembered authentication state.
+
+All 235 local tests and collector QC pass. This is NOT live acceptance: the bank
+session expired before retesting. Both-card navigation, identity binding, source
+coverage, normalization and workbook integration remain unverified. The collection
+sequence constant is a specification, not implemented orchestration. Preserve
+Prime Visa -> Prime Visa and Sapphire Preferred -> Chase as distinct mappings.
+
+Reload the installed extension to 0.4.3 for the next attended live test. The desktop
+tool could discover the existing Extensions tab, but could not click or activate
+Chrome (geometry unavailable / activation failed). Do not claim that reload occurred.
+No workbook or private financial values were changed by this correction.
