@@ -2,6 +2,34 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### User-approved Chase absent-pending rule — supersedes the gap below
+
+The user explicitly authorized this for Chase as a whole, including BOTH Prime
+Visa and Sapphire Preferred: no pending section on a loaded account activity page
+means zero pending. The local normalizer now records `pendingZeroInferred` and
+`pendingInference` with rule `user_approved_chase_absent_pending`, zero count/amount
+and its private evidence reference. Independent source-count/total verification
+flags remain false for this inference; the pending-coverage gate alone is cleared.
+All account binding, posted history, obligations and workbook gates remain intact.
+
+The supported Chase adapters require observed account/product, range, footer and
+pagination state, all three valid labeled balances, clean posted rows, and no
+pending table/header/summary or contradictory evidence. The existing 0.4.11 reader
+still waits its bounded rendering window. Incomplete/authentication/error captures
+do not become zero. If pending appears, normal count/total reconciliation wins.
+Future Chase adapters must carry this institution-wide policy with equivalent
+page-readiness checks; it does not apply to other banks. No extension change or
+reload is needed. Earlier statements that Prime absence must always remain unknown
+are historical and superseded by this explicit user decision.
+
+Validation: **320/320** full serial core/browser tests passed, no failures or
+skips, plus collector QC and `git diff --check`. New fictional regressions cover
+both cards' inferred zero, present pending, mismatched totals, missing identity,
+incomplete/error captures and privacy-safe summaries. The initial restricted
+targeted run could not exercise Windows encryption; the properly authorized full
+run passed that test unchanged. This policy change has not had a new live bank
+retest; the extension reader and its rendering wait are unchanged.
+
 ### Paired Chase capture — extension 0.4.11
 
 This supersedes the navigation/balance gaps in the preceding 0.4.7 checkpoint.

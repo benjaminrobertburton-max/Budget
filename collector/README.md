@@ -2,24 +2,32 @@
 
 ## Current checkpoint — September 21
 
+**Newest user-approved Chase policy:** missing pending on a successfully loaded,
+identified Chase activity page means inferred zero, for BOTH Prime Visa and
+Sapphire Preferred. The local normalizer records this as
+`user_approved_chase_absent_pending`, not an independently displayed bank total.
+Failed/incomplete pages remain unknown; present pending is always reconciled.
+This supersedes the older missing-pending gap below and requires no extension
+reload. Other institutions and unrelated certification gates are unchanged.
+
 **Latest extension: 0.4.11.** The following supersedes older version checkpoints.
 Chase now navigates back through Overview, verifies the requested detail heading,
 captures three labeled balance types, checks the independent Pending (N) heading,
 reconciles the independent pending-dollar total, and records an explicitly visible
-no-payment-due message. None of these can
-authorize payments, infer pending zero from absence, or update the workbook.
+no-payment-due message. None of these can authorize payments or update the workbook.
 
 Use `node collector/src/cli.mjs chase-pair-work-test` at work for one temporary
 encrypted two-card test with same-session repeat anchors and verified deletion.
 The 0.4.8 live paired sequence passed without manual card navigation or historical
 paging. The 0.4.10 final live run also verified both bank payment-status messages
-and Sapphire's independent pending count. Prime's absent pending section is still
-unknown, not confirmed zero. Home-only `chase-pair-refresh` retains separate encrypted card baselines;
+and Sapphire's independent pending count. Prime's absent pending section was
+unknown at that checkpoint; the newer user-approved rule above now applies.
+Home-only `chase-pair-refresh` retains separate encrypted card baselines;
 never run it at work. Both are development commands, not production certification.
 Readiness now measures elapsed time, including DOM scans, not just retry delays.
 Run the complete test suite separately from live capture because the CLI startup
 test uses the same fixed loopback port. See the [handoff](../docs/HOME_MACHINE_HANDOFF.md)
-for remaining authentication, zero-pending, positive-due and workbook gates.
+for remaining authentication, positive-due and workbook gates.
 
 **Latest extension: 0.4.7.** Reload after syncing `codex/budget-collector`.
 This supersedes the older version/status checkpoints below. Chase now records

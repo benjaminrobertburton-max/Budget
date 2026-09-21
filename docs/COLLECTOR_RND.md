@@ -2,6 +2,14 @@
 
 ## Decision
 
+September 21 subsequent user decision: Chase-wide absent pending on a loaded,
+identified activity page means inferred zero (Prime Visa AND Sapphire Preferred).
+The normalizer labels the user-approved inference separately from bank controls,
+requires intact detail context/posted rows/balances and no pending evidence, and
+leaves failed/incomplete pages unknown. Pending that is present always takes
+precedence. This resolves the previously documented Prime zero-state policy gap;
+it is not a claim of new bank evidence or full collector certification.
+
 The bridge must remain local and read-only. It must not use a visible localhost
 wake page, launch a second Chrome profile, copy browser state, read credentials,
 or send raw banking data to the agent. The next live test is gated behind this

@@ -4,6 +4,15 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**September 21 user-approved Chase exception (newest):** for Chase as an
+institution, including Prime Visa and Sapphire Preferred, an absent pending
+section on a successfully loaded, identified activity page means inferred zero
+pending. Record `user_approved_chase_absent_pending` provenance, not bank-displayed
+zero or independently verified totals. Present pending still requires normal
+capture/reconciliation. Failed, incomplete or contradictory pages remain unknown.
+This supersedes earlier blanket missing-pending warnings for Chase only; other
+institutions and unrelated verification gates are unchanged.
+
 **Newest Chase continuation:** extension 0.4.11 adds automatic card switching,
 labeled balance evidence, explicit no-payment-due evidence and independent pending
 count/total reconciliation. A temporary paired command tests both cards and same-session

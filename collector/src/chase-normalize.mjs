@@ -83,7 +83,6 @@ export function normalizeChaseActivity(candidate, evidenceRef) {
       if(!pendingTotalVerified)issues.add('pending_total_mismatch');
     }catch{issues.add('invalid_pending_total');}
   }
-  if (!sections.has('pending')&&!pendingCountVerified) issues.add('pending_section_not_observed');
   if (!sections.has('posted')) issues.add('posted_section_not_observed');
   const balances=[];
   for(const balance of candidate.source.balances){
@@ -92,15 +91,32 @@ export function normalizeChaseActivity(candidate, evidenceRef) {
     try{balances.push({type:balance.type,sourceAmountMinor:parseMoney(balance.text,'USD'),sourceAmountText:balance.text,evidenceRef});}
     catch{issues.add('invalid_balance_evidence');}
   }
-  // No current reader supplies an independently verified account/range/count
-  // contract. Neither a requested product nor an end-of-view footer clears it.
+  // User-approved September 21 Chase-wide exception. The reader still
+  // waits its bounded rendering window before emitting absent-pending evidence.
+  // Require intact detail context and clean posted/balance evidence; a missing,
+  // failed or contradictory capture is not the bank's empty-pending layout.
+  const context=candidate.source.chase;
+  const pendingZeroInferred=candidate.finding==='candidate_read'
+    &&['prime_visa','sapphire_preferred'].includes(context?.product)&&candidate.source.accountSuffix!==null
+    &&context.range.trim().length>0&&context.postedFooter.trim().length>0
+    &&['next_enabled','next_disabled'].includes(candidate.source.nextPage)
+    &&context.pendingObserved===false&&context.pendingHeader===''
+    &&context.pendingSummary===''&&!sections.has('pending')
+    &&sections.has('posted')&&candidate.tables.length===1
+    &&transactions.length>0&&rejectedRows===0&&issues.size===0&&balances.length===3;
+  if (!sections.has('pending')&&!pendingCountVerified&&!pendingZeroInferred) issues.add('pending_section_not_observed');
+  // Inferred zero is accepted under the user's rule, NOT an independently
+  // displayed/reconciled source count or total. All other gates remain intact.
   return {version:1,kind:'chase_normalized_activity',transactions,balances,observedRows,rejectedRows,
     identity: candidate.source.chase?.product && candidate.source.accountSuffix
       ? {product:candidate.source.chase.product, suffix:candidate.source.accountSuffix} : null,
     range: candidate.source.chase?.range ?? null, nextPage:candidate.source.nextPage,
     pageToken:candidate.source.pageToken,
     pendingCountVerified,pendingTotalVerified,bankPaymentStatus:candidate.source.chase?.obligation??'unobserved',
-    issues:[...issues],remainingGates:[...gates],coverageVerified:false,workbookReady:false};
+    pendingZeroInferred,
+    pendingInference:pendingZeroInferred?{rule:'user_approved_chase_absent_pending',count:0,amountMinor:0,evidenceRef}:null,
+    issues:[...issues],remainingGates:gates.filter(g=>!(pendingZeroInferred&&g==='pending_coverage_unverified')),
+    coverageVerified:false,workbookReady:false};
 }
 
 // Recompute from validated evidence so arbitrary private issue strings cannot
@@ -112,6 +128,7 @@ export function chaseNormalizationSummary(candidate) {
     postedRows:result.transactions.filter(t=>t.state==='posted').length,
     pendingCountVerified:result.pendingCountVerified,
     pendingTotalVerified:result.pendingTotalVerified,
+    pendingZeroInferred:result.pendingZeroInferred,
     bankPaymentStatus:result.bankPaymentStatus,
     balanceTypes:result.balances.map(b=>b.type),issues:result.issues,remainingGates:result.remainingGates,coverageVerified:false,workbookReady:false};
 }

@@ -2,6 +2,13 @@
 
 ## Status and authority
 
+**September 21 Chase-specific user exception:** across Chase accounts, including
+Prime Visa and Sapphire Preferred, a successfully loaded and identified activity
+page without a pending section may be treated as zero pending. Preserve explicit
+user-approved inference provenance, not fabricated bank evidence. Present pending
+still receives full capture/reconciliation; incomplete/error pages remain unknown.
+This overrides blanket absence-is-unknown language below for Chase only.
+
 **September 21 direction:** core development for all account adapters and the
 portable extension returns to the work machine; home-plan usage makes development
 there impractical. Preserve the weekend ordinary-Chrome bridge and Wells progress,

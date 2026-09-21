@@ -44,7 +44,7 @@ test('Chase preserves source signs, category, dates and duplicate purchases with
   assert.doesNotMatch(JSON.stringify(chaseNormalizationSummary(candidate)),/FICTIONAL|Shopping|Food|2031|287|421/);
 });
 
-test('posted-only Chase capture never means zero pending or verified coverage',()=>{
+test('posted-only Chase capture without complete account context remains unknown',()=>{
   const r=normalizeChaseActivity(fixture(),'fictional');
   assert.ok(r.issues.includes('pending_section_not_observed'));
   assert.ok(r.remainingGates.includes('pending_coverage_unverified'));
@@ -52,7 +52,7 @@ test('posted-only Chase capture never means zero pending or verified coverage',(
   assert.equal(r.coverageVerified,false);
 });
 
-test('independent pending heading must match captured rows; absence is never zero',()=>{
+test('independent pending heading must match captured rows',()=>{
   const c=fixture(undefined,[['Pending','FICTIONAL AUTH','','$1.00','']]);
   c.source.chase={product:'prime_visa',range:'Activity since last statement',postedFooter:'',pendingObserved:true,pendingHeader:'Pending (1)',obligation:'no_payment_due'};
   let r=normalizeChaseActivity(c,'fictional');
@@ -64,6 +64,61 @@ test('independent pending heading must match captured rows; absence is never zer
   c.source.chase.pendingHeader='';assert.equal(normalizeChaseActivity(c,'fictional').pendingCountVerified,false);
   c.tables.shift();c.source.chase.pendingHeader='Pending (0)';c.source.chase.pendingObserved=false;
   assert.equal(normalizeChaseActivity(c,'fictional').pendingCountVerified,true);
+});
+
+function completePrime() {
+  const c=fixture();
+  c.source.accountSuffix='1234';c.source.nextPage='next_disabled';
+  c.source.chase={product:'prime_visa',range:'Activity since last statement',
+    postedFooter:"You've reached the end of your account activity.",pendingObserved:false,
+    pendingHeader:'',pendingSummary:''};
+  c.source.balances=[{type:'current_balance',text:'$4.21'},
+    {type:'remaining_statement_balance',text:'$0.00'},{type:'available_credit',text:'$800.00'}];
+  return c;
+}
+
+for(const product of ['prime_visa','sapphire_preferred'])test(`${product} absent-pending layout uses explicit user-approved zero provenance`,()=>{
+  const c=completePrime();c.source.chase.product=product;
+  const before=structuredClone(c),r=normalizeChaseActivity(c,'fictional');
+  assert.deepEqual(c,before);assert.equal(r.pendingZeroInferred,true);
+  assert.deepEqual(r.pendingInference,{rule:'user_approved_chase_absent_pending',count:0,amountMinor:0,evidenceRef:'fictional'});
+  assert.equal(r.pendingCountVerified,false);assert.equal(r.pendingTotalVerified,false);
+  assert.deepEqual(r.issues,[]);assert.ok(!r.remainingGates.includes('pending_coverage_unverified'));
+  assert.ok(r.remainingGates.includes('posted_coverage_unverified'));
+  assert.ok(r.remainingGates.includes('account_binding_unverified'));
+  assert.equal(r.workbookReady,false);assert.equal(r.coverageVerified,false);
+  const summary=chaseNormalizationSummary(c);assert.equal(summary.pendingZeroInferred,true);
+  assert.doesNotMatch(JSON.stringify(summary),/1234|800|fictional|4\.21/);
+});
+
+test('Chase zero exception never masks unidentified accounts, incomplete pages or contradictory evidence',()=>{
+  const changes=[c=>c.source.chase.product=null,
+    c=>c.source.accountSuffix=null,c=>c.source.chase.range='',c=>c.source.chase.postedFooter='',
+    c=>c.source.nextPage='next_unavailable',c=>c.source.balances.pop(),
+    c=>c.source.balances[0].text='bad',c=>c.source.chase.pendingObserved=true,
+    c=>c.source.chase.pendingHeader='Pending (1)',c=>c.source.chase.pendingHeader='Unrecognized pending',
+    c=>delete c.source.chase.pendingHeader,c=>delete c.source.chase.pendingSummary,
+    c=>c.source.chase.pendingSummary='Pending (1) Pending charges: $1.00',
+    c=>c.tables[0].rows[1][3]='bad',c=>c.tables[0].rows.pop(),
+    c=>c.tables[0].issues.push('truncated'),c=>c.tables.push(structuredClone(c.tables[0])),
+    c=>{c.finding='authentication_controls';c.tables=[];},
+    c=>{c.finding='no_activity_table';c.tables=[];},c=>{c.finding='page_limit';c.tables=[];}];
+  for(const change of changes){const c=completePrime();change(c);const r=normalizeChaseActivity(c,'fictional');
+    assert.equal(r.pendingZeroInferred,false,change.toString());assert.equal(r.pendingInference,null);
+    assert.ok(r.remainingGates.includes('pending_coverage_unverified'));
+  }
+});
+
+for(const product of ['prime_visa','sapphire_preferred'])test(`${product} actual pending activity overrides the absent-section exception`,()=>{
+  const c=completePrime();c.source.chase.product=product;
+  c.tables.unshift(fixture(undefined,[['Pending','FICTIONAL AUTH','','$1.00','']]).tables[0]);
+  c.source.chase.pendingObserved=true;c.source.chase.pendingHeader='Pending (1)';
+  c.source.chase.pendingSummary='Pending (1) Pending charges: $1.00';
+  let r=normalizeChaseActivity(c,'fictional');assert.equal(r.pendingZeroInferred,false);
+  assert.equal(r.pendingCountVerified,true);assert.equal(r.pendingTotalVerified,true);
+  assert.equal(r.transactions.filter(t=>t.state==='pending').length,1);
+  c.source.chase.pendingSummary='Pending (1) Pending charges: $2.00';r=normalizeChaseActivity(c,'fictional');
+  assert.ok(r.issues.includes('pending_total_mismatch'));assert.equal(r.pendingZeroInferred,false);
 });
 
 test('independent pending charges reconcile exact signed totals without inferring missing values',()=>{
