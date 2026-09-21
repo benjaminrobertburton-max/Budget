@@ -1,5 +1,26 @@
 # Local Budget Collector — controlled Wells pilot and encrypted storage
 
+## Current checkpoint — September 21
+
+Core development for all account adapters now takes place on the work machine;
+tested code/extension is then synced to home. Follow the newest
+[handoff checkpoint](../docs/HOME_MACHINE_HANDOFF.md), not older home-only or
+disposable-pilot instructions below. Preserve the weekend implementation at
+`45c8309`: extension **0.4.3**, collector package **0.6.1**.
+
+Wells has a working home capture/normalization/overlap milestone reported in the
+handoff, not complete source certification. Chase is the active next adapter:
+separate pending/posted tables and per-card commands exist, but robust paired
+navigation, account identity, obligations, normalization and coverage remain.
+Other banks still need source-specific adapters. No production workbook update
+or approval-only sign-in flow is certified. Work extension permission remains
+unconfirmed; portable tests do not require installing it into personal Chrome.
+
+The actual extension permits Wells, Chase and loopback. It uses short-lived
+tab-scoped debugger clicks for account navigation, not a remote debugging endpoint.
+Earlier statements below that it has Wells-only permissions, never uses debugger,
+or cannot capture financial evidence describe older milestones, not version 0.4.3.
+
 ## September 20: live normalization checkpoint
 
 The local `wells-refresh` callback now saves raw evidence, parses Wells section

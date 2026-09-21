@@ -4,6 +4,23 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Current direction — September 21, 2026:** develop the core functionality for
+all required account adapters and the portable Chrome extension on this work
+machine, then sync software to the home machine for installation and acceptance.
+Home-plan usage made continued development there impractical. This supersedes
+September 18 instructions to move development home or stop at Wells before doing
+any other adapter work. Preserve the weekend progress pulled at `45c8309`:
+ordinary-Chrome bridge 0.4.3, Wells capture/normalization/overlap, and Chase discovery.
+Read the newest checkpoint in `docs/HOME_MACHINE_HANDOFF.md` and the evidence-first
+protocol in `docs/COLLECTOR_RND.md`. Chase is the active next adapter; do not rebuild
+Wells or revive the disposable live pilot. The previous work extension-installation
+restriction is not assumed lifted: portable code/fictional browser testing can
+proceed here without installing an extension or accessing a bank. Live verification
+requires permitted browser access and source evidence, never invented selectors.
+Git carries only code, docs and fictional fixtures; preserve home-private data.
+The intended weekly role remains ONLY text-code/2FA approval; saved-credential
+sign-in automation is still an acceptance gate, not a demonstrated capability.
+
 **Latest authentication correction (September 18):** the collector, not the user,
 must open institutions and complete ordinary sign-in via Chrome's user-configured
 saved-credential/autofill flow, including normal sign-in navigation/submission.

@@ -1,5 +1,65 @@
 # Collector home-machine handoff and release checklist
 
+## September 21 — work-machine development resumes (current authority)
+
+The user moved core development for **all required accounts** back to the work
+machine because home-plan usage prevented practical progress. Port the existing
+code/extension to home through `codex/budget-collector`; do not start over or
+shift ordinary implementation back home. This supersedes earlier home-only
+development and Wells-only expansion instructions. Financial verification gates
+and read-only/privacy protections remain unchanged.
+
+### Imported weekend checkpoint
+
+- Fast-forwarded the clean work checkout from `8a50dcb` to `45c8309`.
+  Extension manifest is **0.4.3**; collector package is **0.6.1**. These version
+  numbers describe different components, not a failed sync.
+- Home notes report ordinary-Chrome Wells capture, encrypted normalization,
+  observed-footer checking and a repeat-run three-posted-row overlap check.
+  Preserve that progress; it is page-level evidence, not complete source or
+  workbook certification. Do not transfer the private home evidence/anchors.
+- Chase now recognizes separate PENDING and ACTIVITY tables, saves encrypted
+  candidate evidence and contains per-card navigation commands. The older 0.4.2
+  "no account navigation / exactly one table" description is historical.
+  Reliable Overview → Prime Visa → Overview → Sapphire Preferred orchestration,
+  identity binding, balances/obligations, normalization, pagination and coverage
+  are still incomplete. Product choice alone must not certify captured identity.
+- Other institutions still need live adapters. The synthetic registry/fixtures
+  are coverage targets, not implemented bank integrations. No verified production
+  workbook update or approval-only automated sign-in has been demonstrated.
+
+### Development sequence
+
+September 21 work baseline: collector QC passed. Full serial tests returned
+256 passes / 1 failure (257 total): forced-exit recovery reported
+`browser_may_be_running`. The isolated rerun passed; the cause is not established
+and the full suite must not be recorded as green. Recovery inspection afterward
+reported no disposable test files remaining. No live bank test was run.
+
+1. Run current QC plus core/browser tests locally before code changes. Read
+   actual extension, reader, bridge and CLI paths, not only historical notes.
+2. Finish Chase using reproducible fictional tests of the observed table contract
+   and the full command/frame/reader/storage sequence. Diagnose the dependent path,
+   not just the first visible error; do not stack guessed fixes or repeat logins.
+3. Preserve/fill Wells coverage gaps and build remaining registered institutions
+   with separate evidence contracts, sign/status handling, identity, obligations/
+   promos, pagination/anchors, and explicit blocked states. Do not fabricate bank
+   selectors when source evidence is unavailable.
+4. Complete verified local workbook inputs, preservation checks, safe backup/save
+   and the one-button launcher. Budget calculations stay in the existing workbook.
+5. Publish tested software/extension and clear versioned reload instructions.
+   Home setup, bank sessions, private data/backup configuration and end-to-end
+   acceptance remain machine-specific. Use home time for those checks, not for
+   rebuilding portable functionality.
+
+The prior work-machine extension restriction has not been assumed lifted.
+Fictional tests and portable implementation proceed here; do not install/load an
+extension or bypass workplace controls without permission. Where live page
+evidence cannot be obtained here, explicitly identify that narrow verification gap.
+Never call fictional coverage proof that a live institution works.
+
+All dated sections below are historical unless consistent with this checkpoint.
+
 ## September 20 Chase adapter start
 
 Bridge 0.4.2 adds a separate Chase discovery command and content reader. It is

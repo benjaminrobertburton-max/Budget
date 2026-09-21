@@ -2,6 +2,16 @@
 
 ## Status and authority
 
+**September 21 direction:** core development for all account adapters and the
+portable extension returns to the work machine; home-plan usage makes development
+there impractical. Preserve the weekend ordinary-Chrome bridge and Wells progress,
+continue Chase, then remaining institutions. The newest checkpoint in
+`docs/HOME_MACHINE_HANDOFF.md` supersedes earlier home-only development and
+Wells-only sequencing below. This does not remove live-source acceptance gates,
+authorize a work extension installation, or permit financial uploads. Home is
+the deployment/private-data/acceptance target, not the default place to finish
+portable code. The intended weekly user role remains only required 2FA approval.
+
 **Latest authentication requirement (September 18):** the collector must perform
 ordinary sign-in through Chrome's user-configured saved-credential/autofill flow,
 including opening institutions and normal sign-in navigation/submission. The
