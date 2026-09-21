@@ -3,12 +3,13 @@ import { startChromeBridge } from "./chrome-bridge.mjs";
 import { activitySummary, validateActivityCandidate } from "./activity-probe.mjs";
 import { requireEvidence as check } from "./errors.mjs";
 import { normalizeChaseActivity, chaseNormalizationSummary } from "./chase-normalize.mjs";
+import { createChaseAnchorSession, chaseOverlapSummary } from './chase-overlap.mjs';
 
 // Temporary collector evidence only. We neither own nor delete ordinary Chrome.
 // No home store, workbook writes, source previews or financial console output.
 export async function runChaseWorkTest({ repositoryRoot, parent, protector,
   port = 43811, durationMs = 10 * 60 * 1000, signal, target = "overview", captureWindowMs = 35000,
-  onReady = () => {}, onStatus = () => {} } = {}) {
+  onReady = () => {}, onStatus = () => {}, prior = null } = {}) {
   check(Number.isInteger(durationMs) && durationMs > 0 && durationMs <= 10 * 60 * 1000,
     "INVALID_TEST_RUN", "The work test requires a bounded duration.");
   check(["overview", "prime_visa", "sapphire_preferred"].includes(target),
@@ -17,6 +18,7 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     "INVALID_TEST_RUN", "The capture response window must be bounded.");
   const command = target === "overview" ? "open_chase"
     : target === "prime_visa" ? "open_chase_prime" : "open_chase_sapphire";
+  const plan = createChaseAnchorSession(prior,{expectedProduct:target==='overview'?null:target});
   return withDisposableTestRun({ repositoryRoot, parent, protector }, async scope => {
     // Encryption must work before a bank-opening command is exposed.
     await scope.saveEvidence({ version: 1, kind: "work_chase_preflight", financialData: false });
@@ -27,6 +29,7 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     let bridge;
     let summary = null;
     let normalization = null;
+    let overlap = null;
     let captureTimer = null;
     let lastEmptyOutcome = null;
     const stop = reason => { if (terminal === null) { terminal = reason; finish(); } };
@@ -64,16 +67,22 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
           try {
             validateActivityCandidate(candidate);
             const normalized = normalizeChaseActivity(candidate, 'work:chase-candidate');
-            await scope.saveEvidence({ version: 1, kind: "work_chase_candidate", candidate, normalized });
+            const decision = plan(normalized);
+            await scope.saveEvidence({ version: 1, kind: "work_chase_candidate", candidate, normalized, decision });
             if (terminal === null) {
               summary = activitySummary(candidate);
               normalization = chaseNormalizationSummary(candidate);
+              overlap=chaseOverlapSummary(decision);
+              if(decision.action==='load_more') {
+                clearTimeout(captureTimer);captureTimer=null;
+                return {nextPageToken:candidate.source.pageToken};
+              }
               stop("candidate_captured");
             }
           } catch {
             stop("capture_failed");
             throw new Error("WORK_CAPTURE_FAILED");
-          }
+          } finally { capturing=false; }
         },
       });
       await onReady({ port: bridge.port });
@@ -82,6 +91,6 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     // The scope drains registered writes, then closes/drains the bridge under
     // its bounded close timeout BEFORE deletion. Terminal callbacks reject new
     // captures; a stuck HTTP shutdown preserves files and reports cleanup blocked.
-    return { status: terminal, summary, normalization, workbookReady: false };
+    return { status: terminal, summary, normalization, overlap, workbookReady: false };
   });
 }

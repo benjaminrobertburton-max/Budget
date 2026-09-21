@@ -2,6 +2,57 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Incremental Chase continuation — extension 0.4.7
+
+Current collection scope is **first page / saved posted overlap, not full history**.
+Capture every current pending row separately. For posted activity, inspect every
+loaded row (including out-of-order postings), match the prior three-row overlap
+as a multiset, and stop as soon as it is present. Load more only when that overlap
+is absent, with a four-load bound. Missing overlap at the end of a selected range,
+changed account/range, replaced rows, stalled loading or the bound blocks the run.
+Do not expand filters or invent a historical bootstrap to force a pass.
+
+The reader now records the observed product/suffix, selected activity range,
+posted footer and a change token covering both activity sections. It waits within
+the existing bounded rendering window for independently loaded pending and
+account/range context. No missing context or absent pending section becomes zero.
+The trusted read-only See-more click is guarded by the captured page token; it
+cannot initiate a payment. Extension host permissions are unchanged.
+
+Home commands keep separate encrypted overlap snapshots by observed card identity.
+A first page with at least three usable posted rows can seed an **unverified
+comparison baseline**, not accepted financial history. Blocked captures do not
+replace it. The current store searches only the newest 32 evidence records;
+an older baseline outside that window is not found and requires baseline review.
+Temporary work commands never read home history or retain these snapshots after
+cleanup. Their injected prior-record option is for controlled temporary testing.
+
+Version 0.4.6 live testing captured both sections with no rejected rows, identified
+the account, and stopped at the first-page baseline without loading older history.
+The first navigation capture had a missing range; inspection and a second capture
+showed the same selector works once loaded. Version 0.4.7 adds context readiness
+and fictional delayed/missing-range regressions. Switching directly from a detail
+page to the other card did not complete: return-to-Overview orchestration remains
+unfinished. The stopped test's owned files were recovered and deletion verified.
+
+Validation: **305/305** full serial core/browser tests passed, no skips/failures,
+with the required Chrome/Windows-encryption permissions. The initial restricted
+run could not complete those environment-dependent checks; no tests were removed
+or weakened. Collector QC and `git diff --check` pass. The user reloaded 0.4.7;
+after returning to Overview, the collector navigated to Prime, captured and
+normalized its first posted page without rejection, recorded identity/range,
+and stopped as `baseline_only`. Pending was not observed and remained explicitly
+unknown. Temporary evidence deletion was verified. Live previous-week overlap
+and collector-triggered See-more remain unverified; fictional tests cover them.
+
+Still NOT certified: registry/account binding, independent pending/posted coverage,
+balances, obligations, changed-history reconciliation, pending-to-posted linking,
+paired-card orchestration, post-auth navigation, saved-credential sign-in, and
+workbook integration. Pending capture is not proof of pending completeness. The
+user's intended weekly role remains ONLY required text/2FA approval; manual
+development sign-in/navigation is not the final accepted workflow. No workbook
+or real financial fixture was changed. Sync `codex/budget-collector`, not `main`.
+
 ### Private Chase normalization continuation
 
 `collector/src/chase-normalize.mjs` now parses the observed full-year named and

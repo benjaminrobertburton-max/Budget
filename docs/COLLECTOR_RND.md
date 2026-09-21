@@ -39,6 +39,20 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 incremental continuation: user explicitly limited posted collection
+to the saved overlap or a first-page baseline, not all history. Implemented bounded
+anchor-directed loading, independent current pending snapshots, account/range
+guards and per-card encrypted comparison baselines. Extension 0.4.6 live capture
+read both sections but initially lacked the range context. Direct inspection
+found the expected range button; a second capture succeeded without changing the
+selector. Version 0.4.7 waits for this asynchronously rendered context and has
+delayed/missing-context regressions. Never substitute a fixed delay for coverage.
+The default temporary work test cannot prove cross-week overlap because its
+evidence is intentionally deleted; fictional tests exercise the full bounded
+load/stop path. Same-session/live overlap acceptance remains a distinct check.
+Direct card-to-card selection from a detail page also failed to finish; automatic
+return to Overview is still a navigation gap, not a table-parser issue.
+
 September 21 Sapphire continuation: navigation from authenticated Overview
 reached Sapphire and the first candidate normalized, but direct follow-up found
 pending activity rendered later and the posted footer still showing `N of M

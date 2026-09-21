@@ -7,6 +7,7 @@
   let previous = null;
   let captureAttempts = 0;
   let captureTimer = null;
+  let afterPageToken = null;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
   const roots = () => {
@@ -56,6 +57,33 @@
     return loginControls || !signedIn ? "chase_auth_required" : "chase_authenticated_page";
   };
   const hasActivityTable = () => containers().some(container => rows(container).some(activityHeader));
+  const sourceContext = () => {
+    const one = selector => {
+      const nodes = deepQueryAll(selector).filter(visible);
+      return nodes.length === 1 ? text(nodes[0]) : '';
+    };
+    const heading = /^(Prime Visa|Sapphire Preferred)\s*\(\.\.\.(\d{4})\)$/.exec(one('#mds-navigation-bar-exp-heading'));
+    const footer = one('#activity_messages_id');
+    const loadHosts = deepQueryAll('#activity_messages_id mds-button');
+    const more = loadHosts.flatMap(n => n.shadowRoot ? [...n.shadowRoot.querySelectorAll('button')] : [])
+      .filter(n => visible(n) && !n.disabled && /^(See more activity)(?: \1)?$/.test(text(n)));
+    return { accountSuffix: heading?.[2] ?? null, balances: [],
+      nextPage: more.length === 1 ? 'next_enabled'
+        : footer === "You've reached the end of your account activity." ? 'next_disabled' : 'next_unavailable',
+      pageToken: '00000000', chase: {
+        product: heading ? heading[1] === 'Prime Visa' ? 'prime_visa' : 'sapphire_preferred' : null,
+        range: one('#select-ACTIVITY-header-selector-label'), postedFooter: footer,
+        pendingObserved: containers().some(t => t.id.startsWith('PENDING-') && visible(t)),
+      } };
+  };
+  const finishCandidate = candidate => {
+    candidate.source = sourceContext();
+    let hash = 2166136261;
+    // Bind the change token to account, range, both sections and all source text.
+    for (const c of JSON.stringify([candidate.source, candidate.tables])) hash = Math.imul(hash ^ c.charCodeAt(0),16777619);
+    candidate.source.pageToken = (hash >>> 0).toString(16).padStart(8,'0');
+    return candidate;
+  };
   const report = () => {
     const event = currentState();
     if (event === previous) return;
@@ -116,35 +144,43 @@
       }));
       candidate.layout.tables = matches.map(({ tableRows, columns }) => ({kind: "html_table", rows: tableRows.length,
         headerRows: 1, reason: "candidate_read", columns}));
-      return candidate;
+      return finishCandidate(candidate);
     }
     if (matches.length !== 1) return candidate;
     if (sections[0] === null) return candidate;
     const { table, tableRows, headers, columns, data } = matches[0];
-    let hash = 2166136261;
-    for (const character of `${headers.join("|")}\n${data.map(row => row.join("|")).join("\n")}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
-    candidate.source.pageToken = (hash >>> 0).toString(16).padStart(8, "0");
     candidate.finding = "candidate_read";
     candidate.tables = [{ columns, headers, rows: [[sections[0]], ...data], issues: columns.includes("unknown") ? ["unknown_columns"] : [] }];
     candidate.layout.tables = [{ kind: table.tagName === "TABLE" ? "html_table" : table.getAttribute("role") === "grid" ? "aria_grid" : "aria_table",
       rows: tableRows.length, headerRows: 1, reason: "candidate_read", columns }];
-    return candidate;
+    return finishCandidate(candidate);
   };
   const captureWhenReady = () => {
     if (currentState() === "chase_auth_required") return;
-    if (!hasActivityTable() && captureAttempts < 150) {
+    const candidate = hasActivityTable() ? capture() : null;
+    // Absent pending is unknown. Wait through the existing bounded render
+    // window for its independently loaded section and account/range context;
+    // timeout never proves zero or supplies missing context.
+    if ((!candidate || candidate.finding==='candidate_read' && (!candidate.source.chase?.pendingObserved
+      || !candidate.source.accountSuffix || !candidate.source.chase?.range
+      || afterPageToken && candidate.source.pageToken===afterPageToken)) && captureAttempts < 150) {
       captureAttempts++;
       if (captureTimer === null) captureTimer = setTimeout(() => { captureTimer = null; captureWhenReady(); }, 200);
       return;
     }
     captureAttempts = 0;
-    const candidate = capture();
-    chrome.runtime.sendMessage({ event: "chase_activity_capture", candidate }).catch(() => {});
+    chrome.runtime.sendMessage({ event: "chase_activity_capture", candidate:candidate??capture() }).catch(() => {});
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if(message?.command==='check_chase_more') {
+      const candidate=capture();
+      sendResponse({accepted:candidate.finding==='candidate_read' && candidate.source.pageToken===message.pageToken
+        && candidate.source.nextPage==='next_enabled'});return;
+    }
     if (message?.command === "probe_chase_state") { sendResponse({ accepted: true }); previous = null; report(); return; }
     if (message?.command !== "capture_chase_activity") return;
     sendResponse({ accepted: true });
+    afterPageToken=/^[a-f0-9]{8}$/.test(message.afterPageToken??'')?message.afterPageToken:null;
     captureAttempts = 0; captureWhenReady();
   });
   const announce = () => chrome.runtime.sendMessage({ event: "chase_page_ready" }).catch(() => {});

@@ -13,6 +13,8 @@ let chaseTabId = null;
 let pendingChaseCapture = false;
 let chaseDeliveryInFlight = false;
 let chaseReloadAttempted = false;
+let chaseMoreToken = null;
+let chaseAfterToken = null;
 const checkingNavigation = new Set();
 
 async function send(path, body) {
@@ -51,6 +53,9 @@ async function nextCommand() {
     if (response.status === 403) { session = null; return "none"; }
     if (!response.ok) return "none";
     const body = await response.json();
+    if (body?.version===1 && body.command==='capture_chase_more' && /^[a-f0-9]{8}$/.test(body.pageToken)) {
+      chaseMoreToken=body.pageToken; return body.command;
+    }
     return body?.version === 1 && ["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime"].includes(body.command)
       ? body.command : "none";
   } catch { session = null; return "none"; }
@@ -130,7 +135,7 @@ async function deliverChaseCapture(tabId) {
   const frames = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => []);
   const frameIds = frames.map(frame => frame.frameId).filter(Number.isInteger);
   const acknowledgements = await Promise.all((frameIds.length ? frameIds : [0]).map(frameId =>
-    chrome.tabs.sendMessage(tabId, { command: "capture_chase_activity" }, { frameId })
+    chrome.tabs.sendMessage(tabId, { command: "capture_chase_activity", afterPageToken:chaseAfterToken }, { frameId })
       .then(response => response?.accepted === true).catch(() => false)));
   if (acknowledgements.some(Boolean)) {
     pendingChaseCapture = false;
@@ -148,6 +153,26 @@ async function deliverChaseCapture(tabId) {
   }
   return false;
   } finally { chaseDeliveryInFlight = false; }
+}
+
+async function loadMoreChase(tabId,pageToken) {
+  if(!Number.isInteger(tabId)||!/^[a-f0-9]{8}$/.test(pageToken))return;
+  const guard=await chrome.tabs.sendMessage(tabId,{command:'check_chase_more',pageToken},{frameId:0}).catch(()=>null);
+  if(guard?.accepted!==true){await send('/v1/progress',{version:1,event:'chase_delivery_failed',tabId});return;}
+  const target={tabId};
+  try {
+    await chrome.debugger.attach(target,'1.3');
+    const response=await chrome.debugger.sendCommand(target,'Runtime.evaluate',{returnByValue:true,
+      expression:`(() => { const hosts=[...document.querySelectorAll('#activity_messages_id mds-button')]; const nodes=hosts.flatMap(h=>h.shadowRoot?[...h.shadowRoot.querySelectorAll('button')]:[]).filter(b=>!b.disabled&&/^(See more activity)(?: \\1)?$/.test((b.innerText||'').replace(/\\s+/g,' ').trim())); if(nodes.length!==1)return null; const b=nodes[0]; b.scrollIntoView({block:'center'}); const r=b.getBoundingClientRect(); return [r.x,r.y,r.width,r.height]; })()`});
+    const rect=response?.result?.value;
+    if(!Array.isArray(rect)||rect.length!==4||!rect.every(Number.isFinite)||rect[2]<2||rect[3]<2)throw new Error('NO_CONTROL');
+    const x=rect[0]+rect[2]/2,y=rect[1]+rect[3]/2;
+    await chrome.debugger.sendCommand(target,'Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});
+    await chrome.debugger.sendCommand(target,'Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});
+    chaseAfterToken=pageToken;
+    await deliverChaseCapture(tabId);
+  }catch{await send('/v1/progress',{version:1,event:'chase_delivery_failed',tabId});}
+  finally{await chrome.debugger.detach(target).catch(()=>{});}
 }
 
 async function navigateChecking(tabId) {
@@ -208,6 +233,8 @@ async function pollCommand() {
     const command = await nextCommand();
     if (command === "open_wells") await openOrReuseWells();
     if (command === "open_chase") await openOrReuseChase();
+    if (command === 'capture_chase_more') { const token=chaseMoreToken; chaseMoreToken=null; await loadMoreChase(chaseTabId,token); }
+    if (['open_chase','open_chase_prime','open_chase_sapphire'].includes(command)) chaseAfterToken=null;
     if (["open_chase_sapphire", "open_chase_prime"].includes(command)) {
       if (!Number.isInteger(chaseTabId)) await openOrReuseChase();
       if (Number.isInteger(chaseTabId)) await navigateChaseAccount(chaseTabId, command === "open_chase_sapphire" ? "Sapphire Preferred" : "Prime Visa");

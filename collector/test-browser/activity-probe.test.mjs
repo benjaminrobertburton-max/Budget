@@ -34,7 +34,10 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
     const headers = '<tr><th><button>Date, not sorted</button><div>Date</div></th>'
       + '<th><button>Description, not sorted</button><div>Description</div></th>'
       + '<th><button>Amount, not sorted</button><div>Amount</div></th><th>Action</th></tr>';
-    await page.setContent('<button>Sign out</button><table id="PENDING-fictional">' + headers
+    await page.setContent('<button>Sign out</button><span id="mds-navigation-bar-exp-heading">Prime Visa (...1234)</span>'
+      + '<span id="select-ACTIVITY-header-selector-label">Activity since last statement</span>'
+      + '<div id="activity_messages_id">You\'ve reached the end of your account activity.</div>'
+      + '<table id="PENDING-fictional">' + headers
       + '<tr><td>Pending</td><td>FICTIONAL PENDING</td><td>$3.00</td><td></td></tr></table>'
       + '<table id="ACTIVITY-fictional">' + headers
       + '<tr id="posted"><td>Sep 1, 2031</td><td>FICTIONAL POSTED</td><td>-$2.00</td><td></td></tr></table>');
@@ -60,6 +63,11 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
     assert.equal(original.tables[1].headers[0], 'Date, not sorted Date');
     assert.equal(original.tables[1].rows[1][2], "-$2.00");
     assert.equal(original.workbookReady, false);
+    assert.equal(original.source.accountSuffix,'1234');
+    assert.equal(original.source.chase.product,'prime_visa');
+    assert.equal(original.source.chase.pendingObserved,true);
+    assert.equal(original.source.nextPage,'next_disabled');
+    assert.notEqual(original.source.pageToken,'00000000');
     await page.evaluate(() => document.querySelector("#posted").lastElementChild.remove());
     assert.equal((await capture()).finding, "no_activity_table");
     await page.evaluate(() => {
@@ -71,6 +79,7 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
       document.querySelector("#posted").children[1].textContent = "X".repeat(700);
     });
     assert.equal((await capture()).tables[1].rows[1][1].length, 700);
+    assert.notEqual((await capture()).source.pageToken,original.source.pageToken);
     await page.evaluate(() => {
       const table = document.querySelector("#ACTIVITY-fictional");
       table.querySelector("tbody").append(table.querySelector("tr").cloneNode(true));

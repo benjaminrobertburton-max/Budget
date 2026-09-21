@@ -6,19 +6,23 @@ import {validateActivityCandidate} from '../src/activity-probe.mjs';
 
 async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
   posted = ['Sep 1, 2031','FICTIONAL B','$2.00',''], single = false,
-  duplicateHeader = false, headings = ['Date','Description','Amount','Action'] } = {}) {
+  duplicateHeader = false, headings = ['Date','Description','Amount','Action'], rangeReadyAfter = 0 } = {}) {
   const messages=[], listeners=[], timers=[];
+  let elapsedTicks=0;
+  const visibleText=innerText=>({innerText,getClientRects:()=>[{}]});
   const row = values => {
     const r={getClientRects:()=>[{}],closest:()=>r};
     r.querySelectorAll=()=>values.map(innerText=>({innerText,closest:()=>r}));
     return r;
   };
-  const table = (id,data) => ({id,tagName:'TABLE',querySelectorAll:()=>[
+  const table = (id,data) => ({id,tagName:'TABLE',getClientRects:()=>[{}],querySelectorAll:()=>[
     row(headings),...(duplicateHeader ? [row(headings)] : []),row(data)],getAttribute:()=>null});
   const tables=[...(single ? [] : [table('PENDING-dataTableId-mds-diy-data-table',pending)]),
     table('ACTIVITY-dataTableId-mds-diy-data-table',posted)];
   const document={documentElement:{},querySelector:()=>null,querySelectorAll:s=>s==='table,[role=table],[role=grid]'?tables:
-    s==='a,button,[role=button],[role=link]'?[{innerText:'Sign out',getClientRects:()=>[{}]}]:[]};
+    s==='a,button,[role=button],[role=link]'?[visibleText('Sign out')]:
+    s==='#mds-navigation-bar-exp-heading'?[visibleText('Prime Visa (...1234)')]:
+    s==='#select-ACTIVITY-header-selector-label' && elapsedTicks>=rangeReadyAfter?[visibleText('Activity since last statement')]:[]};
   const context={document,getComputedStyle:()=>({visibility:'visible',display:'table-row'}),
     chrome:{runtime:{sendMessage:async m=>{messages.push(m);},onMessage:{addListener:f=>listeners.push(f)}}},
     MutationObserver:class{observe(){}},setInterval:()=>0,setTimeout:f=>{timers.push(f);return 1;}};
@@ -26,11 +30,23 @@ async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
   let ack;
   listeners[0]({command:'capture_chase_activity'},{},v=>{ack=v;});
   assert.equal(ack.accepted,true);
-  for(let i=0;timers.length && i<151;i++) timers.shift()();
+  for(let i=0;timers.length && i<151;i++){elapsedTicks++;timers.shift()();}
   const candidate=JSON.parse(JSON.stringify(messages.find(m=>m.event==='chase_activity_capture').candidate));
   validateActivityCandidate(candidate);
   return candidate;
 }
+
+test('Chase waits for the range control after both activity tables render',async()=>{
+  const candidate=await captureFixture({rangeReadyAfter:3});
+  assert.equal(candidate.source.chase.range,'Activity since last statement');
+  assert.equal(candidate.finding,'candidate_read');
+});
+
+test('Chase missing range stays unknown after the bounded readiness window',async()=>{
+  const candidate=await captureFixture({rangeReadyAfter:999});
+  assert.equal(candidate.source.chase.range,'');
+  assert.equal(candidate.workbookReady,false);
+});
 
 test('Chase recognizes observed repeated sortable headings without altering evidence', async () => {
   const headings=['Date, not sorted\nDate','Description, not sorted\nDescription','Amount, not sorted\nAmount','Action'];

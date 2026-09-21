@@ -7,7 +7,11 @@ const REASONS = ["hidden", "form_excluded", "nested_table", "ambiguous_headers",
 const keys = (value, expected) => value && typeof value === "object" && !Array.isArray(value)
   && Object.keys(value).sort().join(",") === expected.sort().join(",");
 const boundedText = value => typeof value === "string" && value.length <= 700;
-const sourceValid = source => keys(source, ["accountSuffix", "balances", "nextPage", "pageToken"])
+const chaseContextValid = value => keys(value, ['product','range','postedFooter','pendingObserved'])
+  && [null,'prime_visa','sapphire_preferred'].includes(value.product)
+  && boundedText(value.range) && boundedText(value.postedFooter) && typeof value.pendingObserved === 'boolean';
+const sourceValid = source => (keys(source, ["accountSuffix", "balances", "nextPage", "pageToken"])
+  || keys(source, ["accountSuffix", "balances", "nextPage", "pageToken", "chase"]) && chaseContextValid(source.chase))
   && (source.accountSuffix === null || /^\d{4}$/.test(source.accountSuffix))
   && ["next_enabled", "next_disabled", "next_unavailable", "next_stalled"].includes(source.nextPage)
   && /^[a-f0-9]{8}$/.test(source.pageToken)

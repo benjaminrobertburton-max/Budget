@@ -2,6 +2,29 @@
 
 ## Current checkpoint — September 21
 
+**Latest extension: 0.4.7.** Reload after syncing `codex/budget-collector`.
+This supersedes the older version/status checkpoints below. Chase now records
+observed account/range context and uses a three-row private posted overlap to
+stop at the first sufficient page. Additional activity loads are bounded and
+requested only if that overlap is absent. Every current pending row remains a
+fresh snapshot; neither display order nor absence establishes coverage. A first
+page without a prior anchor is an unverified baseline, never a full-history sweep.
+Temporary work tests delete all their evidence; home commands retain separate
+encrypted comparison baselines by observed card identity. Baselines are not
+verified imports. See the [current handoff](../docs/HOME_MACHINE_HANDOFF.md).
+
+The reader now waits for delayed account/range context as well as pending within
+its bounded rendering window. Missing context remains blocked. Card-to-card
+return navigation, authentication resume, complete source controls and workbook
+integration are still unfinished; run card-specific development tests from the
+authenticated Overview. Do not call this the completed Tuesday workflow.
+
+Validation: 305/305 serial tests pass, including actual Chrome and Windows
+encryption; QC and diff checks pass. The live 0.4.7 Prime retest reached a usable
+first-page baseline and verified temporary evidence deletion. Pending was not
+observed, not confirmed zero. Live anchor-directed pagination remains an
+acceptance check; it is covered by fictional tests only at this checkpoint.
+
 Chase captures now also produce private normalized evidence: exact source amounts,
 full-year source dates, pending/posted sections and source Category, retaining
 duplicates and raw text. Only fixed exception codes/counts are printed. Missing

@@ -69,6 +69,10 @@ export function normalizeChaseActivity(candidate, evidenceRef) {
   // No current reader supplies an independently verified account/range/count
   // contract. Neither a requested product nor an end-of-view footer clears it.
   return {version:1,kind:'chase_normalized_activity',transactions,observedRows,rejectedRows,
+    identity: candidate.source.chase?.product && candidate.source.accountSuffix
+      ? {product:candidate.source.chase.product, suffix:candidate.source.accountSuffix} : null,
+    range: candidate.source.chase?.range ?? null, nextPage:candidate.source.nextPage,
+    pageToken:candidate.source.pageToken,
     issues:[...issues],remainingGates:[...gates],coverageVerified:false,workbookReady:false};
 }
 

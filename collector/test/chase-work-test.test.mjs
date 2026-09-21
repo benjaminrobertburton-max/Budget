@@ -9,6 +9,31 @@ import { windowsProtector } from "../src/protection.mjs";
 
 const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 
+test('temporary Chase requests another page only for missing prior overlap and stops when found',async t=>{
+  const {normalizeChaseActivity}=await import('../src/chase-normalize.mjs');
+  const make=(names,token)=>{
+    const c=fictionalActivityCandidate();
+    c.source={accountSuffix:'1234',balances:[],nextPage:'next_enabled',pageToken:token,
+      chase:{product:'prime_visa',range:'Activity since last statement',postedFooter:'2 of 8 transactions',pendingObserved:true}};
+    c.tables=[{columns:['date','description','amount','details_control'],headers:['Date','Description','Amount','Action'],
+      rows:[['Posted Transactions'],...names.map(n=>['Sep 1, 2031',n,'$1.00',''])],issues:[]}];return c;
+  };
+  const prior=normalizeChaseActivity(make(['A','B','C'],'a0000001'),'fixture');
+  const parent=path.join(await tempDirectory(t),'incremental');
+  const result=await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,prior,
+    onReady:async({port})=>{
+      const {base,headers}=await connect(port);
+      await fetch(base+'/v1/command',{headers});
+      assert.equal((await fetch(base+'/v1/chase-activity',{method:'POST',headers,body:JSON.stringify(make(['NEW'],'a0000002'))})).status,204);
+      const next=await(await fetch(base+'/v1/command',{headers})).json();
+      assert.deepEqual(next,{version:1,command:'capture_chase_more',pageToken:'a0000002'});
+      assert.equal((await fetch(base+'/v1/chase-activity',{method:'POST',headers,body:JSON.stringify(make(['NEW','A','B','C'],'a0000003'))})).status,204);
+    }});
+  assert.equal(result.overlap.action,'stop');assert.equal(result.overlap.overlapVerified,true);
+  assert.equal(result.overlap.unmatchedPosted,1);
+  assert.deepEqual(await fs.readdir(parent),[]);
+});
+
 test("an early empty Chase frame must not close the work run before a later activity candidate", async t => {
   const parent = path.join(await tempDirectory(t),"frames");
   const result = await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,

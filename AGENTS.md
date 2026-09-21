@@ -4,6 +4,13 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Latest Chase checkpoint:** extension 0.4.7 implements first-page/three-row
+posted-overlap stopping and bounded additional loads only when overlap is missing.
+Never sweep full history by default. Preserve all current pending separately;
+missing pending is unknown. Read the newest handoff for live results, remaining
+coverage/navigation gates and the distinction between an unverified comparison
+baseline and accepted financial history. Workbooks remain untouched.
+
 **September 21 work extension update:** the user loaded the unpacked bridge here
 and reports it working. Do not keep treating extension installation as blocked.
 This confirms setup, not source coverage or collector-led authentication.

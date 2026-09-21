@@ -34,6 +34,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     console.log(`Temporary Chase result: ${result.status}.`);
     if (result.summary) console.log(`Structural result only: ${JSON.stringify(result.summary)}`);
     if (result.normalization) console.log(`Chase validation counts only: ${JSON.stringify(result.normalization)}`);
+    if (result.overlap) console.log(`Chase incremental status: ${JSON.stringify(result.overlap)}`);
     console.log("Collector evidence was removed and deletion verified. Personal Chrome was not closed or cleared.");
     if (result.status !== "candidate_captured") process.exitCode = 1;
   } catch (error) {
@@ -54,6 +55,7 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
     const { startChromeBridge } = await import("./chrome-bridge.mjs");
     const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
     let evidenceStore = null;
+    let chasePlan = null;
     bridge = await startChromeBridge({
       nextCommand: command[0] === "wells-refresh" ? "open_wells"
         : command[0] === "chase-refresh" ? "open_chase"
@@ -88,9 +90,24 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
         const capturedAt = new Date().toISOString();
         const reference = await store.save({ source: "chase", capturedAt, payload: candidate });
         const { normalizeChaseActivity, chaseNormalizationSummary } = await import('./chase-normalize.mjs');
-        await store.save({ source: 'chase', capturedAt, payload: normalizeChaseActivity(candidate, reference) });
+        const { createChaseAnchorSession, chaseOverlapSummary } = await import('./chase-overlap.mjs');
+        const normalized=normalizeChaseActivity(candidate,reference);
+        if(!chasePlan){
+          const prior=normalized.identity ? await store.latestPayload({source:'chase',kind:'chase_anchor_snapshot',identity:normalized.identity}) : null;
+          chasePlan=createChaseAnchorSession(prior?.normalized??null,{expectedProduct:
+            command[0]==='chase-prime-refresh'?'prime_visa':command[0]==='chase-sapphire-refresh'?'sapphire_preferred':null});
+        }
+        const decision=chasePlan(normalized);
+        await store.save({ source: 'chase', capturedAt, payload: normalized });
+        if(decision.overlapVerified || decision.action==='baseline_only' && normalized.transactions.filter(t=>t.state==='posted').length>=3){
+          // This is a local overlap baseline, never a verified import. Blocked
+          // captures cannot overwrite the last usable anchor for either card.
+          await store.save({source:'chase',capturedAt,payload:{kind:'chase_anchor_snapshot',identity:normalized.identity,normalized}});
+        }
         console.log(`Chase discovery: ${JSON.stringify(activitySummary(candidate))}`);
         console.log(`Chase validation counts only: ${JSON.stringify(chaseNormalizationSummary(candidate))}`);
+        console.log(`Chase incremental status: ${JSON.stringify(chaseOverlapSummary(decision))}`);
+        if(decision.action==='load_more')return {nextPageToken:candidate.source.pageToken};
       } : null,
       onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
     });

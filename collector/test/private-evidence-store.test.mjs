@@ -20,6 +20,11 @@ test('Chase evidence can be saved and reopened without being mistaken for Wells'
   assert.equal((await store.open(ref)).source,'chase');
   assert.deepEqual(await store.latestPayload({source:'chase',kind:'activity_candidate'}),payload);
   assert.equal(await store.latestPayload({source:'wells',kind:'activity_candidate'}),null);
+  const prime={product:'prime_visa',suffix:'1234'},sapphire={product:'sapphire_preferred',suffix:'5678'};
+  await store.save({source:'chase',capturedAt:'2031-04-08T12:01:00Z',payload:{kind:'chase_anchor_snapshot',identity:prime}});
+  await store.save({source:'chase',capturedAt:'2031-04-08T12:02:00Z',payload:{kind:'chase_anchor_snapshot',identity:sapphire}});
+  assert.deepEqual((await store.latestPayload({source:'chase',kind:'chase_anchor_snapshot',identity:prime})).identity,prime);
+  assert.deepEqual((await store.latestPayload({source:'chase',kind:'chase_anchor_snapshot',identity:sapphire})).identity,sapphire);
 });
 
 test("source evidence is sealed outside the repository and ordinary references contain no source text", async t => {

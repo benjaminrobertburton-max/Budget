@@ -58,9 +58,11 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       "INVALID_EVIDENCE", "The private evidence record is invalid.");
       return structuredClone(record);
     },
-    async latestPayload({ source, kind }) {
+    async latestPayload({ source, kind, identity = null }) {
       check(["wells", "chase"].includes(source) && typeof kind === "string" && /^[a-z_]+$/.test(kind),
-        "INVALID_EVIDENCE", "The private evidence query is invalid.");
+      "INVALID_EVIDENCE", "The private evidence query is invalid.");
+      check(identity === null || source === 'chase' && ['prime_visa','sapphire_preferred'].includes(identity.product)
+        && /^\d{4}$/.test(identity.suffix), 'INVALID_EVIDENCE', 'The private account filter is invalid.');
       await verify();
       const names = (await fs.readdir(evidence)).filter(name => filePattern.test(name));
       // File names are random; inspect a bounded newest-first set locally and
@@ -70,7 +72,9 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       for (const { name } of candidates.slice(0, 32)) {
         const id = name.slice(0, -4);
         const record = await this.open(`local:evidence:${id}`);
-        if (record.source === source && record.payload?.kind === kind) return structuredClone(record.payload);
+        if (record.source === source && record.payload?.kind === kind
+          && (identity === null || record.payload.identity?.product === identity.product
+            && record.payload.identity?.suffix === identity.suffix)) return structuredClone(record.payload);
       }
       return null;
     },

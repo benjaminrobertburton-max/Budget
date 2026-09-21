@@ -58,6 +58,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
   let session = null;
   let lastEvent = null;
   let chaseAuthenticated = false;
+  let nextPageToken = null;
   const server = createServer(async (req, res) => {
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
@@ -78,7 +79,8 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (!origin || (requestOrigin && requestOrigin !== origin) || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
         const command = nextCommand;
         nextCommand = "none"; // One-shot command: a later retry never opens a second Wells tab.
-        return response(res, 200, origin, { version: 1, command });
+        const pageToken=nextPageToken; nextPageToken=null;
+        return response(res, 200, origin, { version: 1, command, ...(command==='capture_chase_more'?{pageToken}:{}) });
       }
       if (req.method !== "POST") return response(res, 405, requestOrigin === origin ? origin : null);
       if (req.url === "/v1/session") {
@@ -121,7 +123,15 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (!onChaseActivityCapture) return response(res, 503, origin);
         const candidate = validateActivityCandidate(await readJson(req));
         if (candidate.finding === "candidate_read") {
-          try { await onChaseActivityCapture(candidate); }
+          try {
+            const decision = await onChaseActivityCapture(candidate);
+            if (decision?.nextPageToken !== undefined) {
+              check(/^[a-f0-9]{8}$/.test(decision.nextPageToken) && nextCommand==='none',
+                'INVALID_BRIDGE','The incremental request is invalid.');
+              nextPageToken=decision.nextPageToken;
+              nextCommand='capture_chase_more';
+            }
+          }
           catch {
             lastEvent = "chase_evidence_save_failed";
             onProgress({ event: lastEvent });
