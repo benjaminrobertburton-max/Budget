@@ -2,6 +2,90 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Paired Chase capture — extension 0.4.11
+
+This supersedes the navigation/balance gaps in the preceding 0.4.7 checkpoint.
+Navigation now uses the observed Accounts -> Overview -> requested card route,
+requires the actual requested detail heading before capture, and rejects ambiguous
+controls. Each navigation action is issued once with bounded readiness polling;
+explicit authentication controls stop it. A rendering page is not mistaken for a
+password prompt. Post-authentication resumption and saved-credential sign-in are
+still separate unfinished capabilities.
+
+The reader captures Current balance, Remaining statement balance and Available
+credit only from the observed detail containers, matching visible labels and one
+exact monetary span. Signs are preserved; available credit never becomes cash.
+It records the explicit no-payment-due alert from its visible shadow-root heading,
+not the alert element's name or a balance inference. This bank status does NOT
+mean there is no statement balance to pay under the household's budget rules.
+Positive minimum-payment/due-date layouts remain unobserved and unsupported.
+
+Pending (N) is captured from the observed pending accordion heading and compared
+against parsed pending rows. A mismatch blocks overlap acceptance. Missing heading
+or section stays unknown; an explicit Pending (0) can evidence zero in the parser,
+but that zero-state layout has not yet been observed live. Count verification is
+reported separately and does not silently certify every coverage/history gate.
+
+Version 0.4.11 additionally captures the Pending (N) / Pending charges summary in
+`#custom-accordion-heading-container-pending-activity-accordion` and reconciles
+the independent source total against exact signed pending-row amounts. Mismatch,
+invalid money or overflow blocks overlap acceptance; missing total remains unknown.
+It never substitutes an internally computed sum for a missing bank control.
+
+`node collector/src/cli.mjs chase-pair-work-test` is temporary and encrypted. It
+captures Prime, repeats against an in-memory comparison anchor, navigates to
+Sapphire and repeats there, then deletes all evidence. It never reads the home
+store. Version 0.4.8 passed this complete live sequence: both card identities,
+all three balance types, repeat overlap with no unmatched posted rows, and no
+unnecessary history loads. Pending was observed on Sapphire; Prime pending stayed
+unknown. Cleanup was verified. This proves same-session replay, not cross-week
+reconciliation or bank-driven posting changes.
+
+Home-only `chase-pair-refresh` queues Prime then Sapphire with separate existing
+encrypted baselines. This command must not be used for temporary work testing.
+It is a development source-capture command, not the finished Refresh Budget button.
+It does not write a workbook or turn an unverified baseline into accepted history.
+
+Version 0.4.9 added source-count/status evidence, but its live retest exceeded the
+temporary response window. Review found the reader's nominal 30-second wait was
+150 delays PLUS all DOM-scan time. Version 0.4.10 enforces an elapsed-time deadline
+and reuses the discovered DOM roots only within a single synchronous capture;
+each subsequent capture rediscovers them. A regression covers expensive scans.
+Do not increase runner timeouts to conceal unbounded work.
+
+The 0.4.10 final live paired retest PASSED after the timing correction: automatic
+card navigation, both repeat anchors, all labeled balances, explicit no-payment-due
+status on both cards, and the independent pending count on Sapphire. Temporary
+evidence deletion was verified. Full serial tests at that stage passed 313/313.
+No pending-zero evidence was available on Prime. Attended inspection of its normal
+activity filters and Download Account Activity options found no pending-only view
+or explicit empty-pending statement; the export was cancelled without a download.
+Do not infer zero from absence or ask for another screenshot of the same empty
+layout. Positive payment-due layout, cross-week changes, live anchor-missing paging,
+registry binding, authentication automation and workbook integration remain gates.
+
+Version 0.4.11 live Sapphire acceptance passed: every visible row normalized,
+the independent pending count AND signed pending-dollar total matched, all three
+labeled balances were captured, the explicit no-payment-due status was read, and
+the first-page baseline stopped without older-history loading. Collector evidence
+deletion was verified. After an extension reload, an initial navigation attempt
+still failed during the authentication-unavailable -> ready transition; a settled
+retry succeeded. The local bridge now retries that same read-only card once only
+if authentication has become ready and capture has not begun. Regression tests
+reject repeated retries, active authentication and failures after dispatch. This
+local-code correction needs no further extension reload and is not saved-password
+sign-in automation. Live forced-transition retry remains unverified; do not log
+out of the bank merely to create that test.
+
+Run full tests with no live collector using port 43811. One concurrent full run
+failed the CLI startup check because the live collector was using that port;
+test fixtures/readers otherwise passed. Do not weaken that startup assertion.
+
+Final 0.4.11 validation, including the bounded local retry: **315/315** full
+serial core/browser tests passed, with zero failures or skips. Collector QC and
+`git diff --check` passed. Stopped-test recovery inspection found no disposable
+test files remaining. No workbook, financial source data or home store was changed.
+
 ### Incremental Chase continuation — extension 0.4.7
 
 Current collection scope is **first page / saved posted overlap, not full history**.

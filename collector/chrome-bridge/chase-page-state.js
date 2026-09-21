@@ -7,10 +7,13 @@
   let previous = null;
   let captureAttempts = 0;
   let captureTimer = null;
+  let captureDeadline = 0;
+  let captureRoots = null;
   let afterPageToken = null;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
   const roots = () => {
+    if(captureRoots)return captureRoots;
     const found = [], seen = new Set(), queue = [document];
     while (queue.length && found.length < 256) {
       const root = queue.shift();
@@ -63,16 +66,38 @@
       return nodes.length === 1 ? text(nodes[0]) : '';
     };
     const heading = /^(Prime Visa|Sapphire Preferred)\s*\(\.\.\.(\d{4})\)$/.exec(one('#mds-navigation-bar-exp-heading'));
+    const balances=[];
+    for(const [id,label,type] of [['currentBalance','Current balance','current_balance'],
+      ['remainingStatementBalance-dataItem','Remaining statement balance','remaining_statement_balance'],
+      ['availableCredit-dataItem','Available credit','available_credit']]){
+      const containers=deepQueryAll('#'+id).filter(visible);
+      if(containers.length!==1||!heading)continue;
+      const container=containers[0], localRoots=[container], descendants=[];
+      for(let i=0;i<localRoots.length&&i<32;i++)for(const n of localRoots[i].querySelectorAll('*')){
+        descendants.push(n);if(n.shadowRoot)localRoots.push(n.shadowRoot);
+      }
+      const labeled=descendants.some(n=>visible(n)&&!['STYLE','SCRIPT'].includes(n.tagName)&&text(n)===label);
+      const amounts=descendants.filter(n=>n.tagName==='SPAN'&&n.children.length===0&&visible(n))
+        .map(text).filter(value=>/^(?:-?\$-?[\d,]+\.\d{2}|\(\$[\d,]+\.\d{2}\))$/.test(value));
+      if(labeled&&amounts.length===1)balances.push({type,text:amounts[0]});
+    }
     const footer = one('#activity_messages_id');
+    const dueAlerts=deepQueryAll('mds-alert[id^="cardNoPaymentDue-"][id$="-alertId"]')
+      .map(n=>n.shadowRoot?.querySelector('#title-focus-target')).filter(n=>n&&visible(n));
+    const obligation=dueAlerts.length===1&&text(dueAlerts[0])==="Success: You don't have a payment due right now."
+      ?'no_payment_due':'unobserved';
     const loadHosts = deepQueryAll('#activity_messages_id mds-button');
     const more = loadHosts.flatMap(n => n.shadowRoot ? [...n.shadowRoot.querySelectorAll('button')] : [])
       .filter(n => visible(n) && !n.disabled && /^(See more activity)(?: \1)?$/.test(text(n)));
-    return { accountSuffix: heading?.[2] ?? null, balances: [],
+    return { accountSuffix: heading?.[2] ?? null, balances,
       nextPage: more.length === 1 ? 'next_enabled'
         : footer === "You've reached the end of your account activity." ? 'next_disabled' : 'next_unavailable',
       pageToken: '00000000', chase: {
         product: heading ? heading[1] === 'Prime Visa' ? 'prime_visa' : 'sapphire_preferred' : null,
         range: one('#select-ACTIVITY-header-selector-label'), postedFooter: footer,
+        pendingHeader:one('#pending-activity-accordion-topLeft'),
+        pendingSummary:one('#custom-accordion-heading-container-pending-activity-accordion'),
+        obligation,
         pendingObserved: containers().some(t => t.id.startsWith('PENDING-') && visible(t)),
       } };
   };
@@ -96,7 +121,7 @@
     // pagination behaviour have not been certified. Do not invent Wells fields.
     source: { accountSuffix: null, balances: [], nextPage: "next_unavailable", pageToken: "00000000" },
     layout: { tableCount: 0, rowCount: 0, headerCount: 0, hasShadowRoots: hasShadowRoots(), tables: [] } });
-  const capture = () => {
+  const captureBody = () => {
     if (currentState() === "chase_auth_required") return { ...empty(), finding: "authentication_controls" };
     const candidate = empty();
     const found = containers();
@@ -155,6 +180,10 @@
       rows: tableRows.length, headerRows: 1, reason: "candidate_read", columns }];
     return finishCandidate(candidate);
   };
+  const capture = () => {
+    captureRoots=roots();
+    try{return captureBody();}finally{captureRoots=null;}
+  };
   const captureWhenReady = () => {
     if (currentState() === "chase_auth_required") return;
     const candidate = hasActivityTable() ? capture() : null;
@@ -163,7 +192,7 @@
     // timeout never proves zero or supplies missing context.
     if ((!candidate || candidate.finding==='candidate_read' && (!candidate.source.chase?.pendingObserved
       || !candidate.source.accountSuffix || !candidate.source.chase?.range
-      || afterPageToken && candidate.source.pageToken===afterPageToken)) && captureAttempts < 150) {
+      || afterPageToken && candidate.source.pageToken===afterPageToken)) && captureAttempts < 150 && Date.now()<captureDeadline) {
       captureAttempts++;
       if (captureTimer === null) captureTimer = setTimeout(() => { captureTimer = null; captureWhenReady(); }, 200);
       return;
@@ -181,6 +210,7 @@
     if (message?.command !== "capture_chase_activity") return;
     sendResponse({ accepted: true });
     afterPageToken=/^[a-f0-9]{8}$/.test(message.afterPageToken??'')?message.afterPageToken:null;
+    captureDeadline=Date.now()+30000;
     captureAttempts = 0; captureWhenReady();
   });
   const announce = () => chrome.runtime.sendMessage({ event: "chase_page_ready" }).catch(() => {});

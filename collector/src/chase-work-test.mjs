@@ -12,13 +12,15 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
   onReady = () => {}, onStatus = () => {}, prior = null } = {}) {
   check(Number.isInteger(durationMs) && durationMs > 0 && durationMs <= 10 * 60 * 1000,
     "INVALID_TEST_RUN", "The work test requires a bounded duration.");
-  check(["overview", "prime_visa", "sapphire_preferred"].includes(target),
+  check(["overview", "prime_visa", "sapphire_preferred", "both"].includes(target),
     "INVALID_TEST_RUN", "The work test requires a recognized Chase target.");
   check(Number.isInteger(captureWindowMs) && captureWindowMs > 0 && captureWindowMs <= 60000,
     "INVALID_TEST_RUN", "The capture response window must be bounded.");
   const command = target === "overview" ? "open_chase"
-    : target === "prime_visa" ? "open_chase_prime" : "open_chase_sapphire";
-  const plan = createChaseAnchorSession(prior,{expectedProduct:target==='overview'?null:target});
+    : ['prime_visa','both'].includes(target) ? "open_chase_prime" : "open_chase_sapphire";
+  const sequence=target==='both'?['prime_visa','prime_visa','sapphire_preferred','sapphire_preferred']:null;
+  let phase=0;
+  let plan = createChaseAnchorSession(prior,{expectedProduct:sequence?.[0]??(target==='overview'?null:target)});
   return withDisposableTestRun({ repositoryRoot, parent, protector }, async scope => {
     // Encryption must work before a bank-opening command is exposed.
     await scope.saveEvidence({ version: 1, kind: "work_chase_preflight", financialData: false });
@@ -30,6 +32,7 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     let summary = null;
     let normalization = null;
     let overlap = null;
+    const checks=[];
     let captureTimer = null;
     let lastEmptyOutcome = null;
     const stop = reason => { if (terminal === null) { terminal = reason; finish(); } };
@@ -77,6 +80,16 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
                 clearTimeout(captureTimer);captureTimer=null;
                 return {nextPageToken:candidate.source.pageToken};
               }
+              if(sequence){
+                checks.push({product:sequence[phase],repeat:phase%2===1,normalization,overlap});
+                if(decision.action==='blocked'||phase%2===1&&!decision.overlapVerified){stop('pair_blocked');return;}
+                if(phase<sequence.length-1){
+                  const previousProduct=sequence[phase];phase++;
+                  plan=createChaseAnchorSession(sequence[phase]===previousProduct?normalized:null,{expectedProduct:sequence[phase]});
+                  clearTimeout(captureTimer);captureTimer=null;lastEmptyOutcome=null;
+                  return {nextCard:sequence[phase]};
+                }
+              }
               stop("candidate_captured");
             }
           } catch {
@@ -91,6 +104,6 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     // The scope drains registered writes, then closes/drains the bridge under
     // its bounded close timeout BEFORE deletion. Terminal callbacks reject new
     // captures; a stuck HTTP shutdown preserves files and reports cleanup blocked.
-    return { status: terminal, summary, normalization, overlap, workbookReady: false };
+    return { status: terminal, summary, normalization, overlap, checks, workbookReady: false };
   });
 }

@@ -7,7 +7,11 @@ const REASONS = ["hidden", "form_excluded", "nested_table", "ambiguous_headers",
 const keys = (value, expected) => value && typeof value === "object" && !Array.isArray(value)
   && Object.keys(value).sort().join(",") === expected.sort().join(",");
 const boundedText = value => typeof value === "string" && value.length <= 700;
-const chaseContextValid = value => keys(value, ['product','range','postedFooter','pendingObserved'])
+const chaseContextValid = value => value && keys(value, ['product','range','postedFooter','pendingObserved',
+  ...['pendingHeader','pendingSummary','obligation'].filter(key=>Object.hasOwn(value,key))])
+  && (!Object.hasOwn(value,'pendingHeader')||boundedText(value.pendingHeader))
+  && (!Object.hasOwn(value,'pendingSummary')||boundedText(value.pendingSummary))
+  && (!Object.hasOwn(value,'obligation')||['no_payment_due','unobserved'].includes(value.obligation))
   && [null,'prime_visa','sapphire_preferred'].includes(value.product)
   && boundedText(value.range) && boundedText(value.postedFooter) && typeof value.pendingObserved === 'boolean';
 const sourceValid = source => (keys(source, ["accountSuffix", "balances", "nextPage", "pageToken"])
@@ -17,7 +21,9 @@ const sourceValid = source => (keys(source, ["accountSuffix", "balances", "nextP
   && /^[a-f0-9]{8}$/.test(source.pageToken)
   && Array.isArray(source.balances) && source.balances.length <= 3
   && source.balances.every(balance => keys(balance, ["type", "text"])
-    && ["available", "ledger", "pending_debits"].includes(balance.type) && boundedText(balance.text));
+    && (["available", "ledger", "pending_debits"].includes(balance.type)
+      || source.chase && ['current_balance','remaining_statement_balance','available_credit'].includes(balance.type))
+    && boundedText(balance.text));
 
 // Private evidence contract. Neither this object nor its exceptions may be logged.
 // Raw date/sign/status text is retained; this is NOT a normalized source capture.

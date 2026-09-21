@@ -2,6 +2,25 @@
 
 ## Current checkpoint — September 21
 
+**Latest extension: 0.4.11.** The following supersedes older version checkpoints.
+Chase now navigates back through Overview, verifies the requested detail heading,
+captures three labeled balance types, checks the independent Pending (N) heading,
+reconciles the independent pending-dollar total, and records an explicitly visible
+no-payment-due message. None of these can
+authorize payments, infer pending zero from absence, or update the workbook.
+
+Use `node collector/src/cli.mjs chase-pair-work-test` at work for one temporary
+encrypted two-card test with same-session repeat anchors and verified deletion.
+The 0.4.8 live paired sequence passed without manual card navigation or historical
+paging. The 0.4.10 final live run also verified both bank payment-status messages
+and Sapphire's independent pending count. Prime's absent pending section is still
+unknown, not confirmed zero. Home-only `chase-pair-refresh` retains separate encrypted card baselines;
+never run it at work. Both are development commands, not production certification.
+Readiness now measures elapsed time, including DOM scans, not just retry delays.
+Run the complete test suite separately from live capture because the CLI startup
+test uses the same fixed loopback port. See the [handoff](../docs/HOME_MACHINE_HANDOFF.md)
+for remaining authentication, zero-pending, positive-due and workbook gates.
+
 **Latest extension: 0.4.7.** Reload after syncing `codex/budget-collector`.
 This supersedes the older version/status checkpoints below. Chase now records
 observed account/range context and uses a three-row private posted overlap to

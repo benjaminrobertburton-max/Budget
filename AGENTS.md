@@ -4,6 +4,13 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Newest Chase continuation:** extension 0.4.11 adds automatic card switching,
+labeled balance evidence, explicit no-payment-due evidence and independent pending
+count/total reconciliation. A temporary paired command tests both cards and same-session
+anchor replay without retaining home history. Read the newest handoff; do not
+redo the earlier navigation/heading investigation or call candidate capture a
+verified workbook import. Missing pending still means unknown.
+
 **Latest Chase checkpoint:** extension 0.4.7 implements first-page/three-row
 posted-overlap stopping and bounded additional loads only when overlap is missing.
 Never sweep full history by default. Preserve all current pending separately;

@@ -1,7 +1,8 @@
 // This bridge talks only to the loopback collector and reviewed bank sources. It never reads,
 // fills, submits, stores, or transmits credentials, cookies, form values, or
 // browser storage. Chrome's own alarm wakes the installed extension; no helper
-// tab, Chrome launch, debugger, or external web message is used.
+// tab, Chrome launch, or external web message is used. Read-only navigation
+// uses short-lived tab-scoped debugger clicks, never a remote debugging port.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
 const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
 const CHASE_SIGN_ON = "https://www.chase.com/";
@@ -102,27 +103,63 @@ async function openOrReuseChase() {
   await send("/v1/progress", { version: 1, event: "chase_opened", tabId: chaseTabId });
 }
 
+// Runs inside the designated bank tab. Returns only a fixed state and a
+// viewport rectangle, never source text or account identifiers.
+function chaseNavigationStep(label, completed) {
+  const roots=[document], nodes=[];
+  for(let i=0;i<roots.length && i<256;i++)for(const n of roots[i].querySelectorAll('*')){
+    nodes.push(n);if(n.shadowRoot)roots.push(n.shadowRoot);
+  }
+  const visible=n=>n.getClientRects().length>0&&getComputedStyle(n).display!=='none'&&getComputedStyle(n).visibility!=='hidden';
+  const text=n=>(n.innerText||'').replace(/\s+/g,' ').trim();
+  const controls=nodes.filter(n=>n.matches('a,button,[role=link],[role=button]')&&visible(n)&&!n.disabled&&n.getAttribute('aria-disabled')!=='true');
+  if(!controls.some(n=>/^Sign out$/i.test(text(n)))){
+    const auth=nodes.some(n=>n.tagName==='INPUT'&&visible(n)&&!n.disabled
+      &&(n.type==='password'||/^(username|current-password|one-time-code)$/.test(n.autocomplete)));
+    return {state:auth?'auth_required':'waiting'};
+  }
+  const headings=nodes.filter(n=>n.id==='mds-navigation-bar-exp-heading'&&visible(n));
+  if(headings.length===1&&text(headings[0]).startsWith(label+' ('))return {state:'ready'};
+  if(completed.includes('select'))return {state:'waiting'};
+  const choices=controls.filter(n=>text(n).startsWith(label+' ('));
+  let candidates=choices,action='select';
+  if(!choices.length){
+    if(completed.includes('overview'))return {state:'waiting'};
+    candidates=controls.filter(n=>text(n)==='Overview');action='overview';
+    if(!candidates.length){
+      if(completed.includes('accounts'))return {state:'waiting'};
+      candidates=controls.filter(n=>text(n)==='Accounts');action='accounts';
+    }
+  }
+  if(candidates.length!==1)return {state:candidates.length?'ambiguous':'waiting'};
+  const n=candidates[0];n.scrollIntoView({block:'center'});
+  const r=n.getBoundingClientRect();return {state:'click',action,rect:[r.x,r.y,r.width,r.height]};
+}
+
 async function navigateChaseAccount(tabId, label) {
   if (!Number.isInteger(tabId) || !["Sapphire Preferred", "Prime Visa"].includes(label)) return false;
   const target = { tabId };
   try {
     await chrome.debugger.attach(target, "1.3");
-    // Read only the visible label needed to identify the requested product and
-    // return its rectangle. No balances, URLs, form values, credentials, or
-    // transaction text leave the Chase page.
-    const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", {
-      returnByValue: true,
-      expression: `(() => { const target = ${JSON.stringify(label)}; const nodes = [...document.querySelectorAll('a,button,[role="link"],[role="button"]')]; const node = nodes.find(x => (x.innerText || '').trim().toLowerCase().startsWith(target.toLowerCase())); if (!node) return null; const r = node.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
-    });
-    const rect = response?.result?.value;
-    if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return false;
-    const x = rect[0] + rect[2] / 2, y = rect[1] + rect[3] / 2;
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
-    // The Chase reader waits for a recognizable activity table; this one bounded
-    // post-navigation request cannot page or interact with the account.
-    setTimeout(() => { void deliverChaseCapture(tabId); }, 1200);
-    return true;
+    const completed=[];
+    for(let attempt=0;attempt<60;attempt++){
+      const response=await chrome.debugger.sendCommand(target,'Runtime.evaluate',{returnByValue:true,
+        expression:`(${chaseNavigationStep.toString()})(${JSON.stringify(label)},${JSON.stringify(completed)})`});
+      const step=response?.result?.value;
+      if(step?.state==='ready'){await deliverChaseCapture(tabId);return true;}
+      if(step?.state==='auth_required'||step?.state==='ambiguous')return false;
+      if(step?.state==='click'){
+        const rect=step.rect;
+        if(!['accounts','overview','select'].includes(step.action)||completed.includes(step.action)
+          ||!Array.isArray(rect)||rect.length!==4||!rect.every(Number.isFinite)||rect[2]<2||rect[3]<2)return false;
+        const x=rect[0]+rect[2]/2,y=rect[1]+rect[3]/2;
+        await chrome.debugger.sendCommand(target,'Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});
+        await chrome.debugger.sendCommand(target,'Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});
+        completed.push(step.action);
+      }else if(step?.state!=='waiting')return false;
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    return false;
   } catch { return false; }
   finally { await chrome.debugger.detach(target).catch(() => {}); }
 }
@@ -237,7 +274,8 @@ async function pollCommand() {
     if (['open_chase','open_chase_prime','open_chase_sapphire'].includes(command)) chaseAfterToken=null;
     if (["open_chase_sapphire", "open_chase_prime"].includes(command)) {
       if (!Number.isInteger(chaseTabId)) await openOrReuseChase();
-      if (Number.isInteger(chaseTabId)) await navigateChaseAccount(chaseTabId, command === "open_chase_sapphire" ? "Sapphire Preferred" : "Prime Visa");
+      const navigated=Number.isInteger(chaseTabId)&&await navigateChaseAccount(chaseTabId, command === "open_chase_sapphire" ? "Sapphire Preferred" : "Prime Visa");
+      if(!navigated)await send('/v1/progress',{version:1,event:'chase_delivery_failed',tabId:chaseTabId});
     }
     if (command === "capture_wells_activity" && Number.isInteger(wellsTabId)) {
       const frames = await chrome.webNavigation.getAllFrames({ tabId: wellsTabId }).catch(() => []);

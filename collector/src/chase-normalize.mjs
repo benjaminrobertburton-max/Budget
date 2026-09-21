@@ -64,15 +64,42 @@ export function normalizeChaseActivity(candidate, evidenceRef) {
         evidenceRef:`${evidenceRef}:table-${ti}:row-${ri}` });
     }
   }
-  if (!sections.has('pending')) issues.add('pending_section_not_observed');
+  const pendingMatch=/^Pending \((\d+)\)$/.exec(candidate.source.chase?.pendingHeader??'');
+  const pendingExpected=pendingMatch?Number(pendingMatch[1]):null;
+  const pendingActual=transactions.filter(t=>t.state==='pending').length;
+  const pendingCountVerified=Number.isSafeInteger(pendingExpected)&&pendingExpected===pendingActual
+    &&rejectedRows===0&&(sections.has('pending')||pendingExpected===0);
+  if(pendingExpected!==null&&!pendingCountVerified)issues.add('pending_count_mismatch');
+  const pendingSummary=/^Pending \((\d+)\) Pending charges: (.+)$/.exec(candidate.source.chase?.pendingSummary??'');
+  let pendingTotalVerified=false;
+  if(pendingSummary){
+    try{
+      const expected=parseMoney(pendingSummary[2],'USD');
+      let actual=0;
+      for(const row of transactions.filter(t=>t.state==='pending')){
+        actual+=row.sourceAmountMinor;if(!Number.isSafeInteger(actual))throw new Error('OVERFLOW');
+      }
+      pendingTotalVerified=pendingCountVerified&&Number(pendingSummary[1])===pendingExpected&&actual===expected;
+      if(!pendingTotalVerified)issues.add('pending_total_mismatch');
+    }catch{issues.add('invalid_pending_total');}
+  }
+  if (!sections.has('pending')&&!pendingCountVerified) issues.add('pending_section_not_observed');
   if (!sections.has('posted')) issues.add('posted_section_not_observed');
+  const balances=[];
+  for(const balance of candidate.source.balances){
+    if(!['current_balance','remaining_statement_balance','available_credit'].includes(balance.type)
+      || balances.some(b=>b.type===balance.type)){issues.add('invalid_balance_evidence');continue;}
+    try{balances.push({type:balance.type,sourceAmountMinor:parseMoney(balance.text,'USD'),sourceAmountText:balance.text,evidenceRef});}
+    catch{issues.add('invalid_balance_evidence');}
+  }
   // No current reader supplies an independently verified account/range/count
   // contract. Neither a requested product nor an end-of-view footer clears it.
-  return {version:1,kind:'chase_normalized_activity',transactions,observedRows,rejectedRows,
+  return {version:1,kind:'chase_normalized_activity',transactions,balances,observedRows,rejectedRows,
     identity: candidate.source.chase?.product && candidate.source.accountSuffix
       ? {product:candidate.source.chase.product, suffix:candidate.source.accountSuffix} : null,
     range: candidate.source.chase?.range ?? null, nextPage:candidate.source.nextPage,
     pageToken:candidate.source.pageToken,
+    pendingCountVerified,pendingTotalVerified,bankPaymentStatus:candidate.source.chase?.obligation??'unobserved',
     issues:[...issues],remainingGates:[...gates],coverageVerified:false,workbookReady:false};
 }
 
@@ -83,5 +110,8 @@ export function chaseNormalizationSummary(candidate) {
   return {parsedRows:result.transactions.length,observedRows:result.observedRows,rejectedRows:result.rejectedRows,
     pendingRows:result.transactions.filter(t=>t.state==='pending').length,
     postedRows:result.transactions.filter(t=>t.state==='posted').length,
-    issues:result.issues,remainingGates:result.remainingGates,coverageVerified:false,workbookReady:false};
+    pendingCountVerified:result.pendingCountVerified,
+    pendingTotalVerified:result.pendingTotalVerified,
+    bankPaymentStatus:result.bankPaymentStatus,
+    balanceTypes:result.balances.map(b=>b.type),issues:result.issues,remainingGates:result.remainingGates,coverageVerified:false,workbookReady:false};
 }

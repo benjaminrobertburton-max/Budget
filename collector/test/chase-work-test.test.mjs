@@ -9,6 +9,30 @@ import { windowsProtector } from "../src/protection.mjs";
 
 const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 
+test('paired work run isolates both cards and verifies repeat overlap before cleanup',async t=>{
+  const parent=path.join(await tempDirectory(t),'pair');
+  const result=await runChaseWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,target:'both',
+    onReady:async({port})=>{
+      const {base,headers}=await connect(port);
+      for(const product of ['prime_visa','prime_visa','sapphire_preferred','sapphire_preferred']){
+        const command=await(await fetch(base+'/v1/command',{headers})).json();
+        assert.equal(command.command,product==='prime_visa'?'open_chase_prime':'open_chase_sapphire');
+        const c=fictionalActivityCandidate();
+        c.source={accountSuffix:product==='prime_visa'?'1234':'5678',balances:[],nextPage:'next_enabled',pageToken:'a0000001',
+          chase:{product,range:'Activity since last statement',postedFooter:'3 of 20 transactions',pendingObserved:false}};
+        c.tables=[{columns:['date','description','amount','details_control'],headers:['Date','Description','Amount','Action'],
+          rows:[['Posted Transactions'],...['A','B','C'].map(n=>['Sep 1, 2031','FICTIONAL '+n,'$1.00',''])],issues:[]}];
+        assert.equal((await fetch(base+'/v1/chase-activity',{method:'POST',headers,body:JSON.stringify(c)})).status,204);
+      }
+    }});
+  assert.equal(result.status,'candidate_captured');assert.equal(result.checks.length,4);
+  assert.deepEqual(result.checks.map(c=>c.overlap.action),['baseline_only','stop','baseline_only','stop']);
+  assert.equal(result.checks[1].overlap.unmatchedPosted,0);
+  assert.equal(result.checks[3].overlap.unmatchedPosted,0);
+  assert.equal(result.workbookReady,false);
+  assert.deepEqual(await fs.readdir(parent),[]);
+});
+
 test('temporary Chase requests another page only for missing prior overlap and stops when found',async t=>{
   const {normalizeChaseActivity}=await import('../src/chase-normalize.mjs');
   const make=(names,token)=>{

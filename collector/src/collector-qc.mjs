@@ -31,8 +31,8 @@ export async function runCollectorQc({ repositoryRoot }) {
       }
       if (manifest.externally_connectable) fail("no visible trigger route", "externally_connectable is still configured");
       else pass("no visible trigger route", "no externally-connectable localhost page");
-      if (manifest.version === "0.4.7") pass("extension version", "0.4.7 Chase context readiness and anchor-directed loading");
-      else fail("extension version", `expected 0.4.7, found ${String(manifest.version)}`);
+      if (manifest.version === "0.4.11") pass("extension version", "0.4.11 Chase paired capture and pending count/total controls");
+      else fail("extension version", `expected 0.4.11, found ${String(manifest.version)}`);
       if (permissions.has("webNavigation")) pass("frame command delivery", "capture commands can reach every Wells frame");
       else fail("frame command delivery", "webNavigation permission is missing");
       if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");

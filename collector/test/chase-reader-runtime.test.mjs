@@ -6,7 +6,7 @@ import {validateActivityCandidate} from '../src/activity-probe.mjs';
 
 async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
   posted = ['Sep 1, 2031','FICTIONAL B','$2.00',''], single = false,
-  duplicateHeader = false, headings = ['Date','Description','Amount','Action'], rangeReadyAfter = 0 } = {}) {
+  duplicateHeader = false, headings = ['Date','Description','Amount','Action'], rangeReadyAfter = 0, elapsedMsPerTick = 0 } = {}) {
   const messages=[], listeners=[], timers=[];
   let elapsedTicks=0;
   const visibleText=innerText=>({innerText,getClientRects:()=>[{}]});
@@ -23,7 +23,7 @@ async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
     s==='a,button,[role=button],[role=link]'?[visibleText('Sign out')]:
     s==='#mds-navigation-bar-exp-heading'?[visibleText('Prime Visa (...1234)')]:
     s==='#select-ACTIVITY-header-selector-label' && elapsedTicks>=rangeReadyAfter?[visibleText('Activity since last statement')]:[]};
-  const context={document,getComputedStyle:()=>({visibility:'visible',display:'table-row'}),
+  const context={document,Date:{now:()=>elapsedTicks*elapsedMsPerTick},getComputedStyle:()=>({visibility:'visible',display:'table-row'}),
     chrome:{runtime:{sendMessage:async m=>{messages.push(m);},onMessage:{addListener:f=>listeners.push(f)}}},
     MutationObserver:class{observe(){}},setInterval:()=>0,setTimeout:f=>{timers.push(f);return 1;}};
   vm.runInNewContext(await readFile(new URL('../chrome-bridge/chase-page-state.js',import.meta.url),'utf8'),context);
@@ -45,6 +45,12 @@ test('Chase waits for the range control after both activity tables render',async
 test('Chase missing range stays unknown after the bounded readiness window',async()=>{
   const candidate=await captureFixture({rangeReadyAfter:999});
   assert.equal(candidate.source.chase.range,'');
+  assert.equal(candidate.workbookReady,false);
+});
+
+test('Chase wall-clock deadline includes page-scan time, not only retry delays',async()=>{
+  const candidate=await captureFixture({rangeReadyAfter:50,elapsedMsPerTick:1000});
+  assert.equal(candidate.source.chase.range,''); // stop at 30s, not the 50th expensive scan
   assert.equal(candidate.workbookReady,false);
 });
 

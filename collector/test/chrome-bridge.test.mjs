@@ -8,6 +8,28 @@ const post = (port, path, headers = {}, body = "") => fetch(`http://127.0.0.1:${
   method: "POST", headers: { Origin: origin, ...headers }, body,
 });
 
+test('reload transition permits exactly one same-card navigation retry, not a capture retry',async()=>{
+  for(const mode of ['reload','still_auth','already_capturing','no_transition']){
+    const observed=[];
+    const bridge=await startChromeBridge({port:0,nextCommand:'open_chase_sapphire',onProgress:v=>observed.push(v.event)});
+    try{
+      const {session}=await(await post(bridge.port,'/v1/session')).json();
+      const headers={'X-Budget-Collector-Session':session};
+      const get=async()=> (await(await fetch(`http://127.0.0.1:${bridge.port}/v1/command`,{headers})).json()).command;
+      const event=async event=>post(bridge.port,'/v1/progress',headers,JSON.stringify({version:1,event,tabId:2}));
+      assert.equal(await get(),'open_chase_sapphire');
+      if(mode!=='no_transition')await event('chase_auth_required');
+      if(mode!=='still_auth')await event('chase_authenticated_page');
+      if(mode==='already_capturing')await event('chase_capture_dispatched');
+      await event('chase_delivery_failed');
+      assert.equal(await get(),mode==='reload'?'open_chase_sapphire':'none');
+      assert.equal(observed.at(-1),mode==='reload'?'chase_navigation_retry':'chase_delivery_failed');
+      await event('chase_delivery_failed');assert.equal(await get(),'none');
+      assert.equal(observed.at(-1),'chase_delivery_failed');
+    }finally{await bridge.close();}
+  }
+});
+
 test("loopback bridge accepts only one Chrome-extension origin and bounded progress", async () => {
   const observed = [];
   const bridge = await startChromeBridge({ port: 0, onProgress: value => observed.push(value) });

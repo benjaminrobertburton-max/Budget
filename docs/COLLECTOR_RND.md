@@ -39,6 +39,28 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 final 0.4.11 continuation: Sapphire's pending summary includes an
+independent count and dollar total under the pending accordion heading. Both
+reconciled in the live temporary test; all observed balances and explicit no-due
+status were also captured, with cleanup verified. Prime offers no explicit
+zero-pending statement or pending-only option in its inspected activity/download
+views; downloading was cancelled and zero was not inferred. A reload transition
+can still precede failed card navigation; a local, at-most-once retry is now
+limited to that already-authenticated, pre-capture state. Its event-sequence
+regression also forbids retries during authentication or after capture dispatch.
+
+September 21 paired continuation: implemented the observed Accounts -> Overview
+route with requested-heading verification. Version 0.4.8 completed both cards
+and same-session anchor replays live, captured three labeled balances per card,
+and verified temporary evidence deletion without loading older history. Pending
+count evidence comes from #pending-activity-accordion-topLeft; explicit no-due
+wording comes from the visible #title-focus-target heading in the observed
+mds-alert shadow root. No private account IDs were put in selectors or fixtures.
+Version 0.4.9 then hit a capture-window timeout. The reader counted 150 delays
+without accounting for DOM-scan cost. Version 0.4.10 adds an elapsed-time deadline
+and capture-local root reuse, with a simulated expensive-scan regression. Complete
+coverage, explicit live zero-pending and positive-due layouts remain separate gates.
+
 September 21 incremental continuation: user explicitly limited posted collection
 to the saved overlap or a first-page baseline, not all history. Implemented bounded
 anchor-directed loading, independent current pending snapshots, account/range

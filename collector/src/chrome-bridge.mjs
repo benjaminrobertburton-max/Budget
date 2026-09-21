@@ -59,6 +59,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
   let lastEvent = null;
   let chaseAuthenticated = false;
   let nextPageToken = null;
+  let lastChaseCard=null, chaseCaptureDispatched=false, chaseRetryUsed=false, chaseAuthInterrupted=false;
   const server = createServer(async (req, res) => {
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
@@ -78,6 +79,9 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         // not consistently provide.
         if (!origin || (requestOrigin && requestOrigin !== origin) || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
         const command = nextCommand;
+        if(['open_chase_prime','open_chase_sapphire'].includes(command)){
+          lastChaseCard=command;chaseCaptureDispatched=false;
+        }
         nextCommand = "none"; // One-shot command: a later retry never opens a second Wells tab.
         const pageToken=nextPageToken; nextPageToken=null;
         return response(res, 200, origin, { version: 1, command, ...(command==='capture_chase_more'?{pageToken}:{}) });
@@ -96,7 +100,16 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (!validProgress(body)) return response(res, 400, origin);
         lastEvent = body.event;
         if (body.event === "chase_authenticated_page") chaseAuthenticated = true;
-        if (body.event === "chase_auth_required") chaseAuthenticated = false;
+        if (body.event === "chase_auth_required") {chaseAuthenticated = false;chaseAuthInterrupted=true;}
+        if(body.event==='chase_capture_dispatched')chaseCaptureDispatched=true;
+        // A just-reloaded tab can report authentication unavailable then ready
+        // before its navigation attempt fails. Retry that same read-only card
+        // once per local run, never an active challenge, capture or paging error.
+        if(body.event==='chase_delivery_failed'&&lastChaseCard&&chaseAuthInterrupted&&chaseAuthenticated
+          &&!chaseCaptureDispatched&&!chaseRetryUsed&&nextCommand==='none'){
+          chaseRetryUsed=true;nextCommand=lastChaseCard;lastEvent='chase_navigation_retry';
+          onProgress({event:lastEvent});return response(res,204,origin);
+        }
         if (captureAfterAuth && body.event === "authenticated_page" && nextCommand === "none") nextCommand = "capture_wells_activity";
         if (captureAfterAuth && body.event === "chase_authenticated_page" && nextCommand === "none") nextCommand = "capture_chase_activity";
         // On an already-authenticated Chase tab the content-script state can
@@ -125,6 +138,11 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         if (candidate.finding === "candidate_read") {
           try {
             const decision = await onChaseActivityCapture(candidate);
+            if(decision?.nextCard!==undefined){
+              check(['prime_visa','sapphire_preferred'].includes(decision.nextCard)
+                &&decision.nextPageToken===undefined&&nextCommand==='none','INVALID_BRIDGE','The next card request is invalid.');
+              nextCommand=decision.nextCard==='prime_visa'?'open_chase_prime':'open_chase_sapphire';
+            }
             if (decision?.nextPageToken !== undefined) {
               check(/^[a-f0-9]{8}$/.test(decision.nextPageToken) && nextCommand==='none',
                 'INVALID_BRIDGE','The incremental request is invalid.');

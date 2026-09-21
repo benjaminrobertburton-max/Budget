@@ -11,7 +11,7 @@ if (command.length === 1 && command[0] === "collector-qc") {
   console.log(formatCollectorQc(report));
   if (!report.ok) process.exitCode = 1;
 }
-else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "chase-sapphire-work-test"].includes(command[0])) {
+else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "chase-sapphire-work-test", "chase-pair-work-test"].includes(command[0])) {
   const controller = new AbortController();
   const stop = () => controller.abort();
   process.once("SIGINT", stop);
@@ -25,7 +25,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     console.log("Temporary Chase test: encrypted collector evidence is deleted after capture, cancellation or timeout.");
     console.log("Your ordinary Chrome profile, bank cookies and cache are NOT deleted. No workbook or home store is used.");
     console.log("Press Ctrl+C to cancel. The test expires after ten minutes; sign-in automation is not certified.");
-    const target = command[0] === "chase-prime-work-test" ? "prime_visa"
+    const target = command[0] === 'chase-pair-work-test'?'both':command[0] === "chase-prime-work-test" ? "prime_visa"
       : command[0] === "chase-sapphire-work-test" ? "sapphire_preferred" : "overview";
     const result = await runChaseWorkTest({ repositoryRoot, signal: controller.signal, target,
       onReady: () => console.log("One read-only Chase discovery is queued for the installed extension."),
@@ -35,6 +35,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     if (result.summary) console.log(`Structural result only: ${JSON.stringify(result.summary)}`);
     if (result.normalization) console.log(`Chase validation counts only: ${JSON.stringify(result.normalization)}`);
     if (result.overlap) console.log(`Chase incremental status: ${JSON.stringify(result.overlap)}`);
+    if(result.checks?.length)console.log(`Temporary paired capture checks: ${JSON.stringify(result.checks)}`);
     console.log("Collector evidence was removed and deletion verified. Personal Chrome was not closed or cleared.");
     if (result.status !== "candidate_captured") process.exitCode = 1;
   } catch (error) {
@@ -46,7 +47,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     process.removeListener("SIGTERM", stop);
   }
 }
-else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh"].includes(command[0])) {
+else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh", "chase-pair-refresh"].includes(command[0])) {
   let bridge = null;
   try {
     const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
@@ -56,11 +57,13 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
     const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
     let evidenceStore = null;
     let chasePlan = null;
+    const chasePair=command[0]==='chase-pair-refresh';
+    let chasePairPhase=0;
     bridge = await startChromeBridge({
       nextCommand: command[0] === "wells-refresh" ? "open_wells"
         : command[0] === "chase-refresh" ? "open_chase"
           : command[0] === "chase-sapphire-refresh" ? "open_chase_sapphire"
-            : command[0] === "chase-prime-refresh" ? "open_chase_prime" : "none",
+            : command[0] === "chase-prime-refresh" || chasePair ? "open_chase_prime" : "none",
       captureAfterAuth: ["wells-refresh", "chase-refresh"].includes(command[0]),
       onActivityCapture: command[0] === "wells-refresh" ? async candidate => {
         if (!evidenceStore) {
@@ -95,7 +98,8 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
         if(!chasePlan){
           const prior=normalized.identity ? await store.latestPayload({source:'chase',kind:'chase_anchor_snapshot',identity:normalized.identity}) : null;
           chasePlan=createChaseAnchorSession(prior?.normalized??null,{expectedProduct:
-            command[0]==='chase-prime-refresh'?'prime_visa':command[0]==='chase-sapphire-refresh'?'sapphire_preferred':null});
+            chasePair?['prime_visa','sapphire_preferred'][chasePairPhase]:
+              command[0]==='chase-prime-refresh'?'prime_visa':command[0]==='chase-sapphire-refresh'?'sapphire_preferred':null});
         }
         const decision=chasePlan(normalized);
         await store.save({ source: 'chase', capturedAt, payload: normalized });
@@ -108,6 +112,9 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
         console.log(`Chase validation counts only: ${JSON.stringify(chaseNormalizationSummary(candidate))}`);
         console.log(`Chase incremental status: ${JSON.stringify(chaseOverlapSummary(decision))}`);
         if(decision.action==='load_more')return {nextPageToken:candidate.source.pageToken};
+        if(chasePair&&chasePairPhase===0&&['baseline_only','stop'].includes(decision.action)){
+          chasePairPhase=1;chasePlan=null;return {nextCard:'sapphire_preferred'};
+        }
       } : null,
       onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
     });

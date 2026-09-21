@@ -13,6 +13,18 @@ function fixture(posted=[['Sep 1, 2031','FICTIONAL SHOP','Shopping','$4.21','']]
     tables:[...(pending?[table('Pending Transactions',pending)]:[]),table('Posted Transactions',posted)]};
 }
 
+test('labeled Chase balances preserve signs and remain private evidence, not cash capacity',()=>{
+  const c=fixture();c.source.chase={product:'prime_visa',range:'Activity since last statement',postedFooter:'',pendingObserved:false};
+  c.source.balances=[{type:'current_balance',text:'-$12.34'},{type:'remaining_statement_balance',text:'($2.00)'},
+    {type:'available_credit',text:'$800.00'}];
+  const r=normalizeChaseActivity(c,'fictional');
+  assert.deepEqual(r.balances.map(b=>b.sourceAmountMinor),[-1234,-200,80000]);
+  assert.equal(r.workbookReady,false);
+  assert.doesNotMatch(JSON.stringify(chaseNormalizationSummary(c)),/12\.34|80000|800\.00/);
+  c.source.balances[1]={type:'current_balance',text:'$1.00'};
+  assert.ok(normalizeChaseActivity(c,'fictional').issues.includes('invalid_balance_evidence'));
+});
+
 test('Chase preserves source signs, category, dates and duplicate purchases without ledger assumptions',()=>{
   const row=['09/01/2031','FICTIONAL DUPLICATE','Shopping','$4.21',''];
   const candidate=fixture([row,row,['Aug 31, 2031','FICTIONAL CREDIT','','−$2.87','']],
@@ -38,6 +50,30 @@ test('posted-only Chase capture never means zero pending or verified coverage',(
   assert.ok(r.remainingGates.includes('pending_coverage_unverified'));
   assert.ok(r.remainingGates.includes('posted_coverage_unverified'));
   assert.equal(r.coverageVerified,false);
+});
+
+test('independent pending heading must match captured rows; absence is never zero',()=>{
+  const c=fixture(undefined,[['Pending','FICTIONAL AUTH','','$1.00','']]);
+  c.source.chase={product:'prime_visa',range:'Activity since last statement',postedFooter:'',pendingObserved:true,pendingHeader:'Pending (1)',obligation:'no_payment_due'};
+  let r=normalizeChaseActivity(c,'fictional');
+  assert.equal(r.pendingCountVerified,true);assert.equal(r.bankPaymentStatus,'no_payment_due');
+  assert.ok(r.remainingGates.includes('obligations_unverified')); // no minimum due is not a statement-payoff decision
+  assert.equal(r.workbookReady,false);
+  c.source.chase.pendingHeader='Pending (2)';r=normalizeChaseActivity(c,'fictional');
+  assert.equal(r.pendingCountVerified,false);assert.ok(r.issues.includes('pending_count_mismatch'));
+  c.source.chase.pendingHeader='';assert.equal(normalizeChaseActivity(c,'fictional').pendingCountVerified,false);
+  c.tables.shift();c.source.chase.pendingHeader='Pending (0)';c.source.chase.pendingObserved=false;
+  assert.equal(normalizeChaseActivity(c,'fictional').pendingCountVerified,true);
+});
+
+test('independent pending charges reconcile exact signed totals without inferring missing values',()=>{
+  const c=fixture(undefined,[['Pending','FICTIONAL A','','$4.00',''],['Pending','FICTIONAL B','','-$1.00','']]);
+  c.source.chase={product:'prime_visa',range:'Activity since last statement',postedFooter:'',pendingObserved:true,
+    pendingHeader:'Pending (2)',pendingSummary:'Pending (2) Pending charges: $3.00'};
+  assert.equal(normalizeChaseActivity(c,'fictional').pendingTotalVerified,true);
+  c.source.chase.pendingSummary='Pending (2) Pending charges: $3.01';
+  assert.ok(normalizeChaseActivity(c,'fictional').issues.includes('pending_total_mismatch'));
+  c.source.chase.pendingSummary='';assert.equal(normalizeChaseActivity(c,'fictional').pendingTotalVerified,false);
 });
 
 for(const date of ['02/30/2031','Sep 31, 2031','09/01/31','','Pending','2031-09-01']) {

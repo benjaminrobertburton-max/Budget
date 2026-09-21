@@ -37,11 +37,17 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
     await page.setContent('<button>Sign out</button><span id="mds-navigation-bar-exp-heading">Prime Visa (...1234)</span>'
       + '<span id="select-ACTIVITY-header-selector-label">Activity since last statement</span>'
       + '<div id="activity_messages_id">You\'ve reached the end of your account activity.</div>'
+      + '<div id="custom-accordion-heading-container-pending-activity-accordion"><div id="pending-activity-accordion-topLeft">Pending (1)</div><span>Pending charges: $3.00</span></div>'
+      + '<mds-alert id="cardNoPaymentDue-fictional-alertId"></mds-alert>'
+      + '<div id="currentBalance"><a>Current balance</a><span>-$12.34</span></div>'
+      + '<div id="remainingStatementBalance-dataItem"><a>Remaining statement balance</a><span>($2.00)</span></div>'
+      + '<div id="availableCredit-dataItem"><div>Available credit</div><span>$800.00</span></div>'
       + '<table id="PENDING-fictional">' + headers
       + '<tr><td>Pending</td><td>FICTIONAL PENDING</td><td>$3.00</td><td></td></tr></table>'
       + '<table id="ACTIVITY-fictional">' + headers
       + '<tr id="posted"><td>Sep 1, 2031</td><td>FICTIONAL POSTED</td><td>-$2.00</td><td></td></tr></table>');
     await page.evaluate(() => {
+      document.querySelector('mds-alert').attachShadow({mode:'open'}).innerHTML='<div id="title-focus-target" role="heading">Success: You don\'t have a payment due right now.</div>';
       window.chaseMessages = [];
       window.chrome = { runtime: { sendMessage: async message => { window.chaseMessages.push(message); },
         onMessage: { addListener: listener => { window.chaseListener = listener; } } } };
@@ -66,8 +72,13 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
     assert.equal(original.source.accountSuffix,'1234');
     assert.equal(original.source.chase.product,'prime_visa');
     assert.equal(original.source.chase.pendingObserved,true);
+    assert.equal(original.source.chase.pendingHeader,'Pending (1)');
+    assert.equal(original.source.chase.pendingSummary,'Pending (1) Pending charges: $3.00');
+    assert.equal(original.source.chase.obligation,'no_payment_due');
     assert.equal(original.source.nextPage,'next_disabled');
     assert.notEqual(original.source.pageToken,'00000000');
+    assert.deepEqual(original.source.balances,[{type:'current_balance',text:'-$12.34'},
+      {type:'remaining_statement_balance',text:'($2.00)'},{type:'available_credit',text:'$800.00'}]);
     await page.evaluate(() => document.querySelector("#posted").lastElementChild.remove());
     assert.equal((await capture()).finding, "no_activity_table");
     await page.evaluate(() => {
