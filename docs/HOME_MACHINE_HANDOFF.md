@@ -2,6 +2,80 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Approved reduced scope and completion status (newest)
+
+The user approved prioritizing useful account coverage rather than implementing
+an equally extensive transaction collector for every institution. This supersedes
+older instructions to expand all adapters uniformly. It changes the development
+plan, not the current runtime registry, collection cadence or financial rules.
+Do not reopen completed Wells/Chase navigation and reader work without a concrete
+regression. Do not call a successful capture test a completed budget refresh.
+
+| Milestone | Wells | Chase (both cards) |
+| --- | --- | --- |
+| Source capture and parsing | Working capture, normalization, footer and repeat-anchor checks reported by the home checkpoint; preserve them | Live paired navigation/capture, labeled balances, no-payment-due evidence and repeat anchors passed here; Sapphire pending count/total passed live |
+| Incremental handling | Existing overlap comparison and provisional ledger-row mapping | Existing bounded overlap/paging; same-session repeat proven live, anchor-missing paging covered by fictional tests |
+| Production workbook update | Not completed: staged rows are not a verified workbook write | Not completed: normalized evidence is not a verified workbook write |
+| Approval-only sign-in and end-to-end home acceptance | Not certified | Not certified |
+
+The Chase-wide absent-pending inference is implemented and regression-tested
+as documented below; it needs no extension reload. It is not a remaining policy
+blocker. The latest full code suite passed 320/320. Wells live results above are
+reported from the home handoff, not newly retested on this machine.
+
+#### Prioritized scope
+
+1. **Chase and Wells: retain the working source-capture milestones.** Close only
+   identified coverage/reconciliation gaps and the shared verified-input-to-builder
+   path. Do not wait for every low-activity adapter before testing that integration
+   with fictional inputs. Preserve balances, current pending, posted overlap,
+   account binding and the workbook's existing financial model.
+2. **Citi: next new transaction adapter.** Capture balance/payment requirements,
+   current pending and posted purchases/payments/refunds through the saved anchor.
+3. **PayPal Credit: focused debt/promo adapter.** Capture current balance, payment
+   requirements/receipts, all active promo balances/deadlines and source-visible
+   allocation evidence needed by the payoff plan. Avoid unrelated shopping-history
+   expansion. Existing cruise, tuition and future-expenses transfers remain required;
+   verify their cash movements through existing source evidence and add bucket
+   details only where the workbook actually needs them. Never guess allocation.
+4. **Wealthfront: lightweight cash reader.** Available balance and recent transfers
+   relevant to Wells/rent/reserves; no investment/trade-history project.
+5. **Discover: smaller automated check, lower priority.** Balance, pending, due
+   requirements and relevant recent activity, including recurring insurance.
+   **Capital One: defer a full transaction engine**, retain an automated balance/
+   payment-status check and enough change detection to surface new obligations.
+6. **Fidelity: no separate weekly portal adapter for now.** Use Wells evidence for
+   the scheduled contribution; an outgoing debit is not proof of portfolio value
+   or settlement at Fidelity. **CUTX/RBC: periodic focused checks** for payment
+   receipt, current obligations and relevant reserve/cash movements. Keep their
+   scheduled payments/reserves in the workbook every week, even between checks.
+
+"Lightweight" describes extraction scope, not a recurring manual chore. The final
+routine user role remains ONLY required 2FA approval. Authentication/navigation
+still need implementation/testing per institution. Do not infer no activity from
+a zero or unchanged balance. Do not silently drop deferred accounts from the
+verified source set: encode required fields/cadence/freshness explicitly when the
+registry is implemented. Until covered, retain the existing fallback or report
+the missing source; do not label a partial budget refresh complete. Unknown new
+activity must trigger further collection/review, not be silently ignored.
+
+#### Shared remaining work, not another reader redesign
+
+- Bind captures to the private account registry and accepted prior history;
+  reconcile pending-to-posted changes, duplicate occurrences and changed history.
+  Account-specific missing source fields (including positive Chase payment-due
+  layouts) still require actual evidence or an explicit exception, not guesses.
+- Connect verified inputs to the existing builder, preserving manual settings,
+  historical records, scheduled transfers and all financial logic; verify atomic
+  private save/backup, formulas and matching Start/Tuesday cash outputs.
+- Complete ordinary saved-credential sign-in and continuation after user 2FA,
+  one-button orchestration and existing shadow/home acceptance checks. Develop
+  portable code here; only machine-private setup/data/sessions and genuine home
+  acceptance remain home-specific. Never extract credentials or copy profiles.
+
+This checkpoint is a documentation/scope update only. No account adapter, bank
+session, financial data, workbook, registry requirement or refresh schedule changed.
+
 ### User-approved Chase absent-pending rule — supersedes the gap below
 
 The user explicitly authorized this for Chase as a whole, including BOTH Prime

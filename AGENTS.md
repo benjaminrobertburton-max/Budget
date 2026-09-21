@@ -4,6 +4,17 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Newest approved scope — September 21:** preserve working Wells/Chase capture
+milestones; do not rebuild them or confuse capture success with a production
+workbook refresh. Prioritize shared verified workbook integration, then Citi
+transactions, focused PayPal promo/debt evidence and lightweight Wealthfront cash/
+transfers. Discover/Capital One get smaller automated checks, not equal full-history
+engines. Fidelity contributions use Wells evidence; CUTX/RBC receive periodic
+focused checks without removing their weekly scheduled obligations. See "Approved
+reduced scope and completion status" in `docs/HOME_MACHINE_HANDOFF.md` for authority,
+proven milestones and remaining work. No silently skipped accounts or new weekly
+manual chores; the user's routine role remains ONLY necessary 2FA approval.
+
 **September 21 user-approved Chase exception (newest):** for Chase as an
 institution, including Prime Visa and Sapphire Preferred, an absent pending
 section on a successfully loaded, identified activity page means inferred zero

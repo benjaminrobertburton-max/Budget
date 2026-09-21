@@ -2,6 +2,17 @@
 
 ## Current checkpoint — September 21
 
+**Approved reduced scope:** Wells and Chase have working source-capture milestones,
+not a completed production budget refresh. Preserve them. Prioritize the shared
+verified workbook-input path; Citi is the next new transaction adapter, then
+focused PayPal promo/debt and lightweight Wealthfront cash/transfer readers.
+Use smaller automated checks for Discover/Capital One and periodic focused checks
+for CUTX/RBC; no separate weekly Fidelity portal reader for now. Keep all scheduled
+obligations and explicit source-freshness requirements. The final user role remains
+only required 2FA approval, not routine manual entry. See the authoritative
+[scope and completion checklist](../docs/HOME_MACHINE_HANDOFF.md#approved-reduced-scope-and-completion-status-newest).
+This is a development-plan change, not an implemented registry/cadence change.
+
 **Newest user-approved Chase policy:** missing pending on a successfully loaded,
 identified Chase activity page means inferred zero, for BOTH Prime Visa and
 Sapphire Preferred. The local normalizer records this as

@@ -2,6 +2,19 @@
 
 ## Status and authority
 
+**Newest approved reduced scope — September 21:** preserve Wells/Chase capture
+milestones and close shared verified workbook integration; Citi is the next new
+transaction adapter, followed by focused PayPal promo/debt and lightweight
+Wealthfront cash/transfer capture. Defer full transaction engines for low-activity
+accounts in favor of smaller automated checks. No separate weekly Fidelity portal
+adapter for now; use Wells contribution evidence. CUTX/RBC receive periodic focused
+checks while all scheduled obligations remain in the weekly workbook. The current
+handoff's "Approved reduced scope and completion status" defines this plan and
+supersedes uniform all-account expansion below. Capture works does not mean a
+verified workbook refresh or approval-only sign-in is completed. Do not omit
+required evidence, silently change the runtime registry/cadence, or replace
+automation with recurring manual input chores.
+
 **September 21 Chase-specific user exception:** across Chase accounts, including
 Prime Visa and Sapphire Preferred, a successfully loaded and identified activity
 page without a pending section may be treated as zero pending. Preserve explicit
@@ -262,7 +275,7 @@ Build on a dedicated feature branch such as `codex/budget-collector`. The work m
 2. **Reconciliation first** — implement transaction lifecycle, signed amount, deduplication, classification, transfer matching, safe-cash additive events, and Start/Tuesdays cash consistency against fixtures before connecting a real browser.
 3. **Workbook input boundary** — define and test the verified import snapshot format; refactor the builder to consume it while preserving the existing financial logic, settings, manual updates, history, and formula/layout protections. Verify private output and backups before migrating the real workbook on the home machine.
 4. **Pilot adapter** — implement Wells Fargo summary + activity as the first direct browser adapter. Use the approved disposable work-machine test environment once browser lifecycle safeguards are ready; confirm it again at home. Prove it returns balance, pending, posted, deposits, transfers, and source coverage without making any account change.
-5. **Expand adapters** — add high-impact active accounts and their payment/promo pages one at a time, with a fixture and regression test for each.
+5. **Expand adapters selectively** — follow the approved reduced scope above: Citi transactions, PayPal promo/debt evidence and Wealthfront cash/transfers, then smaller checks for other accounts. Preserve successful Wells/Chase work. Add a fixture and regression test per supported source contract, not a full-history engine for every institution. Implement explicit cadence/freshness requirements before reducing any source checks; scheduled obligations never disappear between captures.
 6. **One-button orchestration** — add the on-demand Tuesday launcher, status, retry/resume after user authentication, local encryption, formula/output verification, private backups, and local workbook opening. Do not add Git publication, a daily scheduler, or prefetch in Version 1. Human visual inspection belongs in development and shadow certification; routine automated checks must not require an AI or human review of every successful run.
 7. **Shadow mode** — for at least three to four complete weekly cycles, compare collector output to user-visible institution pages and the existing audited workflow. Certify each source individually; do not retire the fallback until results reconcile consistently.
 
