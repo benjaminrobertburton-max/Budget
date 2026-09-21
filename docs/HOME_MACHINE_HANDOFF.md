@@ -2,6 +2,58 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Private Chase normalization continuation
+
+`collector/src/chase-normalize.mjs` now parses the observed full-year named and
+numeric dates, exact displayed amount signs, section status and source Category.
+It preserves duplicates and raw strings. Source dates are NOT asserted to be
+posting dates; bank categories are NOT household budget categories; displayed
+card signs are NOT converted into Wells cash-flow signs. Unknown dates/columns,
+malformed rows, ambiguous sections and amounts become explicit exceptions.
+Missing pending activity is unknown, never zero.
+
+The existing temporary work commands encrypt raw plus normalized evidence in
+the same disposable record and remove it on cleanup. Normal home Chase refresh
+commands save raw and normalized records in the existing private encrypted store;
+do not run those persistent commands at work. Output contains fixed issue codes
+and counts only. Neither path can update a workbook. Extension remains 0.4.5;
+this local-code change does not need an extension reload.
+
+Identity binding, balance meanings, obligations, independent posted/pending
+coverage and prior-anchor reconciliation remain blocking gates. Internal row
+counts are not independent source controls. The prior live success established
+table capture only; this continuation must not relabel it as a verified import.
+The previously inspected Chase tab was no longer a Chase page at continuation;
+no unrelated work page was changed. A fresh official Chase tab was opened for
+renewed authenticated inspection; Sapphire/context validation still needs it.
+
+Validation: full serial suite **292/292 passed**, no skips/failures; QC passes.
+After the user signed in to Overview, the temporary Sapphire command navigated
+to that card and captured/normalized posted rows without rejection. Direct DOM
+inspection confirmed the Sapphire heading. However, the pending table appeared
+later and the posted footer reported a partial `N of M transactions` view.
+Do not treat that first-candidate event as readiness/completeness.
+
+The read-only `See more activity` button lives in an `MDS-BUTTON` open shadow
+root under `#activity_messages_id`; its accessible text is repeated. One attended
+click loaded the remaining posted view and changed the footer to
+`You've reached the end of your account activity.` A subsequent temporary capture
+parsed both sections with no rejected rows; the posted row count matched the
+earlier footer total. Both test runs verified collector evidence deletion. No
+workbook changed. This was attended UI verification, NOT collector pagination.
+
+Next implement source-context evidence and readiness/coverage controls, then
+anchor-aware bounded loading. Generic observed context containers are
+`#currentBalance`, `#remainingStatementBalance-dataItem`,
+`#availableCredit-dataItem`; do not identify values just by child position.
+Activity-range control is `#select-ACTIVITY-header-selector-label`, displayed
+`Activity since last statement`. End of that filtered view is not account-wide
+history or proof of pending completeness. Capture both sections after readiness;
+no guessed zero-pending, unconditional history sweep, or arbitrary delay as proof.
+Bind product/suffix/expected account independently of the requested navigation
+target and preserve prior anchors only in the private home store. The current
+reader's paired-table page token remains a placeholder; fix before pagination.
+
 ### Observed Chase heading mismatch — extension 0.4.5
 
 The user confirmed Prime Visa transactions were visible during the failed retry,

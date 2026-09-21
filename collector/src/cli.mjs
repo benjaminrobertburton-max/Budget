@@ -33,6 +33,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     });
     console.log(`Temporary Chase result: ${result.status}.`);
     if (result.summary) console.log(`Structural result only: ${JSON.stringify(result.summary)}`);
+    if (result.normalization) console.log(`Chase validation counts only: ${JSON.stringify(result.normalization)}`);
     console.log("Collector evidence was removed and deletion verified. Personal Chrome was not closed or cleared.");
     if (result.status !== "candidate_captured") process.exitCode = 1;
   } catch (error) {
@@ -84,8 +85,12 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
           import("./private-paths.mjs"), import("./private-evidence-store.mjs"), import("./activity-probe.mjs"),
         ]);
         const store = await openPrivateEvidenceStore({ root: defaultPrivateRoot(), repositoryRoot });
-        await store.save({ source: "chase", capturedAt: new Date().toISOString(), payload: candidate });
+        const capturedAt = new Date().toISOString();
+        const reference = await store.save({ source: "chase", capturedAt, payload: candidate });
+        const { normalizeChaseActivity, chaseNormalizationSummary } = await import('./chase-normalize.mjs');
+        await store.save({ source: 'chase', capturedAt, payload: normalizeChaseActivity(candidate, reference) });
         console.log(`Chase discovery: ${JSON.stringify(activitySummary(candidate))}`);
+        console.log(`Chase validation counts only: ${JSON.stringify(chaseNormalizationSummary(candidate))}`);
       } : null,
       onProgress: ({ event }) => console.log(`Chrome bridge state: ${event}.`),
     });

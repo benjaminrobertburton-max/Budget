@@ -39,6 +39,20 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 Sapphire continuation: navigation from authenticated Overview
+reached Sapphire and the first candidate normalized, but direct follow-up found
+pending activity rendered later and the posted footer still showing `N of M
+transactions`. The first candidate must not establish completeness. The observed
+load control is `See more activity` inside an MDS-BUTTON shadow root under
+`#activity_messages_id`. One attended read-only click loaded the rest of the
+selected statement-period view; a second temporary capture parsed pending and
+posted rows without rejection and matched the prior posted footer count. Both
+temporary evidence cleanups were verified. Source-context capture, deterministic
+readiness, independent controls and anchor-aware loading remain unimplemented;
+do not hide these gaps behind the successful parser result. No real page data
+was added to fixtures. The new private normalizer preserves source categories,
+dates and signs without inferring household ledger meanings. Tests: 292/292 pass.
+
 September 21 authorized direct Chase inspection established a concrete parser
 mismatch after the user confirmed Prime transactions were visible. The real TH
 text is `Date, not sorted\nDate`, `Description, not sorted\nDescription`, and

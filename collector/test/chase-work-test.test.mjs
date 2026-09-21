@@ -111,6 +111,32 @@ test("work Chase capture encrypts evidence, drains bridge and deletes only its o
   assert.deepEqual(await fs.readdir(parent),[]);
 });
 
+test("Chase work normalization remains inside encrypted evidence and exposes only counts", async t => {
+  const parent=path.join(await tempDirectory(t),'normalized-work');
+  const protector=fixtureProtector();
+  let saved;
+  const candidate=fictionalActivityCandidate();
+  candidate.tables=[{columns:['date','description','unknown','amount','details_control'],
+    headers:['Date','Description','Category','Amount','Action'],
+    rows:[['Posted Transactions'],['Sep 1, 2031','FICTIONAL PRIVATE SHOP','Shopping','−$3.27','']],
+    issues:['unknown_columns']}];
+  const result=await runChaseWorkTest({repositoryRoot,parent,port:0,
+    protector:{...protector,sealMany:async records=>{
+      const blobs=await protector.sealMany(records);
+      if(records[0].kind==='work_chase_candidate') saved=(await protector.openMany(blobs))[0];
+      return blobs;
+    }},onReady:async({port})=>{
+      const {base,headers}=await connect(port);
+      assert.equal((await fetch(base+'/v1/chase-activity',{method:'POST',headers,body:JSON.stringify(candidate)})).status,204);
+    }});
+  assert.equal(saved.normalized.transactions[0].sourceAmountMinor,-327);
+  assert.equal(saved.normalized.transactions[0].sourceCategory,'Shopping');
+  assert.equal(result.normalization.parsedRows,1);
+  assert.equal(result.normalization.workbookReady,false);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE SHOP|Shopping|327/);
+  assert.deepEqual(await fs.readdir(parent),[]);
+});
+
 for (const reason of ["cancelled","timeout","capture_failed"]) {
   test(`work Chase ${reason} leaves no collector evidence`, async t => {
     const parent = path.join(await tempDirectory(t), "work-test");

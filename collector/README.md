@@ -2,6 +2,15 @@
 
 ## Current checkpoint — September 21
 
+Chase captures now also produce private normalized evidence: exact source amounts,
+full-year source dates, pending/posted sections and source Category, retaining
+duplicates and raw text. Only fixed exception codes/counts are printed. Missing
+pending activity is unknown, not zero; budget categorization and cash-flow sign
+mapping remain separate. Identity/balances/obligations/coverage/anchors still block
+workbook use. Temporary work commands encrypt then delete both forms; home refresh
+commands retain both in the existing private store. No extension reload is needed
+for normalization; the extension remains 0.4.5.
+
 Latest extension is **0.4.5**. Reload after syncing. Direct, user-authorized Chase
 inspection identified repeated sortable header text (`Date, not sorted Date`)
 that the reader rejected. The narrow fix recognizes the observed matching-label

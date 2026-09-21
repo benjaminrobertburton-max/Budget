@@ -2,6 +2,7 @@ import { withDisposableTestRun } from "./disposable-run.mjs";
 import { startChromeBridge } from "./chrome-bridge.mjs";
 import { activitySummary, validateActivityCandidate } from "./activity-probe.mjs";
 import { requireEvidence as check } from "./errors.mjs";
+import { normalizeChaseActivity, chaseNormalizationSummary } from "./chase-normalize.mjs";
 
 // Temporary collector evidence only. We neither own nor delete ordinary Chrome.
 // No home store, workbook writes, source previews or financial console output.
@@ -25,6 +26,7 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     let capturing = false;
     let bridge;
     let summary = null;
+    let normalization = null;
     let captureTimer = null;
     let lastEmptyOutcome = null;
     const stop = reason => { if (terminal === null) { terminal = reason; finish(); } };
@@ -61,9 +63,11 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
           capturing = true;
           try {
             validateActivityCandidate(candidate);
-            await scope.saveEvidence({ version: 1, kind: "work_chase_candidate", candidate });
+            const normalized = normalizeChaseActivity(candidate, 'work:chase-candidate');
+            await scope.saveEvidence({ version: 1, kind: "work_chase_candidate", candidate, normalized });
             if (terminal === null) {
               summary = activitySummary(candidate);
+              normalization = chaseNormalizationSummary(candidate);
               stop("candidate_captured");
             }
           } catch {
@@ -78,6 +82,6 @@ export async function runChaseWorkTest({ repositoryRoot, parent, protector,
     // The scope drains registered writes, then closes/drains the bridge under
     // its bounded close timeout BEFORE deletion. Terminal callbacks reject new
     // captures; a stuck HTTP shutdown preserves files and reports cleanup blocked.
-    return { status: terminal, summary, workbookReady: false };
+    return { status: terminal, summary, normalization, workbookReady: false };
   });
 }
