@@ -28,7 +28,7 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
 
   return Object.freeze({
     async save({ source, capturedAt, payload }) {
-      check(["wells", "chase"].includes(source) && typeof capturedAt === "string" && Number.isFinite(Date.parse(capturedAt))
+      check(["wells", "chase", "citi"].includes(source) && typeof capturedAt === "string" && Number.isFinite(Date.parse(capturedAt))
         && payload && typeof payload === "object" && !Array.isArray(payload),
       "INVALID_EVIDENCE", "The private source evidence is incomplete.");
       const record = { version: 1, kind: "budget-collector-source-evidence", source, capturedAt, payload };
@@ -54,7 +54,7 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       await assertRegularFile(filename, MAX_RECORD_BYTES * 2);
       const [record] = await protector.openMany([await fs.readFile(filename)]);
       check(record?.version === 1 && record.kind === "budget-collector-source-evidence"
-        && ["wells", "chase"].includes(record.source) && typeof record.capturedAt === "string" && record.payload,
+        && ["wells", "chase", "citi"].includes(record.source) && typeof record.capturedAt === "string" && record.payload,
       "INVALID_EVIDENCE", "The private evidence record is invalid.");
       return structuredClone(record);
     },
@@ -82,8 +82,8 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
     // never a substitute for evidence. Keep timestamp/reference with the payload
     // so the importer can enforce freshness and re-run source validation.
     async latestCapture({source,product=null,suffix}) {
-      check(['wells','chase'].includes(source)&&/^\d{4}$/.test(suffix??'')
-        &&(source==='wells'?product===null:['prime_visa','sapphire_preferred'].includes(product)),
+      check(['wells','chase','citi'].includes(source)&&/^\d{4}$/.test(suffix??'')
+        &&(source==='wells'?product===null:source==='citi'?product==='aadvantage':['prime_visa','sapphire_preferred'].includes(product)),
       'INVALID_EVIDENCE','The private capture binding is invalid.');
       await verify();
       const names=(await fs.readdir(evidence)).filter(name=>filePattern.test(name));
@@ -95,6 +95,8 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       for(const {name} of candidates.slice(0,64)){
         const reference=`local:evidence:${name.slice(0,-4)}`;
         const record=await this.open(reference),c=record.payload;
+        if(source==='citi'&&record.source==='citi'&&c?.kind==='citi_activity'
+          &&c.identity===`Citi®/AAdvantage® Platinum Select® World Elite Mastercard® - ${suffix}`)return {reference,record};
         if(record.source===source&&c?.kind==='activity_candidate'
           &&c.source?.accountSuffix===suffix
           &&(source==='wells'?!c.source.chase:c.source.chase?.product===product))return {reference,record};

@@ -4,6 +4,17 @@
 
 ### Citi first-page collector — current development checkpoint
 
+**Workbook integration now implemented:** private `bindings.citi` enables Citi in
+the same `workbook-import` path as Wells/both Chase cards. `citi-refresh` stores RAW
+Citi capture evidence in the existing private encrypted store; importer revalidates
+it, matches accepted ledger anchors, reconciles pending, and updates ledger, source
+controls, balance, actual minimum and due date. Workbook save retains the original
+backup and native parts. The accepted workbook ledger persists anchors between
+runs; failed imports never advance it. See `COLLECTOR_WORKBOOK_INTAKE.md` for the
+one-time private configuration addition. No extension reload needed. Fictional
+end-to-end and actual-template compatibility passed; fresh live capture through the
+current home workbook has not yet been acceptance-tested.
+
 Extension **0.4.13** adds the observed Citi single-card dashboard reader on
 `citi.com` and reuses the existing loopback bridge, money parser and encrypted
 disposable-test lifecycle. It reads the labeled account suffix, current/available
@@ -33,8 +44,9 @@ refunds or cardmembers, not an unlimited history request. Missing overlap stops
 with `anchor_missing_from_range`; older-range navigation is not yet supported.
 First capture is a proposed baseline, not accepted financial history. Citi's
 absent pending section remains unknown (the Chase exception does not apply).
-Persistent Citi/home binding, saved sign-in, workbook mapping and cross-week
-acceptance are not supplied by this temporary reader test. Preserve the working
+The temporary reader test itself does not configure the private home binding or
+perform saved sign-in and cross-week acceptance. Workbook mapping/storage are now
+implemented as described above. Preserve the working
 Wells/Chase paths; do not rebuild them to add Citi.
 
 ### Direct Wells/Chase workbook import (supersedes review-only checkpoint)

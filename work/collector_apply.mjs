@@ -128,6 +128,9 @@ export async function buildDirectWorkbook(original,intake){
   write(CASH,'E5',-wp.filter(r=>r.amountMinor<0).reduce((s,r)=>s+r.amountMinor,0)/100);
   write(CASH,'G5','Bank available balance; pending is shown separately, not deducted twice. '+wells.evidenceRef);
   const controls=[['wells',12,['posted','pending']],['chase_sapphire',14,['posted']],['chase_sapphire',15,['pending']],['chase_prime',17,['posted','pending']]];
+  const hasCiti=result.reports.some(a=>a.key==='citi');
+  const importedLabel=hasCiti?'Wells, Chase and Citi':'Wells and Chase';
+  if(hasCiti)controls.push(['citi',16,['posted','pending']]);
   for(const [key,row,states] of controls){
     const report=result.reports.find(a=>a.key===key),indices=states.flatMap(s=>report.scope[s]);
     // For combined source controls count exact account and active statuses. For
@@ -139,25 +142,26 @@ export async function buildDirectWorkbook(original,intake){
     write(CASH,`G${row}`,'='+archives.map(a=>`SUMIF('${LEDGER}'!$K$5:$K$${end},"${a}",'${LEDGER}'!$D$5:$D$${end})`).join('+'),true);
     write(CASH,`H${row}`,'Yes');
     const needs=indices.some(i=>result.rows[i][12]!=='Verified');
-    const status=needs?'Needs classification':key!=='wells'&&report.bankPaymentStatus!=='no_payment_due'?'Needs payment details':'Verified';
+    const status=needs?'Needs classification':key!=='wells'&&!['no_payment_due','requirements_captured'].includes(report.bankPaymentStatus)?'Needs payment details':'Verified';
     write(CASH,`I${row}`,`=IF(OR(E${row}<>D${row},ABS(G${row}-F${row})>0.005),"Source check needed","${status}")`,true);
     write(CASH,`J${row}`,report.pendingBasis+(needs?'; resolve ledger date/category exceptions':''));
   }
   if(typeof oldReview!=='number'||oldReview<reviewSerial)for(const row of [13,16,18,19,20]){
-    write(CASH,`I${row}`,'Needed');write(CASH,`J${row}`,'Not refreshed by the Wells/Chase import.');
+    if(controls.some(c=>c[1]===row))continue;
+    write(CASH,`I${row}`,'Needed');write(CASH,`J${row}`,'Not refreshed by this import.');
   }
   const debts=sheet(DEBT).getUsedRange().values;
-  for(const [key,label] of [['chase_sapphire','Chase card'],['chase_prime','Prime Visa card']]){
+  for(const [key,label] of [['chase_sapphire','Chase card'],['chase_prime','Prime Visa card'],...(hasCiti?[['citi','Citi card']]:[])]){
     const report=result.reports.find(a=>a.key===key),row=debts.findIndex(r=>r[0]===label)+1;
-    check(row>=5,'UNSUPPORTED_WORKBOOK','A Chase debt input row is missing.');
+    check(row>=5,'UNSUPPORTED_WORKBOOK','A card debt input row is missing.');
     const current=report.balances.find(b=>b.type==='current_balance');check(current,'MISSING_BALANCE','A card balance is missing.');
     write(DEBT,`B${row}`,current.amountMinor/100);
-    write(DEBT,`C${row}`,report.bankPaymentStatus==='no_payment_due'?0:null);
-    write(DEBT,`D${row}`,null);
+    write(DEBT,`C${row}`,key==='citi'?report.balances.find(b=>b.type==='minimum_due').amountMinor/100:report.bankPaymentStatus==='no_payment_due'?0:null);
+    write(DEBT,`D${row}`,key==='citi'?serialDate(report.dueDate):null);
     write(DEBT,`G${row}`,report.balances.map(b=>`${b.type.replaceAll('_',' ')}: ${(b.amountMinor/100).toFixed(2)}`).join('; ')
-      +`; ${report.bankPaymentStatus==='no_payment_due'?'Bank displays no payment due':'Payment requirements need source verification'}`);
+      +`; ${key==='citi'?'Minimum and due date captured':report.bankPaymentStatus==='no_payment_due'?'Bank displays no payment due':'Payment requirements need source verification'}`);
   }
-  write('1. Start','A2','Wells and both Chase accounts imported. Complete remaining source checks before creating the payment plan.');
+  write('1. Start','A2',`${importedLabel} imported. Complete remaining source checks before creating the payment plan.`);
   write('1. Start','A4',`Current import — ${review}`);
   write('1. Start','B6',wells.needsReview?'Needs review':'Verified');write('1. Start','C6','Ledger and current pending reconciled.');
   write('1. Start','C5','Bank available; includes pending.');
@@ -170,11 +174,11 @@ export async function buildDirectWorkbook(original,intake){
       .sort((a,b)=>String(b[8].split('|')[3]).localeCompare(a[8].split('|')[3]));
     if(accepted[0])write('1. Start',`G${6+i}`,`${accepted[0][8].split('|')[3]} · ${String(accepted[0][2]).slice(0,24)} · ${(accepted[0][3]*(report.key==='wells'?-1:1)).toFixed(2)}`);
   }
-  write('2. Tuesday Review','A2','NOT A CURRENT PAYMENT PLAN. Wells/Chase inputs updated; finish all source checks before rebuilding this checklist. Prior payment confirmations are retained.');
+  write('2. Tuesday Review','A2',`NOT A CURRENT PAYMENT PLAN. ${importedLabel} inputs updated; finish source checks before rebuilding this checklist. Prior confirmations retained.`);
   write('3. This Week','B3',reviewSerial-7);
   const exceptions=result.reports.some(a=>a.needsReview);
   write('3. This Week','A2',exceptions?'Incomplete spending analysis: resolve missing dates/categories in the ledger and remaining source checks. Not a cash-payment decision.'
-    :'Prior Tuesday–Monday spending. Wells/Chase updated; remaining sources still need checking. Not a cash-payment decision.');
+    :`Prior Tuesday–Monday spending. ${importedLabel} updated; check remaining sources. Not a cash-payment decision.`);
   wb.recalculate();
   for(const [,row] of controls){
     check(sheet(CASH).getRange(`E${row}`).values[0][0]===sheet(CASH).getRange(`D${row}`).values[0][0]

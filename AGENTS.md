@@ -4,6 +4,14 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Completion means workbook integration (user clarified September 21):** do not
+call an account collector completed when only its reader works. Include private
+capture storage, accepted workbook anchor reconciliation, ledger/balance/payment
+inputs and source controls, backups and failure-safe save. Distinguish implemented
+integration from live/home end-to-end acceptance. Citi now uses the shared import
+path when private `bindings.citi` is configured; old three-account configurations
+remain compatible and do not certify Citi. No extension reload for this change.
+
 **All collectors — anchor-first scope (user reconfirmed September 21):** collect
 new posted activity through the accepted posted anchor/overlap plus ALL current
 pending. Inspect every row already loaded (posts can arrive out of order), but

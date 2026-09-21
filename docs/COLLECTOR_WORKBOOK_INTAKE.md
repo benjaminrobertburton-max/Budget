@@ -2,6 +2,28 @@
 
 ## Current default: direct Wells/Chase import
 
+**Citi integration added:** add `"citi": "4444"` (fictional example; use the actual
+suffix privately) to the existing `bindings` object. The importer then requires
+fresh Citi evidence too, applies it to the existing `Citi` ledger account, Citi
+source-control row and `Citi card` debt inputs, including the bank's actual minimum
+payment and due date. Existing three-account configurations still work unchanged;
+they do not import or certify Citi. No financial setting belongs in Git.
+
+At home, `node collector/src/cli.mjs citi-refresh` captures the one open signed-in
+Citi tab to the same encrypted default private store used by Wells/Chase. As with
+the existing capture commands, stop the bridge after capture before starting the
+next institution. Use the normal `workbook-import` command after gathering fresh
+evidence for all configured accounts. The same 15-minute freshness checks apply.
+Configure `privateRoot` to that existing home store. Never run persistent capture
+on the work machine; use `citi-work-test.mjs` for temporary evidence there.
+
+The workbook's accepted ledger is the persistent anchor store. A successful import
+updates it; the next import must match that accepted overlap. No separate proposed
+capture baseline can authorize a workbook write. Missing anchors stop safely, with
+no history sweep or guessed matches. Citi integration tests cover encrypted-source
+selection through a saved workbook, replay, settlement, source counts/signed totals,
+minimum/due date, backup integrity, preserved History and stale/missing-anchor refusal.
+
 Using the private configuration below, run
 `node collector/src/cli.mjs workbook-import <absolute-private-config>` or
 `work/run_weekly_import.ps1 -CollectorConfig <absolute-private-config>`.

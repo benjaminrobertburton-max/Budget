@@ -1,17 +1,20 @@
 import { requireEvidence as check } from './errors.mjs';
 import { normalizeWellsActivity } from './wells-normalize.mjs';
 import { normalizeChaseActivity } from './chase-normalize.mjs';
+import {normalizeCitiActivity} from './citi-normalize.mjs';
 
 export const INTAKE_ACCOUNTS=Object.freeze([
   {key:'wells',source:'wells',product:null,label:'Wells Fargo'},
   {key:'chase_sapphire',source:'chase',product:'sapphire_preferred',label:'Chase Sapphire'},
   {key:'chase_prime',source:'chase',product:'prime_visa',label:'Prime Visa'},
+  {key:'citi',source:'citi',product:'aadvantage',label:'Citi AAdvantage'},
 ]);
+export const intakeAccounts=bindings=>INTAKE_ACCOUNTS.filter(a=>a.key!=='citi'||Object.hasOwn(bindings,'citi'));
 export function validateIntakeBindings(bindings){
   check(bindings&&typeof bindings==='object'&&!Array.isArray(bindings)
-    &&Object.keys(bindings).sort().join(',')===INTAKE_ACCOUNTS.map(a=>a.key).sort().join(',')
+    &&Object.keys(bindings).sort().join(',')===intakeAccounts(bindings).map(a=>a.key).sort().join(',')
     &&Object.values(bindings).every(s=>typeof s==='string'&&/^\d{4}$/.test(s)),
-  'INTAKE_BINDINGS_REQUIRED','Configure the three private account suffixes before importing collector evidence.');
+  'INTAKE_BINDINGS_REQUIRED','Configure private account suffixes before importing collector evidence.');
   check(bindings.chase_sapphire!==bindings.chase_prime,'INTAKE_BINDINGS_REQUIRED','Chase account bindings must be distinct.');
 }
 
@@ -22,10 +25,10 @@ export function validateIntakeBindings(bindings){
 export function prepareWorkbookIntake({records,bindings,now=new Date()}){
   validateIntakeBindings(bindings);
   check(now instanceof Date&&Number.isFinite(now.getTime())&&records&&typeof records==='object'
-    &&Object.keys(records).every(k=>INTAKE_ACCOUNTS.some(a=>a.key===k)),
+    &&Object.keys(records).every(k=>intakeAccounts(bindings).some(a=>a.key===k)),
   'INVALID_INTAKE','Collector intake requires a bounded set of source records.');
   const accounts=[],rows=[];
-  for(const account of INTAKE_ACCOUNTS){
+  for(const account of intakeAccounts(bindings)){
     const item=records[account.key];
     const base={key:account.key,label:account.label,capturedAt:null,balances:[],posted:null,pending:null,
       pendingBasis:'Unknown',issues:[],evidenceRef:null};
@@ -38,6 +41,20 @@ export function prepareWorkbookIntake({records,bindings,now=new Date()}){
     check(Number.isFinite(age)&&age>=0&&age<=15*60*1000,
       'STALE_INTAKE','Collector evidence is stale or future-dated; collect fresh evidence before importing.');
     const candidate=record.payload;
+    if(account.source==='citi'){
+      const n=normalizeCitiActivity(candidate,reference);
+      check(n.identity?.suffix===bindings.citi,'INTAKE_ACCOUNT_MISMATCH','Citi does not match its private workbook binding.');
+      check(n.coverageVerified,'INTAKE_CAPTURE_FAILED','Citi source totals, filters or required fields are not verified.');
+      const types={currentBalance:'current_balance',availableCredit:'available_credit',statementBalance:'statement_balance',minimumDue:'minimum_due'};
+      accounts.push({...base,capturedAt:record.capturedAt,evidenceRef:reference,
+        balances:n.balances.map(b=>({type:types[b.type],amountMinor:b.amountMinor})),
+        posted:n.transactions.filter(r=>r.state==='posted').length,pending:n.transactions.filter(r=>r.state==='pending').length,
+        pendingBasis:'Citi signed posted and pending totals matched',issues:[],status:'Captured — not imported',
+        bankPaymentStatus:'requirements_captured',dueDate:n.dueDate});
+      for(const r of n.transactions)rows.push({account:account.label,state:r.state,date:r.sourceDate,description:r.description,
+        amountMinor:r.sourceAmountMinor,sourceCategory:null,evidenceRef:r.evidenceRef,note:'Source date; posting date not asserted'});
+      continue;
+    }
     check(candidate?.source?.accountSuffix===bindings[account.key]
       &&(account.source==='wells'?!candidate.source.chase:candidate.source.chase?.product===account.product),
     'INTAKE_ACCOUNT_MISMATCH','The captured account does not match its private workbook binding.');

@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {requireEvidence as check} from './errors.mjs';
 
-export const LEDGER_ACCOUNTS={wells:'Wells Fargo',chase_sapphire:'Chase',chase_prime:'Prime Visa'};
+export const LEDGER_ACCOUNTS={wells:'Wells Fargo',chase_sapphire:'Chase',chase_prime:'Prime Visa',citi:'Citi'};
 export const serialDate=iso=>(Date.parse(iso+'T00:00:00Z')-Date.UTC(1899,11,30))/86400000;
 export const isoDate=value=>value instanceof Date?value.toISOString().slice(0,10):typeof value==='number'
   ?new Date(Date.UTC(1899,11,30)+value*86400000).toISOString().slice(0,10):null;
@@ -24,8 +24,9 @@ function classify(description,category,rules,oldRows){
 // keeps identical purchases distinct; pending is a fresh snapshot, not another
 // set of expenses appended on every run. Never infer a cancellation or a date.
 export function reconcileWorkbookLedger(intake,ledger,rules){
-  check(intake?.accounts?.length===3&&intake.accounts.every(a=>a.capturedAt),
-    'MISSING_CAPTURE','Fresh Wells and both Chase captures are required.');
+  check([3,4].includes(intake?.accounts?.length)&&['wells','chase_sapphire','chase_prime'].every(k=>intake.accounts.some(a=>a.key===k))
+    &&new Set(intake.accounts.map(a=>a.key)).size===intake.accounts.length&&intake.accounts.every(a=>a.capturedAt&&LEDGER_ACCOUNTS[a.key]),
+    'MISSING_CAPTURE','Fresh captures for all configured accounts are required.');
   check(intake.accounts.every(a=>a.issues.every(i=>i==='pagination_anchor_required')),
     'SOURCE_CHECK_FAILED','Source parsing or coverage checks must be resolved before import.');
   check(intake.rows.every(r=>['posted','pending'].includes(r.state)&&Number.isSafeInteger(r.amountMinor)),

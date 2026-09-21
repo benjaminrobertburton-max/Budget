@@ -18,6 +18,7 @@
     "chase:auto": "node src/cli.mjs chase-refresh",
     "chase:work-test": "node src/cli.mjs chase-work-test",
     "citi:work-test": "node src/citi-work-test.mjs",
+    "citi:auto": "node src/cli.mjs citi-refresh",
     "chase:sapphire": "node src/cli.mjs chase-sapphire-refresh",
     "chase:prime": "node src/cli.mjs chase-prime-refresh",
     "pilot:rehearsal": "node src/cli.mjs pilot-rehearsal",

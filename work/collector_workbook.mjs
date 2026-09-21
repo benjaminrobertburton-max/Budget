@@ -12,7 +12,7 @@ import {requireEvidence as check} from '../collector/src/errors.mjs';
 import {assertPrivateDirectory,assertRegularFile} from '../collector/src/private-paths.mjs';
 import {openPrivateEvidenceStore} from '../collector/src/private-evidence-store.mjs';
 import {windowsProtector} from '../collector/src/protection.mjs';
-import {INTAKE_ACCOUNTS,prepareWorkbookIntake,validateIntakeBindings} from '../collector/src/workbook-intake.mjs';
+import {intakeAccounts,prepareWorkbookIntake,validateIntakeBindings} from '../collector/src/workbook-intake.mjs';
 import {workbookBytes} from './workbook_bytes.mjs';
 
 export const INTAKE_SHEET='Support - Collector Intake';
@@ -242,7 +242,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   await assertPrivateDirectory(config.outputRoot,policy);await assertPrivateDirectory(config.privateRoot,policy);
   const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
   const records={};
-  for(const a of INTAKE_ACCOUNTS)records[a.key]=await store.latestCapture({source:a.source,product:a.product,suffix:config.bindings[a.key]});
+  for(const a of intakeAccounts(config.bindings))records[a.key]=await store.latestCapture({source:a.source,product:a.product,suffix:config.bindings[a.key]});
   const intake=prepareWorkbookIntake({records,bindings:config.bindings,now});
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
   const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
@@ -275,7 +275,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
     if(apply){
       await fs.rename(replacement,config.baseWorkbook);
       return {status:'ledger_updated',workbookReady:false,output:config.baseWorkbook,backup:path.join(folder,'before.xlsx'),checks,
-        accounts:3,rows:imported.rows,added:imported.added,promoted:imported.promoted,retired:imported.retired};
+        accounts:intake.accounts.length,rows:imported.rows,added:imported.added,promoted:imported.promoted,retired:imported.retired};
     }
     // Exclusive publication: unlike rename on POSIX, link cannot replace a file.
     await fs.link(pending,output);published=true;await fs.unlink(pending);
@@ -297,7 +297,7 @@ export async function workbookImportCli(configFile){
     const result=await runWorkbookIntake(configFile,{apply:true});
     console.log(`Workbook updated: ${result.output}`);
     console.log(`Private backup: ${result.backup}`);
-    console.log(`Wells and both Chase accounts imported: ${result.added} added, ${result.promoted} posted transitions. Remaining source checks still gate the payment plan.`);
+    console.log(`${result.accounts} configured accounts imported: ${result.added} added, ${result.promoted} posted transitions. Remaining source checks still gate the payment plan.`);
     return 0;
   }catch(error){
     const code=typeof error?.code==='string'&&/^[A-Z_]+$/.test(error.code)?error.code:'WORKBOOK_IMPORT_FAILED';

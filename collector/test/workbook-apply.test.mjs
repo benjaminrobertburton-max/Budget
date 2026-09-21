@@ -13,6 +13,8 @@ import {reconcileWorkbookLedger} from '../src/workbook-reconcile.mjs';
 import {intakeRecords,INTAKE_BINDINGS,INTAKE_NOW} from '../fixtures/workbook-intake.mjs';
 import {openPrivateEvidenceStore} from '../src/private-evidence-store.mjs';
 import {tempDirectory,fixtureProtector,repositoryRoot} from './store-helpers.mjs';
+import {fictionalCiti} from '../fixtures/citi.mjs';
+import {randomUUID} from 'node:crypto';
 const require=createRequire(new URL('../../work/workbook_bytes.mjs',import.meta.url));
 const {SpreadsheetFile}=await import(pathToFileURL(require.resolve('@oai/artifact-tool')));
 const intake=records=>prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
@@ -128,4 +130,45 @@ test('direct private save backs up the exact original and updates the configured
   await assert.rejects(runWorkbookIntake(file,{protector:failing,now:INTAKE_NOW,apply:true}));
   assert.deepEqual(await fs.readFile(config.baseWorkbook),accepted);
   assert.equal((await fs.readdir(config.outputRoot)).length,1);
+});
+
+test('Citi encrypted evidence updates ledger, balances, due date, source checks and accepted anchors',async t=>{
+  const root=await tempDirectory(t),protector=fixtureProtector();
+  const wb=await SpreadsheetFile.importXlsx(await baseline());
+  const ledger=wb.worksheets.getItem('Support - Ledger');
+  ledger.getRange('A10:M11').values=[
+    ['Citi',new Date('2031-09-07'),'FICTIONAL SHOP',12,'Posted','Shopping','Include',null,'citi-old1','Keep user note','old','Posted','Verified'],
+    ['Citi',new Date('2031-09-06'),'FICTIONAL REFUND',-2,'Posted','Shopping','Include',null,'citi-old2','','old','Posted','Verified']];
+  wb.worksheets.getItem('Support - Debt Detail').getRange('A7:D7').values=[['Citi card',999,99,new Date('2031-09-01')]];
+  wb.worksheets.getItem('Support - Rules').getRange('A6:C6').values=[['FICTIONAL PENDING','Shopping','Include']];
+  wb.worksheets.getItem('1. Start').getRange('F9').values=[['Citi AAdvantage']];
+  wb.recalculate();const base=await workbookBytes(wb);
+  const config={version:1,baseWorkbook:path.join(root,'current.xlsx'),outputRoot:path.join(root,'runs'),privateRoot:path.join(root,'private'),bindings:{...INTAKE_BINDINGS,citi:'1234'}};
+  await fs.writeFile(config.baseWorkbook,base);const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(config));
+  const records=intakeRecords();records.citi={reference:`local:evidence:${randomUUID()}`,record:{version:1,kind:'budget-collector-source-evidence',source:'citi',capturedAt:INTAKE_NOW.toISOString(),payload:fictionalCiti()}};
+  records.citi.record.payload.minimumDue='$7.25';
+  const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
+  for(const {record} of Object.values(records))await store.save(record);
+  const result=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
+  assert.equal(result.accounts,4);assert.equal(result.checks.formulaErrors,0);assert.deepEqual(await fs.readFile(result.backup),base);
+  const saved=await fs.readFile(config.baseWorkbook),after=await SpreadsheetFile.importXlsx(saved);after.recalculate();
+  assert.equal(value(after,'Support - Debt Detail','B7'),15);assert.equal(value(after,'Support - Debt Detail','C7'),7.25);
+  assert.equal(value(after,'Support - Debt Detail','D7'),(Date.parse('2031-10-01')-Date.UTC(1899,11,30))/86400000);
+  assert.equal(value(after,'Support - Account Snapshots','I16'),'Verified');
+  assert.equal(value(after,'Support - Account Snapshots','D16'),3);assert.equal(value(after,'Support - Account Snapshots','F16'),15);
+  assert.match(value(after,'1. Start','G9'),/2031-09-07/);assert.equal(value(after,'6. History','J5'),3);
+  const data=prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW});
+  const replay=await buildDirectWorkbook(saved,data);assert.equal(replay.added,0);
+  const c=records.citi.record.payload;c.rows[0].state='posted';c.pendingTotal='$0.00';c.postedTotal='$15.00';
+  const settled=await buildDirectWorkbook(saved,prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW}));
+  assert.equal(settled.promoted,1);assert.equal(settled.added,0);
+  c.rows[1].description='CHANGED ACCEPTED POSTED ROW';
+  await assert.rejects(buildDirectWorkbook(saved,prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW})),{code:'ANCHOR_MISSING'});
+  records.citi.record.capturedAt='2031-09-08T14:00:00Z';
+  assert.throws(()=>prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW}),{code:'STALE_INTAKE'});
+  if(process.env.BUDGET_FICTIONAL_PREVIEWS){
+    await fs.mkdir(process.env.BUDGET_FICTIONAL_PREVIEWS,{recursive:true});
+    for(const name of ['Start','Snapshots','Debt'])await fs.copyFile(path.join(path.dirname(result.backup),name+'.png'),path.join(process.env.BUDGET_FICTIONAL_PREVIEWS,'Citi-'+name+'.png'));
+  }
+  assert.deepEqual(await fs.readFile(config.baseWorkbook),saved);
 });
