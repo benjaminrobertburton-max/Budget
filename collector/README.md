@@ -2,6 +2,14 @@
 
 ## Current checkpoint — September 21
 
+**New workbook review connection:** `workbook-intake <absolute-private-config>`
+reads encrypted Wells/both-Chase captures and creates a separate local review copy
+with source details and prior-plan warnings. It preserves the original workbook;
+it does not yet accept ledger rows or create a verified weekly payment plan.
+See [the intake guide](../docs/COLLECTOR_WORKBOOK_INTAKE.md) for setup, runtime
+requirements, privacy boundaries, validation and remaining implementation gates.
+No extension reload is required.
+
 **Approved reduced scope:** Wells and Chase have working source-capture milestones,
 not a completed production budget refresh. Preserve them. Prioritize the shared
 verified workbook-input path; Citi is the next new transaction adapter, then

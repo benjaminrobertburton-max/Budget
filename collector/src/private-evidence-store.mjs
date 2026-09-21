@@ -78,5 +78,28 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       }
       return null;
     },
+    // Exact RAW capture selection for workbook intake. A normalized record is
+    // never a substitute for evidence. Keep timestamp/reference with the payload
+    // so the importer can enforce freshness and re-run source validation.
+    async latestCapture({source,product=null,suffix}) {
+      check(['wells','chase'].includes(source)&&/^\d{4}$/.test(suffix??'')
+        &&(source==='wells'?product===null:['prime_visa','sapphire_preferred'].includes(product)),
+      'INVALID_EVIDENCE','The private capture binding is invalid.');
+      await verify();
+      const names=(await fs.readdir(evidence)).filter(name=>filePattern.test(name));
+      const candidates=await Promise.all(names.map(async name=>{
+        const stat=await assertRegularFile(path.join(evidence,name),MAX_RECORD_BYTES*2);
+        return {name,time:stat.mtimeMs};
+      }));
+      candidates.sort((a,b)=>b.time-a.time||a.name.localeCompare(b.name));
+      for(const {name} of candidates.slice(0,64)){
+        const reference=`local:evidence:${name.slice(0,-4)}`;
+        const record=await this.open(reference),c=record.payload;
+        if(record.source===source&&c?.kind==='activity_candidate'
+          &&c.source?.accountSuffix===suffix
+          &&(source==='wells'?!c.source.chase:c.source.chase?.product===product))return {reference,record};
+      }
+      return null;
+    },
   });
 }

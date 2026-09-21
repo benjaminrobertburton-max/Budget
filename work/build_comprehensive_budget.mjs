@@ -4,6 +4,18 @@ import { fileURLToPath } from "node:url";
 import { SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 import { applyBudgetUi, addWorkbookNavigation } from "./style_budget_ui.mjs";
 
+// Explicit private collector mode imports into a review copy of the CURRENT
+// workbook. Never run the historical hardcoded builder over a home workbook.
+const collectorArgs=process.argv.slice(2).filter(arg=>arg.startsWith('--collector-intake'));
+if(collectorArgs.length){
+  if(collectorArgs.length!==1||!collectorArgs[0].startsWith('--collector-intake=')||collectorArgs[0]==='--collector-intake='){
+    console.error('Collector intake requires one --collector-intake=<absolute-private-config> argument. No workbook was updated.');
+    process.exitCode=1;
+  }else{
+  const {workbookIntakeCli}=await import('./collector_workbook.mjs');
+  process.exitCode=await workbookIntakeCli(collectorArgs[0].slice('--collector-intake='.length));
+  }
+}else{
 const workDir = path.dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.BUDGET_OUTPUT_DIR
   ? path.resolve(process.env.BUDGET_OUTPUT_DIR)
@@ -642,3 +654,4 @@ if(workflowPhase==="design"){
 }
 const file=await SpreadsheetFile.exportXlsx(wb);await file.save(`${outDir}/comprehensive_budget.xlsx`);
 await addWorkbookNavigation(`${outDir}/comprehensive_budget.xlsx`,navigation);
+}

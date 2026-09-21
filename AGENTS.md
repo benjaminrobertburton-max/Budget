@@ -4,6 +4,15 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Newest workbook checkpoint — September 21:** collector intake can now create a
+separate private review workbook from fresh encrypted Wells/both-Chase evidence.
+Read `docs/COLLECTOR_WORKBOOK_INTAKE.md`. It preserves the authoritative local
+workbook and adds unverified source detail plus prior-plan warnings; it does NOT
+complete accepted-ledger reconciliation or a verified weekly payment-plan refresh.
+Do not run the legacy dated builder to replace the home workbook. No extension
+reload is needed. Finish the remaining verified-input pipeline here with fictional
+tests; private home data migration and acceptance remain home-specific.
+
 **Newest approved scope — September 21:** preserve working Wells/Chase capture
 milestones; do not rebuild them or confuse capture success with a production
 workbook refresh. Prioritize shared verified workbook integration, then Citi

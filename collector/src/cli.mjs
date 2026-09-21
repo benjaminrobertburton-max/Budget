@@ -5,7 +5,16 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if (command.length === 1 && command[0] === "collector-qc") {
+if(command[0]==='workbook-intake'){
+  if(command.length!==2){console.error('Usage: workbook-intake <absolute-private-config>');process.exitCode=1;}
+  else{
+  try{
+    const {workbookIntakeCli}=await import('../../work/collector_workbook.mjs');
+    process.exitCode=await workbookIntakeCli(command[1]);
+  }catch{console.error('Collector workbook intake unavailable. Check the workbook runtime dependencies; no workbook was updated.');process.exitCode=1;}
+  }
+}
+else if (command.length === 1 && command[0] === "collector-qc") {
   const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
   const report = await runCollectorQc({ repositoryRoot: fileURLToPath(new URL("../../", import.meta.url)) });
   console.log(formatCollectorQc(report));

@@ -2,6 +2,31 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Workbook intake connection (newest implementation checkpoint)
+
+The builder/collector now share a working encrypted-source-to-review-workbook path.
+It creates a separate private copy, adds source balances/rows and explicit missing
+information, preserves original financial cells/history/formulas/native components,
+and warns that Start/Tuesday are the prior plan. It recalculates, compares original
+outputs, scans formulas and renders affected sheets before exclusive publication.
+See [configuration, checks and exact limitations](COLLECTOR_WORKBOOK_INTAKE.md).
+
+This closes the **review intake** connection, NOT production verified workbook
+updates. Accepted-history reconciliation, classification, required-source registry,
+weekly rollover/new-plan creation, runtime packaging and the one-button launcher
+remain development work. Do not mark the production rows in the status table below
+complete. No real workbook/evidence was uploaded; the private home workbook was
+not tested or overwritten. Existing capture code and extension 0.4.11 are unchanged.
+
+Validation: **334/334** serial core/browser regressions passed, including 14 new
+workbook/source-boundary cases. Collector QC and syntax checks passed. The legacy
+builder passed before/after integration with zero formula errors; a separate
+in-memory merge against the existing template preserved all **719** calculated
+formula results and left the source file unchanged. Fictional end-to-end import
+compared 4,858 original cells; Start, Tuesday and Intake previews were visually
+reviewed. Temporary visual-QA files were deleted. No latest-home/private-data or
+native-Excel acceptance is claimed. `git diff --check` passed.
+
 ### Approved reduced scope and completion status (newest)
 
 The user approved prioritizing useful account coverage rather than implementing

@@ -1,5 +1,12 @@
 # Local weekly budget runbook — screenshot fallback only
 
+Collector development now has a separate review-copy entry point:
+`work/run_weekly_import.ps1 -CollectorConfig <absolute-private-config>`.
+Read `docs/COLLECTOR_WORKBOOK_INTAKE.md` before using it. It imports source evidence
+into a review tab, not the accepted ledger or a new payment plan. The ordinary
+builder below still contains dated snapshots; never use it to replace the newer
+home workbook during collector setup. Financial files remain private.
+
 The intended replacement is the local direct-browser collector documented in `docs/BUDGET_COLLECTOR_VISION.md`. Do not revive the earlier email-alert approach or substitute a generic aggregator for it. This runbook remains only until the collector is proven in shadow mode.
 
 Use one Codex task for the entire weekly import. Collect the complete screenshot packet first; do not rebuild while screenshots are still arriving.

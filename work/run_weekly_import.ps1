@@ -1,5 +1,6 @@
 param(
-  [string]$OutputDir = ""
+  [string]$OutputDir = "",
+  [string]$CollectorConfig = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,7 +17,13 @@ if ($OutputDir -ne "") {
 
 Push-Location $repo
 try {
-  node $builder --phase=import --quiet
+  if ($CollectorConfig -ne "") {
+    if ($OutputDir -ne "") { throw "Collector intake uses the private output location in its configuration, not OutputDir." }
+    node $builder "--collector-intake=$CollectorConfig" --quiet
+  } else {
+    node $builder --phase=import --quiet
+  }
+  if ($LASTEXITCODE -ne 0) { throw "Workbook operation failed; see the safe status above." }
 } finally {
   Pop-Location
 }
