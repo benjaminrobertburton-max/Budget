@@ -14,6 +14,7 @@ import {openPrivateEvidenceStore} from '../collector/src/private-evidence-store.
 import {windowsProtector} from '../collector/src/protection.mjs';
 import {intakeAccounts,prepareWorkbookIntake,validateIntakeBindings} from '../collector/src/workbook-intake.mjs';
 import {workbookBytes} from './workbook_bytes.mjs';
+import {preparePaypalImport} from '../collector/src/paypal-normalize.mjs';
 
 export const INTAKE_SHEET='Support - Collector Intake';
 const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -233,7 +234,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   check(path.isAbsolute(configFile),'UNSAFE_STORAGE_PATH','The intake configuration must be an absolute private path.');
   await assertPrivateDirectory(path.dirname(configFile),policy);await assertRegularFile(configFile,16000);
   const config=JSON.parse(await fs.readFile(configFile,'utf8'));
-  check(config?.version===1&&Object.keys(config).sort().join(',')==='baseWorkbook,bindings,outputRoot,privateRoot,version',
+  check(config?.version===1&&Object.keys(config).filter(k=>k!=='paypalPromotions').sort().join(',')==='baseWorkbook,bindings,outputRoot,privateRoot,version',
     'INVALID_INTAKE_CONFIG','The intake configuration has unsupported or missing fields.');
   validateIntakeBindings(config.bindings);
   check(typeof config.baseWorkbook==='string'&&path.isAbsolute(config.baseWorkbook)&&path.extname(config.baseWorkbook).toLowerCase()==='.xlsx',
@@ -244,6 +245,10 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   const records={};
   for(const a of intakeAccounts(config.bindings))records[a.key]=await store.latestCapture({source:a.source,product:a.product,suffix:config.bindings[a.key]});
   const intake=prepareWorkbookIntake({records,bindings:config.bindings,now});
+  if(Object.hasOwn(config,'paypalPromotions')){
+    check(apply,'PAYPAL_DIRECT_IMPORT_REQUIRED','Financing updates use direct workbook import only.');
+    intake.paypal=preparePaypalImport(await store.latestPaypalCapture(),config.paypalPromotions,now);
+  }
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
   const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
   const direct=apply?await import('./collector_apply.mjs'):null;
@@ -257,11 +262,11 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   try{
     await fs.writeFile(pending,bytes,{flag:'wx',mode:0o600});
     const checks=apply?imported.checks:await formulaScanAndRender(pending,folder,original);
-    if(apply)await direct.renderDirectWorkbook(bytes,folder);
+    if(apply)await direct.renderDirectWorkbook(bytes,folder,{paypal:!!intake.paypal});
     await assertRegularFile(config.baseWorkbook,40*1024*1024);
     check(sha(await fs.readFile(config.baseWorkbook))===originalHash,'WORKBOOK_CHANGED','The original workbook changed during intake; rerun against the current file.');
     const [encrypted]=await protector.sealMany([{version:1,kind:apply?'workbook_import_receipt':'workbook_intake_receipt',baseHash:originalHash,
-      workbookHash:sha(bytes),createdAt:intake.createdAt,references:intake.accounts.map(a=>a.evidenceRef).filter(Boolean),workbookReady:false}]);
+      workbookHash:sha(bytes),createdAt:intake.createdAt,references:[...intake.accounts.map(a=>a.evidenceRef),intake.paypal?.evidenceRef].filter(Boolean),workbookReady:false}]);
     await fs.writeFile(path.join(folder,'receipt.enc'),encrypted,{flag:'wx',mode:0o600});
     if(apply){
       await fs.writeFile(path.join(folder,'before.xlsx'),original,{flag:'wx',mode:0o600});
@@ -285,7 +290,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
     // profile, directory tree, or another run's output on validation failure.
     if(published)await fs.unlink(output);
     if(replacement)await fs.unlink(replacement).catch(e=>{if(e.code!=='ENOENT')throw e;});
-    for(const name of ['review.partial.xlsx','Start.png','Tuesday.png','Collector_Intake.png','Ledger.png','History.png','Snapshots.png','Debt.png','before.xlsx','receipt.enc'])
+    for(const name of ['review.partial.xlsx','Start.png','Tuesday.png','Collector_Intake.png','Ledger.png','History.png','Snapshots.png','Debt.png','Promos.png','Savings.png','Inputs.png','before.xlsx','receipt.enc'])
       await fs.unlink(path.join(folder,name)).catch(e=>{if(e.code!=='ENOENT')throw e;});
     await fs.rmdir(folder);
     throw error;

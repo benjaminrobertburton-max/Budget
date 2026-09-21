@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.4.13",
-  "description": "Local, read-only Wells, Chase and Citi connection for the Budget Collector.",
+  "version": "0.4.15",
+  "description": "Local, read-only Wells, Chase, Citi and PayPal financing connection.",
   "permissions": ["tabs", "alarms", "debugger", "webNavigation"],
   "host_permissions": [
     "https://*.wellsfargo.com/*",
     "https://*.chase.com/*",
     "https://*.citi.com/*",
+    "https://www.paypal.com/*",
     "http://127.0.0.1/*"
   ],
   "background": {
@@ -15,6 +16,12 @@
     "type": "module"
   },
   "content_scripts": [
+    {
+      "matches": ["https://www.paypal.com/*"],
+      "js": ["paypal-page-state.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
     {
       "matches": ["https://*.citi.com/*"],
       "js": ["citi-page-state.js"],

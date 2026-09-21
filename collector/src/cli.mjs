@@ -61,7 +61,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     process.removeListener("SIGTERM", stop);
   }
 }
-else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh", "chase-pair-refresh", "citi-refresh"].includes(command[0])) {
+else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh", "chase-pair-refresh", "citi-refresh", "paypal-refresh"].includes(command[0])) {
   let bridge = null;
   try {
     const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
@@ -74,11 +74,20 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
     const chasePair=command[0]==='chase-pair-refresh';
     let chasePairPhase=0;
     bridge = await startChromeBridge({
-      nextCommand: command[0] === 'citi-refresh' ? 'capture_citi_activity' : command[0] === "wells-refresh" ? "open_wells"
+      nextCommand: command[0] === 'paypal-refresh' ? 'capture_paypal_financing' : command[0] === 'citi-refresh' ? 'capture_citi_activity' : command[0] === "wells-refresh" ? "open_wells"
         : command[0] === "chase-refresh" ? "open_chase"
           : command[0] === "chase-sapphire-refresh" ? "open_chase_sapphire"
             : command[0] === "chase-prime-refresh" || chasePair ? "open_chase_prime" : "none",
       captureAfterAuth: ["wells-refresh", "chase-refresh"].includes(command[0]),
+      onPaypalCapture: command[0]==='paypal-refresh'?async candidate=>{
+        const [{defaultPrivateRoot},{openPrivateEvidenceStore},{normalizePaypalFinancing}]=await Promise.all([
+          import('./private-paths.mjs'),import('./private-evidence-store.mjs'),import('./paypal-normalize.mjs')]);
+        const n=normalizePaypalFinancing(candidate);
+        if(!n.coverageVerified){console.log('PayPal financing incomplete; no workbook update.');return;}
+        const store=await openPrivateEvidenceStore({root:defaultPrivateRoot(),repositoryRoot});
+        await store.save({source:'paypal',capturedAt:new Date().toISOString(),payload:candidate});
+        console.log('PayPal financing saved privately; workbook import must match the configured promotions.');
+      }:null,
       onCitiActivityCapture: command[0]==='citi-refresh'?async candidate=>{
         const [{defaultPrivateRoot},{openPrivateEvidenceStore},{normalizeCitiActivity,citiSummary}]=await Promise.all([
           import('./private-paths.mjs'),import('./private-evidence-store.mjs'),import('./citi-normalize.mjs')]);

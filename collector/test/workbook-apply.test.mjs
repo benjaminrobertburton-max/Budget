@@ -15,6 +15,8 @@ import {openPrivateEvidenceStore} from '../src/private-evidence-store.mjs';
 import {tempDirectory,fixtureProtector,repositoryRoot} from './store-helpers.mjs';
 import {fictionalCiti} from '../fixtures/citi.mjs';
 import {randomUUID} from 'node:crypto';
+import {fictionalPaypal,fictionalPaypalBindings} from '../fixtures/paypal.mjs';
+import {preparePaypalImport} from '../src/paypal-normalize.mjs';
 const require=createRequire(new URL('../../work/workbook_bytes.mjs',import.meta.url));
 const {SpreadsheetFile}=await import(pathToFileURL(require.resolve('@oai/artifact-tool')));
 const intake=records=>prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
@@ -46,6 +48,54 @@ async function baseline(){
   wb.worksheets.getItem('Support - Rules').getRange('A5:C5').values=[['FICTIONAL NEW','Shopping','Include']];
   wb.recalculate();return workbookBytes(wb);
 }
+
+test('PayPal financing updates existing inputs, preserves formulas and rejects unbound workbook rows',async t=>{
+  const wb=await SpreadsheetFile.importXlsx(await baseline()),name='Support - Promo Detail',s=wb.worksheets.getItem(name);
+  s.getRange('A5:G5').values=[['Merchant','Deadline','Balance','Accrued deferred interest','Weeks remaining','Weekly payoff target','Priority']];
+  const bindings=fictionalPaypalBindings();
+  bindings.forEach((b,i)=>{const r=i+6;s.getRange(`A${r}:D${r}`).values=[[b.workbookMerchant,new Date(b.expirationDate),200,5]];
+    s.getRange(`E${r}`).formulas=[[`=MAX(1,ROUNDUP((B${r}-$B$3)/7,0))`]];s.getRange(`F${r}`).formulas=[[`=C${r}/E${r}`]];});
+  s.getRange('B3').values=[[new Date('2031-09-02')]];s.getRange('E3').values=[[new Date('2031-10-10')]];
+  s.getRange('C11').formulas=[['=SUM(C6:C9)']];s.getRange('F12').formulas=[['=SUM(F6:F9)']];
+  s.getRange('A1:G1').merge();s.getRange('A1').values=[['FICTIONAL TEST — Promotional debt']];
+  s.getRange('B3').setNumberFormat('mmm d, yyyy');s.getRange('E3').setNumberFormat('mmm d, yyyy');s.getRange('B6:B9').setNumberFormat('mmm d, yyyy');
+  for(const range of ['C6:D11','F6:F12'])s.getRange(range).setNumberFormat('$#,##0.00');
+  s.getRange('A5:G5').format={wrapText:true,rowHeight:45,font:{bold:true}};
+  const savings=wb.worksheets.getItem('5. Savings & Debt');savings.getRange('A20:A22').values=[['Active PayPal promo balance'],['Weekly payoff target'],['First promo deadline']];
+  for(const [cell,source] of [['B20','C11'],['B21','F12'],['B22','B6']])savings.getRange(cell).formulas=[[`='${name}'!${source}`]];
+  savings.getRange('B20:B21').setNumberFormat('$#,##0.00');savings.getRange('B22').setNumberFormat('mmm d, yyyy');
+  wb.worksheets.getItem('2. Tuesday Review').getRange('B14:D14').values=[['PayPal promo','Payoff target',null]];
+  wb.worksheets.getItem('2. Tuesday Review').getRange('D14').formulas=[[`='${name}'!F12`]];
+  wb.worksheets.getItem('Support - Budget Inputs').getRange('A20').values=[['PayPal promo']];
+  wb.worksheets.getItem('Support - Budget Inputs').getRange('D20').formulas=[[`='${name}'!F12`]];
+  const base=await workbookBytes(wb),a=intake(intakeRecords());
+  a.paypal=preparePaypalImport({reference:`local:evidence:${randomUUID()}`,record:{version:1,kind:'budget-collector-source-evidence',source:'paypal',capturedAt:INTAKE_NOW.toISOString(),payload:fictionalPaypal()}},bindings,INTAKE_NOW);
+  const result=await buildDirectWorkbook(base,a),saved=await SpreadsheetFile.importXlsx(result.bytes);saved.recalculate();
+  assert.equal(value(saved,name,'C11'),260);assert.equal(value(saved,name,'C9'),0);assert.equal(value(saved,name,'D6'),2);
+  assert.equal(saved.worksheets.getItem(name).getRange('F6').formulas[0][0],'=C6/E6');
+  assert.equal(value(saved,name,'E3'),48131);assert.equal(value(saved,'6. History','J5'),3);
+  assert.equal(value(saved,'Support - Account Snapshots','I20'),'Promo verified');
+  assert.equal(result.checks.formulaErrors,0);
+  assert.equal(value(saved,'5. Savings & Debt','B20'),260);
+  assert.equal(value(saved,'2. Tuesday Review','D14'),value(saved,name,'F12'));
+  assert.equal(value(saved,'Support - Budget Inputs','D20'),value(saved,name,'F12'));
+  const root=await tempDirectory(t),protector=fixtureProtector();
+  const config={version:1,baseWorkbook:path.join(root,'current.xlsx'),outputRoot:path.join(root,'runs'),privateRoot:path.join(root,'private'),bindings:INTAKE_BINDINGS,paypalPromotions:bindings};
+  await fs.writeFile(config.baseWorkbook,base);const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(config));
+  const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
+  for(const {record} of Object.values(intakeRecords()))await store.save(record);
+  await store.save({source:'paypal',capturedAt:INTAKE_NOW.toISOString(),payload:fictionalPaypal()});
+  const imported=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
+  assert.deepEqual(await fs.readFile(imported.backup),base);assert.equal(imported.checks.formulaErrors,0);
+  const actual=await SpreadsheetFile.importXlsx(await fs.readFile(config.baseWorkbook));actual.recalculate();
+  assert.equal(value(actual,name,'C11'),260);assert.equal(value(actual,'Support - Account Snapshots','I20'),'Promo verified');
+  if(process.env.BUDGET_FICTIONAL_PREVIEWS){
+    await fs.mkdir(process.env.BUDGET_FICTIONAL_PREVIEWS,{recursive:true});
+    for(const name of ['Promos','Savings','Tuesday','Inputs','Start','Snapshots'])
+      await fs.copyFile(path.join(path.dirname(imported.backup),name+'.png'),path.join(process.env.BUDGET_FICTIONAL_PREVIEWS,name+'.png'));
+  }
+  a.paypal.rows[0].workbookMerchant='Unknown';await assert.rejects(buildDirectWorkbook(base,a),{code:'PAYPAL_BINDING_MISMATCH'});
+});
 
 test('direct import updates real input sheets, preserves closed weeks, and repeats without duplicates',async()=>{
   const base=await baseline(),records=intakeRecords();

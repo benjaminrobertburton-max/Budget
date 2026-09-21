@@ -179,7 +179,30 @@ export async function buildDirectWorkbook(original,intake){
   const exceptions=result.reports.some(a=>a.needsReview);
   write('3. This Week','A2',exceptions?'Incomplete spending analysis: resolve missing dates/categories in the ledger and remaining source checks. Not a cash-payment decision.'
     :`Prior Tuesday–Monday spending. ${importedLabel} updated; check remaining sources. Not a cash-payment decision.`);
+  if(intake.paypal){
+    const name='Support - Promo Detail',promo=sheet(name),data=promo.getRange('A6:G9').values;
+    check(promo.getRange('A5').values[0][0]==='Merchant'&&data.every(r=>typeof r[0]==='string'&&r[0]),
+      'PAYPAL_LAYOUT_UNSUPPORTED','Promotion template requires review before import.');
+    check(intake.paypal.rows.length===data.length,'PAYPAL_BINDING_MISMATCH','Every existing promotion requires explicit source evidence.');
+    for(const p of intake.paypal.rows){
+      const matches=data.flatMap((r,i)=>r[0]===p.workbookMerchant?[i+6]:[]);
+      check(matches.length===1,'PAYPAL_BINDING_MISMATCH','Workbook promotion mapping is ambiguous.');
+      const row=matches[0];
+      check(promo.getRange(`B${row}`).values[0][0]===serialDate(p.expirationDate),'PAYPAL_DEADLINE_CHANGED','Promotion deadline differs from the accepted workbook.');
+      for(const column of ['C','D'])check(!promo.getRange(`${column}${row}`).formulas[0][0],'PAYPAL_LAYOUT_UNSUPPORTED','A promotion input contains a formula.');
+      write(name,`C${row}`,p.amountMinor/100);write(name,`D${row}`,p.interestMinor/100);
+    }
+    write(name,'B3',reviewSerial);
+    const total=intake.paypal.rows.reduce((s,p)=>s+p.amountMinor,0)/100;
+    write(CASH,'B20',intake.paypal.evidenceRef);write(CASH,'C20','Financing snapshot');
+    write(CASH,'D20',data.length);write(CASH,'E20',`=COUNTA('${name}'!A6:A9)`,true);
+    write(CASH,'F20',total);write(CASH,'G20',`='${name}'!C11`,true);write(CASH,'H20','Promo identities matched');
+    write(CASH,'I20','=IF(OR(D20<>E20,ABS(F20-G20)>0.005),"Source check needed","Promo verified")',true);
+    write(CASH,'J20','Promos only; not card/payment verification.');
+    write('1. Start','G13','Promo snapshot refreshed');
+  }
   wb.recalculate();
+  if(intake.paypal)check(sheet(CASH).getRange('I20').values[0][0]==='Promo verified','PAYPAL_SOURCE_MISMATCH','Promotion balance/count reconciliation failed.');
   for(const [,row] of controls){
     check(sheet(CASH).getRange(`E${row}`).values[0][0]===sheet(CASH).getRange(`D${row}`).values[0][0]
       &&Math.abs(sheet(CASH).getRange(`G${row}`).values[0][0]-sheet(CASH).getRange(`F${row}`).values[0][0])<0.005,
@@ -201,9 +224,10 @@ export async function buildDirectWorkbook(original,intake){
   return {bytes,checks:{formulaErrors:0,historyCellsPreserved:frozen.length},added:result.added,promoted:result.promoted,retired:result.retired,rows:result.rows.length};
 }
 
-export async function renderDirectWorkbook(bytes,folder){
+export async function renderDirectWorkbook(bytes,folder,{paypal=false}={}){
   const wb=await SpreadsheetFile.importXlsx(bytes);
-  for(const [name,range,file] of [['1. Start','A1:H17','Start.png'],[LEDGER,'A1:M18','Ledger.png'],[HISTORY,'A1:M10','History.png'],[CASH,'A1:J21','Snapshots.png'],[DEBT,'A1:G10','Debt.png']]){
+  for(const [name,range,file] of [['1. Start','A1:H17','Start.png'],[LEDGER,'A1:M18','Ledger.png'],[HISTORY,'A1:M10','History.png'],[CASH,'A1:J21','Snapshots.png'],[DEBT,'A1:G10','Debt.png'],...(paypal?[
+    ['Support - Promo Detail','A1:G12','Promos.png'],['5. Savings & Debt','A17:D24','Savings.png'],['2. Tuesday Review','A10:I16','Tuesday.png'],['Support - Budget Inputs','A17:F22','Inputs.png']]:[])]){
     const image=await wb.render({sheetName:name,range,scale:1,format:'png'});
     await fs.writeFile(path.join(folder,file),new Uint8Array(await image.arrayBuffer()),{flag:'wx'});
   }

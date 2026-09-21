@@ -2,6 +2,43 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### PayPal Credit financing — newest checkpoint
+
+User scope: **Special financing → See all only**, including read-only promotion
+detail dialogs. Extension **0.4.15** uses only `https://www.paypal.com/*`, the
+existing local authenticated bridge and encrypted storage. No PayPal transaction
+history, money movement, login-secret access, minimum-payment inference or savings
+bucket changes. Normal saved sign-in is still a separate acceptance gate.
+
+Live temporary capture and identical second capture passed for all four displayed
+promotions. Encrypted evidence deletion was verified; ordinary Chrome is untouched.
+The only observed reader correction was an extra empty paragraph inside each card.
+Fictional browser regression covers that structure. The actual workbook was not
+updated on this machine.
+
+`paypal-refresh` stores a private financing snapshot. `workbook-import` applies it
+when optional private `paypalPromotions` purchase bindings are configured; see
+COLLECTOR_WORKBOOK_INTAKE.md. Existing balances/accrued interest and reference date
+update; existing payoff formulas/stage date/history remain. Exact private backup,
+recalculation, saved-output comparison and failure-safe publication are reused.
+Fictional encrypted-store-to-workbook acceptance passes. No recurring manual entry
+is intended: bindings are one-time home setup, not a weekly task.
+
+Limits: existing four-row promo layout only; changed deadlines, missing bound
+promotions or new outstanding promotions require review, never guessed matching.
+Paid off must be explicitly displayed with zero remaining balance. Snapshot data
+does not prove a card's entire balance, minimum due or completed payment. Source
+status is **Promo verified**, not full-source **Verified**; the existing all-source
+payment-plan gate is deliberately not weakened. Home source bindings and current
+workbook end-to-end acceptance remain to be performed privately.
+
+Validation: focused normalization/security/worker tests passed (26), fictional
+Chrome reader/repeat test passed, and encrypted-private-store through workbook-save
+test passed with exact backup and linked payoff outputs. Actual legacy-template
+compatibility also passed in memory: zero formula errors, six historical cells
+preserved, original file unchanged, no financial output retained. Fictional
+affected-range renders were inspected; native Excel/home acceptance is not claimed.
+
 ### Citi first-page collector — current development checkpoint
 
 **Workbook integration now implemented:** private `bindings.citi` enables Citi in

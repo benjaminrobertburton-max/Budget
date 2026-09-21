@@ -4,6 +4,18 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**PayPal scope — September 21 (newest):** the user selected Special financing →
+See all as the entire PayPal Credit collector scope. Collect Expiring, Active,
+and Paid off cards plus their read-only detail fields (remaining balance,
+deadline, purchase identity, accrued interest). No general transaction history,
+minimum-payment inference or PayPal savings-bucket changes. Extension 0.4.15
+passed live capture/repeat and verified disposable-evidence cleanup. Private
+`paypalPromotions` bindings connect this snapshot to existing Promo Detail inputs
+through `workbook-import`, exact backups and native/formula preservation. The
+existing four-row template is supported; missing/new/ambiguous promotions block
+instead of silently zeroing or adding debt. `Promo verified` is scoped evidence,
+not card/payment verification. Home binding and acceptance remain untested here.
+
 **Completion means workbook integration (user clarified September 21):** do not
 call an account collector completed when only its reader works. Include private
 capture storage, accepted workbook anchor reconciliation, ledger/balance/payment

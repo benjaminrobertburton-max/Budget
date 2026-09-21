@@ -179,3 +179,25 @@ CLI arguments also have fail-closed regressions.
 The next home session must preserve its newer private workbook/settings/history,
 sync `codex/budget-collector`, and read the newest handoff first. No financial data
 is to be pushed, and no verified production update or deployment is claimed here.
+# Optional PayPal financing integration
+
+Home command: `node collector/src/cli.mjs paypal-refresh` with one signed-in
+PayPal tab. Reader follows the observed Credit/See all links and reads promotion
+details only. Reload bridge 0.4.15 and approve www.paypal.com access once.
+Work-machine testing must instead use `node collector/src/paypal-work-test.mjs`;
+never initialize the home store here.
+
+Add `paypalPromotions` to the PRIVATE workbook-import configuration (outside Git).
+It is an array of exact mappings, one per existing Promo Detail row. Each has:
+`workbookMerchant` (existing worksheet label), `merchant` (exact source label),
+`purchaseDate` and `expirationDate` (ISO YYYY-MM-DD). These are sensitive local
+settings, not repository defaults. Normal weeks reuse them automatically.
+
+Direct import requires fresh source evidence and matches these purchase identities
+before updating C/D6:9 and reference date B3. It leaves deadlines, payoff formulas,
+stage assumptions, debt-card balance/minimum, savings transfers and history intact.
+Missing bound promos, changed deadlines, a changed four-row layout, or unbound
+outstanding promos block publication. An explicitly Paid off record with zero
+remaining balance may update the matching existing row to zero; disappearance alone
+never does. Source controls reconcile promotion count and remaining-balance total.
+`Promo verified` is intentionally narrower than payment/card verification.
