@@ -39,6 +39,20 @@ preserves the observed Wells table structure without retaining real account data
 
 ## Failure inventory
 
+September 21 authorized direct Chase inspection established a concrete parser
+mismatch after the user confirmed Prime transactions were visible. The real TH
+text is `Date, not sorted\nDate`, `Description, not sorted\nDescription`, and
+`Amount, not sorted\nAmount`. Existing exact heading classification rejects these.
+A fictional regression failed before the fix; extension 0.4.5 recognizes precisely
+the repeated matching-label form without changing stored header or transaction
+text. Mismatched/unknown forms remain rejected. The Chrome fixture now models
+the button plus repeated label with entirely invented transactions. No bank page
+dump, screenshot, identifier, or transaction value was saved to this repository.
+After the user's 0.4.5 reload, temporary capture of the open Prime detail page
+succeeded (`candidate_captured`), and collector evidence deletion was verified.
+Full serial tests passed 281/281. Category remains preserved but unmapped;
+account context, pending completeness and coverage are still not certified.
+
 September 21 Chase frame-window check reproduced a temporary-runner bug: a
 `no_activity_table` reply immediately closed the run and a later fictional valid
 frame was rejected. The local runner now waits a bounded 35 seconds from dispatch

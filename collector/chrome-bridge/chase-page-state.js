@@ -32,7 +32,11 @@
   const rows = container => [...container.querySelectorAll("tr,[role=row]")]
     .filter(row => visible(row) && (!row.closest("tr,[role=row]") || row.closest("tr,[role=row]") === row));
   const containers = () => deepQueryAll("table,[role=table],[role=grid]");
-  const normalized = value => value.toLowerCase().replace(/[^a-z]/g, "");
+  // Observed Chase sortable TH text repeats its label after the button's
+  // accessibility sort status. Recognize only that exact, matching-label shape;
+  // retain the original header/evidence text and fail closed on other wording.
+  const normalized = value => value.toLowerCase()
+    .replace(/^(date|description|amount), not sorted \1$/, "$1").replace(/[^a-z]/g, "");
   const classify = value => ({ date: "date", transactiondate: "date", posteddate: "posted_date", postingdate: "posted_date",
     description: "description", transactiondescription: "description", merchant: "description", details: "description",
     amount: "amount", transactionamount: "amount", debit: "debit", debitamount: "debit", withdrawal: "debit",

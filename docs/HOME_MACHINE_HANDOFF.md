@@ -2,6 +2,40 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### Observed Chase heading mismatch — extension 0.4.5
+
+The user confirmed Prime Visa transactions were visible during the failed retry,
+then explicitly authorized direct inspection of that authenticated Chase page
+with the understanding that visible financial information enters the conversation.
+Keep this exception narrow: no credential inspection, account changes, financial
+actions, saved bank screenshots/page dumps, or real-data Git fixtures.
+
+Read-only DOM inspection found the actual blocker: sortable column cells expose
+`Date, not sorted` followed by a duplicate `Date` (likewise Description/Amount).
+The old exact classifier rejects the combined text. A fictional regression
+reproduced `no_activity_table` before the fix. Version 0.4.5 recognizes only this
+matching-label format, retaining original evidence text, row validation and limits.
+Unknown/mismatched labels still fail closed. Other sort-state wording is not yet
+supported. Wells and financial workbooks are unchanged. Reload the extension
+before a live retry; offline success is not a verified live import.
+
+Verification: full serial core/browser suite **281/281 passed**, zero skips or
+failures; QC and diff checks pass. User reloaded 0.4.5. A temporary `chase-work-test`
+against the already-open Prime detail page returned `candidate_captured`, with
+one recognized table. Encrypted collector evidence deletion was verified; ordinary
+Chrome was not closed or cleared. This resolves the observed table-recognition
+blocker, not source certification. Category remains an `unknown` column with its
+text retained; identity, balances, pagination and coverage remain unverified.
+Do not infer zero pending from this posted-only view. No workbook was changed.
+The successful reader test does not certify Overview-to-card orchestration or
+post-auth navigation recovery. Continue with identity/context/coverage and the
+second card using source evidence, not a repeat of heading troubleshooting.
+
+Also observed: a card-target request made before sign-in did not resume card
+selection after authentication. Cancelling with verified evidence cleanup and
+restarting after sign-in dispatched capture. This is a development workaround,
+not the intended weekly workflow; post-auth navigation recovery remains a task.
+
 ### Chase frame-window continuation
 
 Reviewed the successful Wells history before changing Chase: trusted account

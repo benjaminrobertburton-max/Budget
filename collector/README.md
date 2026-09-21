@@ -2,6 +2,16 @@
 
 ## Current checkpoint — September 21
 
+Latest extension is **0.4.5**. Reload after syncing. Direct, user-authorized Chase
+inspection identified repeated sortable header text (`Date, not sorted Date`)
+that the reader rejected. The narrow fix recognizes the observed matching-label
+format and preserves original evidence, limits and fail-closed behavior. Unknown
+sort wording remains unsupported. Older 0.4.4 references below describe the prior
+checkpoint. Account identity, complete coverage and workbook import remain gates.
+The live Prime detail-page retry captured a table successfully and verified
+temporary evidence deletion. Full serial tests pass 281/281. Category is retained
+but currently unmapped; this is still an unverified candidate, not an import.
+
 ### Temporary Chase testing on the work machine
 
 Card-specific temporary commands are `node collector/src/cli.mjs

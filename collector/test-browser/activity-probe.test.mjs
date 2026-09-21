@@ -30,7 +30,10 @@ const table = (rows, headers = "<th>Date</th><th>Description</th><th>Amount</th>
 
 test("actual Chase extension reader validates paired tables in Chrome without cutting source text", async t => {
   await fixture(t, async ({ page }) => {
-    const headers = "<tr><th>Date</th><th>Description</th><th>Amount</th><th>Action</th></tr>";
+    // Fictional rows with the observed generic Chase heading structure only.
+    const headers = '<tr><th><button>Date, not sorted</button><div>Date</div></th>'
+      + '<th><button>Description, not sorted</button><div>Description</div></th>'
+      + '<th><button>Amount, not sorted</button><div>Amount</div></th><th>Action</th></tr>';
     await page.setContent('<button>Sign out</button><table id="PENDING-fictional">' + headers
       + '<tr><td>Pending</td><td>FICTIONAL PENDING</td><td>$3.00</td><td></td></tr></table>'
       + '<table id="ACTIVITY-fictional">' + headers
@@ -53,6 +56,8 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
     };
     const original = await capture();
     assert.equal(original.tables.length, 2);
+    assert.deepEqual(original.tables[1].columns, ['date','description','amount','details_control']);
+    assert.equal(original.tables[1].headers[0], 'Date, not sorted Date');
     assert.equal(original.tables[1].rows[1][2], "-$2.00");
     assert.equal(original.workbookReady, false);
     await page.evaluate(() => document.querySelector("#posted").lastElementChild.remove());
