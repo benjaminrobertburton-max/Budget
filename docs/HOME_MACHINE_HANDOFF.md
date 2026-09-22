@@ -2,6 +2,34 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### September 22 — first real import preparation (newest authority)
+
+User approved real import on this work machine and retention of private workbook,
+backup and encrypted evidence until verified home handoff. Temporary tests still
+use disposable cleanup. Real-import files stay outside Git/OneDrive in the default
+private collector root's `imports/2026-09-22` directory: `current.xlsx`, immutable
+`before-import.xlsx`, and `preparation.json`. No personal paths or financial values
+belong in Git. The repository workbook matches both remote branches byte-for-byte;
+its latest workbook commit is September 17. User designated that baseline as
+authoritative. Preserve its logic and do not rebuild from dated code.
+
+Preparation passed formula-error scan (zero), collector QC, Windows encryption
+round-trip, exact-copy/backup and unchanged-source checks. Ledger anchor candidates
+exist for Wells, both Chase cards and Citi, but fresh source matching and private
+account/promotion/Wealthfront bindings remain unconfirmed. No transaction import
+or payment-plan refresh has occurred. Use September 22 review and September 15–21
+purchase week; the baseline's historical dates/statuses were not overwritten.
+
+User will update Discover and Capital One manually in chat. Verify CUTX only from
+the Wells car-payment withdrawal, without asserting independent recipient credit.
+Exclude RBC. No new adapters for these sources are required. This supersedes the
+older account-expansion checklist; it does not remove scheduled budget obligations.
+
+Windows encryption is user/machine-bound: do not assume copying encrypted evidence
+to home makes it readable. Before deleting work-machine records, separately verify
+the private home workbook and the accepted source-history handoff. No cookie,
+password or browser-profile transfer is authorized.
+
 ### September 22 — Wealthfront capture and workbook integration
 
 Extension 0.4.18 passed a temporary live first-page capture and same-session

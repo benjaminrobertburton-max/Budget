@@ -4,6 +4,25 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**September 22 real-import authority (newest):** user selected the current workbook
+as authoritative if it matches the last GitHub copy. Byte identity with both remote
+main and collector branch was verified. User approved the first real supervised
+import on the work machine and retaining private workbook, backup and encrypted
+evidence until a verified home handoff. This supersedes test-only/delete-after-test
+restrictions for that real import, not for temporary tests. Financial output stays
+outside Git and cloud-synced paths. Do not run the dated legacy builder.
+The private September 22 working copy and exact pre-import backup are prepared;
+no new transactions have been imported. Use the private preparation record under
+the default local collector root's `imports/2026-09-22` directory. Do not recopy
+the repository workbook over a changed private working copy.
+
+**Source scope correction:** Discover and Capital One are manual chat updates by
+explicit user choice. CUTX is only the car-payment withdrawal evidenced in Wells
+(not independent proof of CUTX crediting it). RBC is out of scope. Keep all existing
+scheduled obligations; no additional collectors for these sources are required.
+Fidelity contribution evidence remains Wells-based. Manual facts and source
+freshness still require verification; do not mark missing inputs zero or completed.
+
 **Wealthfront — September 22:** extension 0.4.19 passed live first-page capture,
 labeled balance reconciliation and same-session overlap, with verified temporary
 evidence cleanup. Private `wealthfront` binding enables shared workbook import;
