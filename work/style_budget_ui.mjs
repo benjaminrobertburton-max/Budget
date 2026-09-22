@@ -85,7 +85,7 @@ export function applyBudgetUi(s) {
   fill(s.dash,"A12:A17","#FFFFFF");fill(s.dash,"C12:C17","#FFFFFF");
   font(s.dash,"A12:A17",{bold:false});
   row(s.dash,"A6:H14",32);row(s.dash,"A12:H17",40);row(s.dash,"A15:H15",32);
-  row(s.dash,"A4:H4",25);row(s.dash,"A5:H5",38);row(s.dash,"A10:H10",30);row(s.dash,"A11:H11",28);
+  row(s.dash,"A4:H4",40);font(s.dash,"A4:C4",{size:16,bold:true});row(s.dash,"A5:H5",38);row(s.dash,"A10:H10",30);row(s.dash,"A11:H11",28);
   font(s.dash,"E6:H14",{size:10});
   fill(s.dash,"E16:H17","#FFFFFF");font(s.dash,"E16:H17",{size:10,italic:false});
   nav(s.dash,"A3","2. Tuesday Review","Tuesday Review");
