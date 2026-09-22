@@ -1135,6 +1135,17 @@ just because `CHASE_COLLECTION_SEQUENCE` exists. Continue on real detail-page
 evidence, verify separate card identity and capture coverage before workbook use.
 # September 22 first-import repair checkpoint — bridge 0.4.20
 
+**Latest import attempt:** private `import-config.json` now binds Wells, both
+Chase cards, Citi, all four existing PayPal promotions and Wealthfront. Promotion
+labels/deadlines matched uniquely; Wealthfront's initial overlap was tied to an
+accepted Wells transfer by date, sign/amount and bank labels. No private settings
+were committed. Fresh capture stopped at Wells `auth_required`; the connected
+browser inventory had no bank tabs. User was asked to restore signed-in tabs.
+The workbook was NOT changed by this attempt. Resume fresh collection and the
+existing `workbook-import` command using that private configuration. Recognized
+Wells totals now remain reconciliation evidence rather than false unparsed ledger
+rows; mismatching totals still block publication. Fourteen focused tests passed.
+
 **Later identity reconciliation:** user approved one-time reconciliation and then
 confirmed all six displayed exceptions. The private current workbook now stores
 37 source identity links using the existing collector reference format. Original

@@ -87,7 +87,7 @@ export function prepareWorkbookIntake({records,bindings,now=new Date()}){
       const ref=`${reference}:table-${ti}:row-${ri}`;
       // Keep non-marker source rows that could not be parsed visible for review.
       // This includes source footers/totals; never reinterpret them as purchases.
-      if(raw.length>1&&!parsed.has(ref))rows.push({account:account.label,state:'Unparsed source row',date:null,
+      if(raw.length>1&&!parsed.has(ref)&&!normalized.nonTransactionRefs?.includes(ref))rows.push({account:account.label,state:'Unparsed source row',date:null,
         description:raw.join(' | '),amountMinor:null,sourceCategory:null,evidenceRef:ref,
         note:'Source row retained verbatim; may be invalid activity or a total/footer. Not imported.'});
     }));

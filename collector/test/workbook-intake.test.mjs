@@ -22,6 +22,14 @@ test('missing source remains missing, not a zero balance or verified empty accou
   const r=prepareWorkbookIntake({records:{},bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
   assert.ok(r.accounts.every(a=>a.status==='Not captured'&&a.balances.length===0));assert.equal(r.rows.length,0);
 });
+
+test('recognized Wells totals stay evidence, not unparsed transactions; mismatch remains blocking',()=>{
+ const records=intakeRecords();records.wells.record.payload.tables[0].rows.push(['Totals','','$500.00','$25.00']);
+ const args={records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW};
+ const good=prepareWorkbookIntake(args);assert.equal(good.rows.length,5);assert.deepEqual(good.accounts[0].issues,[]);
+ records.wells.record.payload.tables[0].rows.at(-1)[3]='$26.00';
+ assert.ok(prepareWorkbookIntake(args).accounts[0].issues.includes('source_totals_mismatch'));
+});
 test('stale, future, wrong-account, normalized-only and malformed evidence is refused',()=>{
   for(const change of [r=>r.wells.record.capturedAt='2031-09-09T12:00:00Z',r=>r.wells.record.capturedAt='2031-09-10T14:00:00Z',
     r=>r.wells.record.payload.source.accountSuffix='9999',r=>r.chase_prime.record.payload.source.chase.product='sapphire_preferred',

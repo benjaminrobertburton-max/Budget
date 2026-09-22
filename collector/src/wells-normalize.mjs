@@ -6,7 +6,7 @@ import { validDate } from './contracts.mjs';
 // No inferred bank IDs, duplicate removal, or budget categories.
 export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { hasPriorAnchor = false } = {}) {
   validateActivityCandidate(candidate);
-  const transactions = [], issues = new Set();
+  const transactions = [], nonTransactionRefs = [], issues = new Set();
   const balances = [];
   let pendingEmpty = false;
   const sections = new Set();
@@ -40,6 +40,7 @@ export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { has
         if (/^Totals$/i.test(dateText) && !row[index('description')].trim()) {
           if (totals || section !== 'posted') { issues.add('ambiguous_totals'); continue; }
           totals = {credit: parseMoney(row[index('credit')], 'USD'), debit: parseMoney(row[index('debit')], 'USD')};
+          nonTransactionRefs.push(`${evidenceRef}:table-${ti}:row-${ri}`);
           continue;
         }
         const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateText);
@@ -79,7 +80,7 @@ export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { has
   if (!balances.some(balance => balance.type === 'available')) issues.add('missing_available_balance');
   if (!balances.some(balance => balance.type === 'ledger')) issues.add('missing_ledger_balance');
   if (candidate.source.nextPage !== 'next_disabled' && !hasPriorAnchor) issues.add(candidate.source.nextPage === 'next_stalled' ? 'pagination_stalled' : 'pagination_anchor_required');
-  return { version: 1, kind: 'wells_normalized_activity', transactions, balances,
+  return { version: 1, kind: 'wells_normalized_activity', transactions, nonTransactionRefs, balances,
     accountSuffix: candidate.source.accountSuffix, nextPage: candidate.source.nextPage,
     pendingEmpty, issues: [...issues], workbookReady: false,
     remainingGates: ['history_reconciliation', 'workbook_mapping'] };
