@@ -75,6 +75,18 @@ test("loopback bridge delivers one capture command only to its connected extensi
   } finally { await bridge.close(); }
 });
 
+test("bridge accepts a new command only after the preceding command is consumed", async () => {
+  const bridge = await startChromeBridge({ port: 0, nextCommand: "capture_wells_activity" });
+  try {
+    assert.throws(() => bridge.queue("capture_citi_activity"), { code: "BRIDGE_BUSY" });
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const headers = { "X-Budget-Collector-Session": session };
+    assert.deepEqual(await (await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, { headers })).json(), { version: 1, command: "capture_wells_activity" });
+    bridge.queue("capture_citi_activity");
+    assert.deepEqual(await (await fetch(`http://127.0.0.1:${bridge.port}/v1/command`, { headers })).json(), { version: 1, command: "capture_citi_activity" });
+  } finally { await bridge.close(); }
+});
+
 test("command polling accepts Chromium's origin-less extension GET only with its session", async () => {
   const bridge = await startChromeBridge({ port: 0, nextCommand: "capture_wells_activity" });
   try {

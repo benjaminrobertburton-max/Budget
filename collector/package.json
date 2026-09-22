@@ -14,6 +14,7 @@
     "demo:interactive": "node src/cli.mjs browser-interactive",
     "bridge:chrome": "node src/cli.mjs chrome-bridge",
     "qc": "node src/cli.mjs collector-qc",
+    "refresh:weekly": "node src/cli.mjs weekly-refresh",
     "wells:auto": "node src/cli.mjs wells-refresh",
     "chase:auto": "node src/cli.mjs chase-refresh",
     "chase:work-test": "node src/cli.mjs chase-work-test",

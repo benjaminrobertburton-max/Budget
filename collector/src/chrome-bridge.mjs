@@ -15,7 +15,7 @@ const captureStates = Object.freeze({
   page_limit: "activity_capture_page_limit",
 });
 const MAX_BODY_BYTES = 300000;
-const commands = new Set(["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime"]);
+const commands = new Set(["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime", "capture_chase_more"]);
 commands.add('capture_citi_activity');
 commands.add('capture_paypal_financing');
 commands.add('capture_wealthfront_cash');
@@ -202,6 +202,15 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
   return {
     port: address.port,
     status: () => ({ listening: server.listening, extensionConnected: session !== null, lastEvent, commandQueued: nextCommand !== "none" }),
+    // The weekly runner is the only caller that chains commands.  Retain the
+    // one-command-at-a-time boundary: a capture must finish before another
+    // institution can be requested, and a stale extension cannot accumulate a
+    // queue of bank actions.
+    queue: command => {
+      check(commands.has(command) && command !== "none", "INVALID_BRIDGE", "The local bridge command is invalid.");
+      check(nextCommand === "none", "BRIDGE_BUSY", "The previous account action is still in progress.");
+      nextCommand = command;
+    },
     close: () => new Promise(resolve => server.close(resolve)),
   };
 }

@@ -10,8 +10,29 @@ checks. Fictional end-to-end acceptance passed. One open signed-in Individual
 Cash Account tab is required; no older-history sweep or pending/held-funds guessing.
 Read the [current handoff](../docs/HOME_MACHINE_HANDOFF.md) and
 [private configuration](../docs/COLLECTOR_WORKBOOK_INTAKE.md). Historical checkpoint
-statements below do not supersede that newer direct-import status. Home acceptance,
-saved sign-in and the final one-button launcher remain incomplete.
+statements below do not supersede that newer direct-import status. Home acceptance
+and saved-sign-in automation remain incomplete. The local
+`weekly-refresh <private-config>` coordinator now runs the six supported source
+captures in a fixed order, stops on any failed source, invokes the existing
+verified workbook import only after all captures finish, retains the private
+backup, and opens the local output. It requires the supported signed-in source
+tabs and must complete shadow-mode acceptance before replacing the fallback.
+
+### Local Tuesday button
+
+After the one-time private setup, double-click
+`collector/windows/Start Budget Refresh.cmd`. It reads only
+`%LOCALAPPDATA%\BudgetCollector\weekly-refresh.json`, which must contain the
+absolute path to the existing private workbook-import configuration:
+
+```json
+{"workbookConfig":"C:\\BudgetCollector\\your-private-import-config.json"}
+```
+
+That file is deliberately local-only and must never be committed. The button
+starts the fixed source sequence, pauses only for normal bank authentication,
+updates the workbook only if every source and the existing import validation
+pass, creates the existing private backup, and opens the resulting workbook.
 
 **New workbook review connection:** `workbook-intake <absolute-private-config>`
 reads encrypted Wells/both-Chase captures and creates a separate local review copy
