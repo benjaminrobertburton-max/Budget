@@ -1135,6 +1135,18 @@ just because `CHASE_COLLECTION_SEQUENCE` exists. Continue on real detail-page
 evidence, verify separate card identity and capture coverage before workbook use.
 # September 22 first-import repair checkpoint — bridge 0.4.20
 
+**Later identity reconciliation:** user approved one-time reconciliation and then
+confirmed all six displayed exceptions. The private current workbook now stores
+37 source identity links using the existing collector reference format. Original
+purchase dates, amounts, classifications, History and formula results were
+preserved; original descriptions/references are retained in audit notes and an
+exact private pre-link backup. Zero formula errors; reopened identity checks and
+targeted description-row visual checks passed. Private `identity-links-applied.json`
+and `accepted-identity-links.json` record the application. Do not rerun the earlier
+comparison helper over those receipts or reapply manual savings. No new bank
+activity has yet been imported. This supersedes the missing identity approval
+below, not source freshness, promotion bindings or full-import acceptance gates.
+
 Focused repairs: Wells accepts the observed help-text pending headings and checks
 bottom totals against all displayed pending plus posted activity. Chase chooses
 the observed account-tile button, not the identically named activity dropdown.
