@@ -18,18 +18,18 @@ verified workbook import only after all captures finish, retains the private
 backup, and opens the local output. It requires the supported signed-in source
 tabs and must complete shadow-mode acceptance before replacing the fallback.
 
-### Local Tuesday button
+### Local Tuesday refresh
 
-After the one-time private setup, double-click
-`collector/windows/Start Budget Refresh.cmd`. It reads only
-`%LOCALAPPDATA%\BudgetCollector\weekly-refresh.json`, which must contain the
+Run `node collector/src/cli.mjs weekly-refresh` from a local Codex task after
+the one-time private setup. It reads only
+`%LOCALAPPDATA%\BudgetCollector\weekly-refresh.json`, which contains the
 absolute path to the existing private workbook-import configuration:
 
 ```json
 {"workbookConfig":"C:\\BudgetCollector\\your-private-import-config.json"}
 ```
 
-That file is deliberately local-only and must never be committed. The button
+That file is deliberately local-only and must never be committed. The refresh
 starts the fixed source sequence, pauses only for normal bank authentication,
 updates the workbook only if every source and the existing import validation
 pass, creates the existing private backup, and opens the resulting workbook.
