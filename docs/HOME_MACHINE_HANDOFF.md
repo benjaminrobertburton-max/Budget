@@ -4,6 +4,23 @@
 
 ### September 22 — first real import preparation (newest authority)
 
+**First supervised attempt:** bank publication stopped safely. Wells returned
+activity with missing pending/section evidence and a source-total mismatch; Chase
+reported navigation delivery failure; PayPal financing was incomplete. Citi and
+Wealthfront capture checks passed, but neither has passed accepted-workbook-anchor
+reconciliation in this run. No bank ledger data was imported. Collect fresh again
+after resolving blockers; do not extend the 15-minute freshness limit.
+
+User-confirmed manual card balances and the personal-safe addition WERE applied
+to the private workbook, with an exact backup and replay-protection journal. Do
+not add them again. See private `manual-updates.json`, `manual-application.json`
+and `bank-import-status.json`. Start now identifies Sep 22 as incomplete, source
+anchors are unconfirmed, and Tuesday warns that the prior plan is not current.
+Formula/value export checks and historical-value preservation passed. The viewer
+was queued to reopen. Financial amounts and private evidence remain outside Git.
+Ask before turning this import into a broader collector development session, as
+the user expressly constrained development cost and scope.
+
 User approved real import on this work machine and retention of private workbook,
 backup and encrypted evidence until verified home handoff. Temporary tests still
 use disposable cleanup. Real-import files stay outside Git/OneDrive in the default

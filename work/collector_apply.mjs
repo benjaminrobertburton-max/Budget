@@ -19,7 +19,7 @@ function reviewTuesday(createdAt){
 // Artifact Tool performs calculation and authoring. Merge only authorized cells
 // and refreshed formula caches back into the original ZIP, preserving native
 // styles, links, validations, drawing/table parts and sheet order verbatim.
-async function mergeCells(original,authored,patches){
+export async function mergeCells(original,authored,patches){
   const base=await JSZip.loadAsync(original),generated=await JSZip.loadAsync(authored);
   const a=await X.sheetMap(base),b=await X.sheetMap(generated);
   check([...a.map.keys()].join('|')===[...b.map.keys()].join('|'),'WORKBOOK_LAYOUT_CHANGED','Worksheet order changed.');
