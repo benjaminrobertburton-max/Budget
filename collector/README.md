@@ -33,6 +33,9 @@ That file is deliberately local-only and must never be committed. The refresh
 starts the fixed source sequence, pauses only for normal bank authentication,
 updates the workbook only if every source and the existing import validation
 pass, creates the existing private backup, and opens the resulting workbook.
+When moving to a new home machine, transfer the authoritative private workbook;
+its accepted ledger is the anchor baseline for the first local refresh. Do not
+copy encrypted browser evidence between machines.
 
 **New workbook review connection:** `workbook-intake <absolute-private-config>`
 reads encrypted Wells/both-Chase captures and creates a separate local review copy

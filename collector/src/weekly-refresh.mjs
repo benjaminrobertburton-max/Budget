@@ -11,7 +11,6 @@ import { createChaseAnchorSession } from "./chase-overlap.mjs";
 import { normalizeCitiActivity } from "./citi-normalize.mjs";
 import { normalizePaypalFinancing } from "./paypal-normalize.mjs";
 import { normalizeWealthfrontCash } from "./wealthfront-normalize.mjs";
-import { mapWellsToLedgerStage } from "./workbook-ledger-map.mjs";
 import { CollectionError, requireEvidence as check, safeIssue } from "./errors.mjs";
 import { createWeeklySequence } from "./weekly-sequence.mjs";
 
@@ -53,6 +52,22 @@ function timeout(ms, onTimeout) {
   return new Promise((_, reject) => setTimeout(() => { onTimeout(); reject(Object.assign(new Error("REFRESH_TIMEOUT"), { code: "REFRESH_TIMEOUT" })); }, ms));
 }
 
+// A transferred private workbook already owns the accepted transaction anchors.
+// On its first run on another local machine there is deliberately no prior
+// encrypted browser record to copy.  Let the existing workbook importer compare
+// the fresh raw capture with those accepted anchors; do not demand a second,
+// machine-specific anchor store before the first home refresh.
+export function reconcileWeeklyWells(normalized, prior) {
+  if (prior === null) {
+    check(normalized.issues.length === 0, "WELLS_RECONCILIATION_BLOCKED", "Wells capture has an unresolved source check.");
+    return { ...normalized, handoffBaseline: true };
+  }
+  const reconciled = reconcileWellsOverlap(normalized, prior);
+  check(reconciled.overlapVerified && reconciled.issues.length === 0,
+    "WELLS_RECONCILIATION_BLOCKED", "Wells capture does not match the prior accepted overlap.");
+  return reconciled;
+}
+
 export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60 * 1000, onStatus = () => {}, startBridge = startChromeBridge,
   importWorkbook, openResult = openWorkbook } = {}) {
   check(typeof configFile === "string" && path.isAbsolute(configFile), "PRIVATE_CONFIG_REQUIRED", "Choose the private collector configuration file before refreshing.");
@@ -83,9 +98,12 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
         const prior = await store.latestPayload({ source: "wells", kind: "wells_normalized_activity" });
         const at = capturedAt(); const reference = await store.save({ source: "wells", capturedAt: at, payload: candidate });
         const normalized = normalizeWellsActivity(candidate, reference, at, { hasPriorAnchor: prior !== null });
-        const reconciled = prior === null ? normalized : reconcileWellsOverlap(normalized, prior);
-        if (!reconciled.overlapVerified || reconciled.issues.length) return block("wells", "WELLS_RECONCILIATION_BLOCKED");
-        await store.save({ source: "wells", capturedAt: at, payload: { ...reconciled, ledgerStage: mapWellsToLedgerStage(reconciled) } });
+        try { reconcileWeeklyWells(normalized, prior); }
+        catch { return block("wells", "WELLS_RECONCILIATION_BLOCKED"); }
+        // Keep the raw source candidate as the newest evidence. The direct
+        // importer—not this coordinator—reconciles it with the accepted ledger
+        // inside the transferred workbook and decides which rows can publish.
+        if (prior !== null) await store.save({ source: "wells", capturedAt: at, payload: reconcileWeeklyWells(normalized, prior) });
         next("wells");
       },
       onChaseActivityCapture: async candidate => {
