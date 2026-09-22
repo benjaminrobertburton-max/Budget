@@ -22,9 +22,12 @@ export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { has
     let totals = null;
     for (const [ri, row] of table.rows.entries()) {
       const nonempty = row.map(s => s.trim()).filter(Boolean);
-      if (nonempty.length === 1 && /^(Pending|Posted) Transactions$/i.test(nonempty[0])) {
+      if (nonempty.length === 1 && /^(Pending|Posted) Transactions(?: - Opens a dialog)?$/i.test(nonempty[0])) {
         section = nonempty[0].split(' ')[0].toLowerCase(); sections.add(section); continue;
       }
+      // Observed Wells pending subheading, not a transaction or an empty section.
+      if (section === 'pending' && nonempty.length === 1
+        && /^Authorized Transactions Opens a dialog Note: Debit card transaction amounts may change\.$/.test(nonempty[0])) continue;
       if (nonempty.length === 1 && /^No pending transactions to view\.?$/i.test(nonempty[0])) {
         if (section !== 'pending') issues.add('misplaced_empty_pending');
         else pendingEmpty = true;
@@ -59,9 +62,10 @@ export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { has
       } catch { issues.add('invalid_money'); }
     }
     if (totals) {
-      const posted = transactions.filter(row => row.state === 'posted' && row.evidenceRef.startsWith(`${evidenceRef}:table-${ti}:`));
-      if (totals.credit !== sumMinor(posted.filter(r => r.amountMinor >= 0).map(r => r.amountMinor))
-        || totals.debit !== sumMinor(posted.filter(r => r.amountMinor < 0).map(r => -r.amountMinor))) issues.add('source_totals_mismatch');
+      // Wells' bottom Totals row covers the displayed table, including pending.
+      const displayed = transactions.filter(row => row.evidenceRef.startsWith(`${evidenceRef}:table-${ti}:`));
+      if (totals.credit !== sumMinor(displayed.filter(r => r.amountMinor >= 0).map(r => r.amountMinor))
+        || totals.debit !== sumMinor(displayed.filter(r => r.amountMinor < 0).map(r => -r.amountMinor))) issues.add('source_totals_mismatch');
     }
   }
   if (!sections.has('posted')) issues.add('missing_posted_section');

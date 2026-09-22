@@ -10,6 +10,19 @@ function candidate(rows) {
       headers:['','Date','Description','Deposits/Credits','Withdrawals/Debits','Ending Daily Balance'],rows,issues:[]}]};
 }
 const base = [['Pending Transactions'],['No pending transactions to view.'],['Posted Transactions']];
+test('Wells help labels retain pending rows and totals cover pending plus posted',()=>{
+ const rows=[['Pending Transactions - Opens a dialog'],
+ ['Authorized Transactions Opens a dialog Note: Debit card transaction amounts may change.'],
+ ['','04/08/2031','FICTIONAL PENDING','','$7',''],['Posted Transactions'],
+ ['','04/07/2031','FICTIONAL POSTED','','$2',''],['','Totals','','$0','$9','']];
+ const result=normalizeWellsActivity(candidate(rows),'fictional:evidence','2031-04-08T12:00:00Z');
+ assert.deepEqual(result.issues,[]);
+ assert.deepEqual(result.transactions.map(r=>r.state),['pending','posted']);
+ rows.at(-1)[4]='$2';
+ assert.ok(normalizeWellsActivity(candidate(rows),'fictional:evidence','2031-04-08T12:00:00Z').issues.includes('source_totals_mismatch'));
+ rows[1]=['Unrecognized pending content'];
+ assert.ok(normalizeWellsActivity(candidate(rows),'fictional:evidence','2031-04-08T12:00:00Z').issues.includes('unrecognized_row'));
+});
 test('Wells sections and short dates normalize without leaking private content in summary',()=>{
   const r=normalizeWellsActivity(candidate([...base,['','04/07/31','FICTIONAL SHOP','','$12.34','$80.00'],['','04/07/31','FICTIONAL SHOP','','$12.34','']]),'fictional:evidence','2031-04-08T12:00:00Z');
   assert.equal(r.transactions.length,2); // identical purchases are retained

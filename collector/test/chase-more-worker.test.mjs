@@ -52,6 +52,19 @@ test('navigation distinguishes a rendering page from explicit authentication con
   context.getComputedStyle=()=>({display:'block',visibility:'visible'});
   assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',[]).state",context),'auth_required');
 });
+
+test('account tile is selected instead of the duplicate activity dropdown',async()=>{
+ const {context}=await worker();
+ const node=(innerText,tile=false)=>({innerText,tagName:'BUTTON',id:'',disabled:false,
+  matches:()=>true,getClientRects:()=>[{}],getAttribute:name=>name==='data-testid'&&tile?'accounts-name-link-button-fictional':null,
+  scrollIntoView(){},getBoundingClientRect:()=>({x:1,y:2,width:100,height:30})});
+ const tile=node('Prime Visa (fictional)',true),dropdown=node('Prime Visa (fictional)');
+ context.document={querySelectorAll:()=>[node('Sign out'),tile,dropdown]};
+ context.getComputedStyle=()=>({display:'block',visibility:'visible'});
+ assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',[]).action",context),'select');
+ context.document.querySelectorAll=()=>[node('Sign out'),tile,node('Prime Visa (fictional)',true)];
+ assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',[]).state",context),'ambiguous');
+});
 test('actual worker guards more-activity click by page token and requests a changed-page capture',async()=>{
   const {context,calls}=await worker();
   await vm.runInContext("loadMoreChase(7,'a0000001')",context);

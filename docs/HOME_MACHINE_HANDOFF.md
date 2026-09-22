@@ -1133,3 +1133,28 @@ and renewed session are needed unless desktop control recovers. No claim of eith
 card's successful collection is justified yet. Pair sequencing is not implemented
 just because `CHASE_COLLECTION_SEQUENCE` exists. Continue on real detail-page
 evidence, verify separate card identity and capture coverage before workbook use.
+# September 22 first-import repair checkpoint — bridge 0.4.20
+
+Focused repairs: Wells accepts the observed help-text pending headings and checks
+bottom totals against all displayed pending plus posted activity. Chase chooses
+the observed account-tile button, not the identically named activity dropdown.
+PayPal permits query parameters on the two exact same-origin Credit/financing
+paths and retains a bounded capture request through navigation. No permissions,
+credentials, budget logic or financial data were added to Git.
+
+Live: Wells parsed pending and posted with no normalization issue and capture
+overlap passed. Both Chase cards navigated and parsed with no normalization issue;
+Sapphire pending count/total matched, Prime uses the approved absent-pending rule.
+PayPal financing capture passed on its loaded financing page. The initial automatic
+navigation attempt timed out before a successful retry, so landing-to-financing
+reliability is NOT yet certified. Citi/Wealthfront prior capture checks passed;
+freshness must be renewed before eventual publication, not relaxed.
+
+**Import remains blocked, workbook unchanged by these repairs.** A read-only check
+found most legacy workbook anchors do not exactly match bank descriptions, despite
+unique date/amount candidates. Do not accept date/amount alone, fuzzy-match history,
+or overwrite the authoritative workbook. Obtain approval for one-time explicit
+private legacy-to-source identity reconciliation, preserving original history and
+reviewing ambiguity. Recollect fresh evidence afterward. Current manual updates
+are already applied and must not be repeated. Private diagnostic `anchor-check.json`
+under the approved September 22 import directory records only bounded checks.

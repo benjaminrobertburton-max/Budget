@@ -15,6 +15,7 @@ let citiTabId = null;
 let pendingCitiCapture = false;
 let citiReloaded = false;
 let paypalTabId=null,pendingPaypalCapture=false,paypalReloaded=false;
+let paypalCaptureDeadline=0;
 let wealthfrontTabId=null,pendingWealthfrontCapture=false,wealthfrontReloaded=false;
 let pendingChaseCapture = false;
 let chaseDeliveryInFlight = false;
@@ -126,7 +127,10 @@ function chaseNavigationStep(label, completed) {
   const headings=nodes.filter(n=>n.id==='mds-navigation-bar-exp-heading'&&visible(n));
   if(headings.length===1&&text(headings[0]).startsWith(label+' ('))return {state:'ready'};
   if(completed.includes('select'))return {state:'waiting'};
-  const choices=controls.filter(n=>text(n).startsWith(label+' ('));
+  // The overview also contains a same-named activity dropdown. Only the
+  // observed account-tile button opens account detail; never click the dropdown.
+  const choices=controls.filter(n=>text(n).startsWith(label+' (')
+    && (n.getAttribute('data-testid')||'').startsWith('accounts-name-link-button-'));
   let candidates=choices,action='select';
   if(!choices.length){
     if(completed.includes('overview'))return {state:'waiting'};
@@ -285,10 +289,11 @@ async function pollCommand() {
       if(command==='capture_paypal_financing'){
         const tabs=await chrome.tabs.query({url:['https://www.paypal.com/*']});
         if(tabs.length===1&&Number.isInteger(tabs[0].id)){
-          paypalTabId=tabs[0].id;pendingPaypalCapture=true;
+          paypalTabId=tabs[0].id;pendingPaypalCapture=true;paypalCaptureDeadline=Date.now()+45000;
           const delivered=await chrome.tabs.sendMessage(paypalTabId,{command:'capture_paypal_financing'},{frameId:0}).then(r=>r?.accepted===true).catch(()=>false);
-          if(delivered)pendingPaypalCapture=false;
-          else if(!paypalReloaded){paypalReloaded=true;await chrome.tabs.reload(paypalTabId);}
+          // Keep the bounded request alive through Credit -> financing navigation.
+          // An acknowledgement is not a completed source capture.
+          if(!delivered&&!paypalReloaded){paypalReloaded=true;await chrome.tabs.reload(paypalTabId);}
         }
       }
     if(command==='capture_citi_activity'){
@@ -341,12 +346,15 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return;
   }
   if(message.event==='paypal_page_ready'){
-    if(tabId===paypalTabId&&pendingPaypalCapture){pendingPaypalCapture=false;void chrome.tabs.sendMessage(tabId,{command:'capture_paypal_financing'},{frameId:0}).catch(()=>{});}
+    if(pendingPaypalCapture&&Date.now()>=paypalCaptureDeadline)pendingPaypalCapture=false;
+    if(tabId===paypalTabId&&sender.frameId===0&&pendingPaypalCapture){void chrome.tabs.sendMessage(tabId,{command:'capture_paypal_financing'},{frameId:0}).catch(()=>{});}
     else void pollCommand();return;
   }
   if(message.event==='paypal_financing_capture'){
-    if(session&&tabId===paypalTabId&&sender.frameId===0&&/^https:\/\/www\.paypal\.com\//.test(sender.url||'')&&message.candidate)
+    if(session&&tabId===paypalTabId&&sender.frameId===0&&/^https:\/\/www\.paypal\.com\//.test(sender.url||'')&&message.candidate){
+      pendingPaypalCapture=false;
       void send('/v1/paypal-financing',message.candidate).then(()=>pollCommand());
+    }
     return;
   }
   if(message.event==='citi_page_ready'){

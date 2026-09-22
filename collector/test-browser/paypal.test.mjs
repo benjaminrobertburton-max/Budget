@@ -31,6 +31,16 @@ test('financing reader opens only promotion details and detects missing sections
       assert.deepEqual(await page.evaluate(()=>capturePaypalFinancing()),c);
       await page.evaluate(()=>document.querySelector('section').remove());
       assert.equal((await page.evaluate(()=>capturePaypalFinancing())).finding,'not_ready');
+      await page.setContent('<a href="/myaccount/credit/paypal-credit/us?fictional=1">PayPal Credit Card</a>');
+      await page.evaluate(()=>{
+        history.replaceState(null,'','/myaccount/summary');
+        document.querySelector('a').onclick=e=>{e.preventDefault();document.body.dataset.navigated='yes';};
+      });
+      assert.equal((await page.evaluate(()=>capturePaypalFinancing())).finding,'not_ready');
+      assert.equal(await page.locator('body').getAttribute('data-navigated'),'yes');
+      await page.evaluate(()=>{document.body.removeAttribute('data-navigated');document.querySelector('a').href='https://example.invalid/myaccount/credit/paypal-credit/us';});
+      await page.evaluate(()=>capturePaypalFinancing());
+      assert.equal(await page.locator('body').getAttribute('data-navigated'),null);
     }catch(e){console.error('Fictional browser assertion:',e);throw e;}finally{run.stop();await run.done;}
   });assert.deepEqual(await fs.readdir(parent),[]);
 });

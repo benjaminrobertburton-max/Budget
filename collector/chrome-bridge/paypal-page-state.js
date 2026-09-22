@@ -21,7 +21,10 @@ async function capturePaypalFinancing(){
   // Only follow exact links observed in the signed-in Credit dashboard/home.
   if(location.pathname!=='/myaccount/credit/paypal-credit/us/activities/financing'){
     const hrefs=['/myaccount/credit/paypal-credit/us/activities/financing','/myaccount/credit/paypal-credit/us'];
-    for(const href of hrefs){const links=all(`a[href="${href}"]`);if(links.length===1){links[0].click();return out;}}
+    for(const href of hrefs){const links=all('a[href]').filter(a=>{
+      try { const url=new URL(a.href);return url.origin===location.origin&&url.pathname===href; }
+      catch { return false; }
+    });if(links.length===1){links[0].click();return out;}}
     return out;
   }
   if(all('[role="dialog"]').length)return out;

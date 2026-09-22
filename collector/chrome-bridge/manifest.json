@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.4.19",
+  "version": "0.4.20",
   "description": "Local, read-only Wells, Chase, Citi, PayPal financing and Wealthfront connection.",
   "permissions": ["tabs", "alarms", "debugger", "webNavigation"],
   "host_permissions": [
