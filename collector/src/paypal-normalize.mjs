@@ -43,8 +43,8 @@ export function preparePaypalImport(item,bindings,now){
     &&validDate(b.purchaseDate)&&validDate(b.expirationDate)),'PAYPAL_BINDINGS_REQUIRED','Configure private promotion bindings.');
   const r=item?.record,age=now.getTime()-Date.parse(r?.capturedAt);
   check(r?.source==='paypal'&&r.version===1&&r.kind==='budget-collector-source-evidence'
-    &&/^local:evidence:[a-f0-9-]{36}$/.test(item?.reference??'')&&Number.isFinite(age)&&age>=0&&age<=900000,
-  'PAYPAL_CAPTURE_REQUIRED','Fresh private PayPal financing evidence is required.');
+    &&/^local:evidence:[a-f0-9-]{36}$/.test(item?.reference??'')&&Number.isFinite(age)&&age>=0,
+  'PAYPAL_CAPTURE_REQUIRED','Private PayPal financing evidence with a valid capture timestamp is required.');
   const n=normalizePaypalFinancing(r.payload);
   check(n.coverageVerified,'PAYPAL_CAPTURE_FAILED','PayPal financing is incomplete.');
   const used=new Set(),mapped=bindings.map(b=>{

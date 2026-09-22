@@ -17,7 +17,7 @@ for(const [name,change] of [
   ['missing date',c=>c.rows[0].date=''],['unobserved pending detail',c=>c.pending='$20.00'],
 ])test(name+' is not silently accepted',()=>{const c=sample();change(c);assert.equal(normalizeWealthfrontCash(c).coverageVerified,false);});
 
-test('workbook boundary requires fresh balanced evidence and an accepted anchor',()=>{
+test('workbook boundary requires balanced evidence and an accepted anchor without elapsed expiry',()=>{
   const now=new Date('2031-09-09T12:00:00Z'),payload=sample();
   const item={reference:'local:evidence:11111111-1111-4111-8111-111111111111',record:{version:1,kind:'budget-collector-source-evidence',source:'wealthfront',capturedAt:now.toISOString(),payload}};
   const first=normalizeWealthfrontCash(payload).rows[0];
@@ -25,7 +25,8 @@ test('workbook boundary requires fresh balanced evidence and an accepted anchor'
   assert.equal(prepareWealthfrontImport(item,binding,null,now).coverageVerified,true);
   assert.equal(prepareWealthfrontImport(item,binding,item.record,now).coverageVerified,true);
   assert.throws(()=>prepareWealthfrontImport(item,{...binding,initialAnchor:{...binding.initialAnchor,amountMinor:1}},null,now),/overlap is missing/);
-  assert.throws(()=>prepareWealthfrontImport(item,binding,null,new Date(now.getTime()+900001)),/Fresh private/);
+  assert.equal(prepareWealthfrontImport(item,binding,null,new Date(now.getTime()+86400000)).capturedAt,now.toISOString());
+  assert.throws(()=>prepareWealthfrontImport(item,binding,null,new Date(now.getTime()-1)),/valid capture timestamp/);
   const incomplete=structuredClone(item);incomplete.record.payload.available='';
   assert.throws(()=>prepareWealthfrontImport(incomplete,binding,null,now),/balance\/identity checks failed/);
 });

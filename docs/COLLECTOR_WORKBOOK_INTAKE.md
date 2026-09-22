@@ -1,5 +1,11 @@
 # Collector workbook intake — September 21 checkpoint
 
+**September 22 user override:** captured evidence no longer expires after 15
+minutes. Use saved import-session evidence; preserve actual capture timestamps in
+Start and source controls. Reject invalid/future timestamps, and keep all other
+source, account, anchor, reconciliation and formula gates. Older freshness-limit
+statements below are historical and superseded by this policy.
+
 ## Current default: direct Wells/Chase import
 
 **Citi integration added:** add `"citi": "4444"` (fictional example; use the actual

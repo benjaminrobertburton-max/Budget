@@ -1135,6 +1135,18 @@ just because `CHASE_COLLECTION_SEQUENCE` exists. Continue on real detail-page
 evidence, verify separate card identity and capture coverage before workbook use.
 # September 22 first-import repair checkpoint — bridge 0.4.20
 
+**Latest successful import and capture-age policy:** user removed the 15-minute
+expiry entirely. Saved captures keep their real timestamps; invalid/future times
+and every non-age evidence gate remain enforced. The private configured workbook
+was successfully imported with Wells, both Chase cards, Citi, PayPal financing and
+Wealthfront. Source rows older than accepted overlap are inspected but unrelated
+old history is not backfilled. Manual inputs and closed historical values were
+verified unchanged; the saved workbook had zero formula errors. Private status and
+backup are under the existing September 22 import folder. No financial files were
+committed. Classification/date/payment details still need resolution; Tuesday
+Review is explicitly NOT a current payment plan. Do not repeat identity migration,
+manual additions, or demand recapture merely because elapsed processing time grew.
+
 **Latest import attempt:** private `import-config.json` now binds Wells, both
 Chase cards, Citi, all four existing PayPal promotions and Wealthfront. Promotion
 labels/deadlines matched uniquely; Wealthfront's initial overlap was tied to an

@@ -30,8 +30,13 @@ test('recognized Wells totals stay evidence, not unparsed transactions; mismatch
  records.wells.record.payload.tables[0].rows.at(-1)[3]='$26.00';
  assert.ok(prepareWorkbookIntake(args).accounts[0].issues.includes('source_totals_mismatch'));
 });
-test('stale, future, wrong-account, normalized-only and malformed evidence is refused',()=>{
-  for(const change of [r=>r.wells.record.capturedAt='2031-09-09T12:00:00Z',r=>r.wells.record.capturedAt='2031-09-10T14:00:00Z',
+test('saved captures retain their timestamps without expiry',()=>{
+ const records=intakeRecords();records.wells.record.capturedAt='2031-09-08T12:00:00Z';
+ const result=prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
+ assert.equal(result.accounts[0].capturedAt,'2031-09-08T12:00:00Z');
+});
+test('future, wrong-account, normalized-only and malformed evidence is refused',()=>{
+  for(const change of [r=>r.wells.record.capturedAt='invalid',r=>r.wells.record.capturedAt='2031-09-10T14:00:00Z',
     r=>r.wells.record.payload.source.accountSuffix='9999',r=>r.chase_prime.record.payload.source.chase.product='sapphire_preferred',
     r=>r.chase_prime.record.payload={kind:'chase_normalized_activity',workbookReady:true},
     r=>r.wells.reference='not-private-evidence',r=>r.wells.record.payload.tables[0].rows[3][0]='bad\n'.repeat(1000)]){

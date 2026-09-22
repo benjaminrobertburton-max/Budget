@@ -44,8 +44,8 @@ export function prepareWealthfrontImport(item,binding,prior,now){
   'WEALTHFRONT_BINDING_REQUIRED','Configure the private account identity and accepted initial anchor.');
   const r=item?.record,age=now.getTime()-Date.parse(r?.capturedAt);
   check(r?.version===1&&r.kind==='budget-collector-source-evidence'&&r.source==='wealthfront'
-    &&/^local:evidence:[a-f0-9-]{36}$/.test(item?.reference??'')&&age>=0&&age<=900000,
-  'WEALTHFRONT_CAPTURE_REQUIRED','Fresh private Wealthfront evidence is required.');
+    &&/^local:evidence:[a-f0-9-]{36}$/.test(item?.reference??'')&&Number.isFinite(age)&&age>=0,
+  'WEALTHFRONT_CAPTURE_REQUIRED','Private Wealthfront evidence with a valid capture timestamp is required.');
   const n=normalizeWealthfrontCash(r.payload);
   check(n.coverageVerified&&n.accountId===binding.accountId,'WEALTHFRONT_CAPTURE_FAILED','Wealthfront balance/identity checks failed.');
   let anchors=[binding.initialAnchor];

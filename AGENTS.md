@@ -4,6 +4,13 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Capture-age policy — September 22 (latest user instruction):** no 15-minute
+expiry. Import the saved captures from the import session without demanding new
+captures because processing took time. Preserve and display actual capture
+timestamps. Invalid/future timestamps, missing sources, identity/anchor failures,
+counts/totals and formula errors still block as before. A captured balance is not
+a promise of a live current balance; remaining verification still gates payments.
+
 **September 22 real-import authority (newest):** user selected the current workbook
 as authoritative if it matches the last GitHub copy. Byte identity with both remote
 main and collector branch was verified. User approved the first real supervised

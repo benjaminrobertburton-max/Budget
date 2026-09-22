@@ -122,7 +122,7 @@ export async function buildDirectWorkbook(original,intake){
   const wells=result.reports.find(a=>a.key==='wells'),balance=type=>wells.balances.find(b=>b.type===type)?.amountMinor;
   check(Number.isSafeInteger(balance('available')),'MISSING_BALANCE','Wells available balance is missing.');
   const oldReview=sheet(CASH).getRange('A5').values[0][0];
-  write(CASH,'A5',serialDate(intake.createdAt.slice(0,10)));write(CASH,'C5',balance('available')/100);write(CASH,'F5',balance('available')/100);
+  write(CASH,'A5',serialDate(wells.capturedAt.slice(0,10)));write(CASH,'C5',balance('available')/100);write(CASH,'F5',balance('available')/100);
   const wp=intake.rows.filter(r=>r.account==='Wells Fargo'&&r.state==='pending');
   write(CASH,'D5',wp.filter(r=>r.amountMinor>0).reduce((s,r)=>s+r.amountMinor,0)/100);
   write(CASH,'E5',-wp.filter(r=>r.amountMinor<0).reduce((s,r)=>s+r.amountMinor,0)/100);
@@ -144,7 +144,7 @@ export async function buildDirectWorkbook(original,intake){
     const needs=indices.some(i=>result.rows[i][12]!=='Verified');
     const status=needs?'Needs classification':key!=='wells'&&!['no_payment_due','requirements_captured'].includes(report.bankPaymentStatus)?'Needs payment details':'Verified';
     write(CASH,`I${row}`,`=IF(OR(E${row}<>D${row},ABS(G${row}-F${row})>0.005),"Source check needed","${status}")`,true);
-    write(CASH,`J${row}`,report.pendingBasis+(needs?'; resolve ledger date/category exceptions':''));
+    write(CASH,`J${row}`,`Captured ${report.capturedAt}. `+report.pendingBasis+(needs?'; resolve ledger date/category exceptions':''));
   }
   if(typeof oldReview!=='number'||oldReview<reviewSerial)for(const row of [13,16,18,19,20]){
     if(controls.some(c=>c[1]===row))continue;
@@ -164,7 +164,8 @@ export async function buildDirectWorkbook(original,intake){
   write('1. Start','A2',`${importedLabel} imported. Complete remaining source checks before creating the payment plan.`);
   write('1. Start','A4',`Current import — ${review}`);
   write('1. Start','B6',wells.needsReview?'Needs review':'Verified');write('1. Start','C6','Ledger and current pending reconciled.');
-  write('1. Start','C5','Bank available; includes pending.');
+  write('1. Start','A5','Wells — captured balance');
+  write('1. Start','C5',`Captured ${wells.capturedAt.slice(0,16).replace('T',' ')} UTC; includes pending.`);
   write('1. Start','B7','Import in progress');write('1. Start','C7','Payment plan not ready');
   write('1. Start','B8','Finish source checks');write('1. Start','C8','See Account Snapshots');
   const checkpoints=sheet('1. Start').getRange('F6:F13').values;
@@ -198,7 +199,7 @@ export async function buildDirectWorkbook(original,intake){
     write(CASH,'D20',data.length);write(CASH,'E20',`=COUNTA('${name}'!A6:A9)`,true);
     write(CASH,'F20',total);write(CASH,'G20',`='${name}'!C11`,true);write(CASH,'H20','Promo identities matched');
     write(CASH,'I20','=IF(OR(D20<>E20,ABS(F20-G20)>0.005),"Source check needed","Promo verified")',true);
-    write(CASH,'J20','Promos only; not card/payment verification.');
+    write(CASH,'J20',`Captured ${intake.paypal.capturedAt}. Promos only; not card/payment verification.`);
     write('1. Start','G13','Promo snapshot refreshed');
   }
   wb.recalculate();
@@ -213,7 +214,7 @@ export async function buildDirectWorkbook(original,intake){
     write(CASH,'D13',w.rows.length);write(CASH,'E13',w.rows.length);
     const total=w.rows.reduce((s,r)=>s+r.amountMinor,0)/100;
     write(CASH,'F13',total);write(CASH,'G13',total);write(CASH,'H13','Yes');write(CASH,'I13','Verified');
-    write(CASH,'J13','Private evidence: running balances and accepted overlap matched; zero pending/held displayed.');
+    write(CASH,'J13',`Captured ${w.capturedAt}. Running balances and accepted overlap matched; zero pending/held displayed.`);
     write('1. Start','G7','Cash and activity refreshed');
     wb.recalculate();
   }

@@ -14,9 +14,10 @@ for(const [name,mutate] of [
   ['missing interest',c=>c.rows[0].accruedInterest=''],['wrong card detail',c=>c.rows[0].remainingBalance='$81.00'],
   ['false paid off',c=>c.rows[0].section='Paid off'],['duplicate promotion',c=>c.rows.push({...c.rows[0]})],
 ])test(name+' blocks verification',()=>{const c=fictionalPaypal();mutate(c);assert.equal(normalizePaypalFinancing(c).coverageVerified,false);});
-test('missing bound promotion is not inferred paid off; unknown active and stale captures block',()=>{
+test('promotion bindings remain required; saved captures do not expire and future times block',()=>{
   const c=fictionalPaypal();c.rows.pop();assert.throws(()=>preparePaypalImport(item(c),fictionalPaypalBindings(),now),{code:'PAYPAL_BINDING_MISMATCH'});
   assert.throws(()=>preparePaypalImport(item(fictionalPaypal()),fictionalPaypalBindings().slice(1),now),{code:'PAYPAL_UNMAPPED_PROMOTION'});
-  assert.throws(()=>preparePaypalImport(item(fictionalPaypal()),fictionalPaypalBindings(),new Date(now.getTime()+900001)),{code:'PAYPAL_CAPTURE_REQUIRED'});
+  assert.equal(preparePaypalImport(item(fictionalPaypal()),fictionalPaypalBindings(),new Date(now.getTime()+86400000)).capturedAt,now.toISOString());
+  assert.throws(()=>preparePaypalImport(item(fictionalPaypal()),fictionalPaypalBindings(),new Date(now.getTime()-1)),{code:'PAYPAL_CAPTURE_REQUIRED'});
   assert.throws(()=>validatePaypalCandidate({...fictionalPaypal(),password:'forbidden'}),{code:'PAYPAL_SOURCE_INVALID'});
 });

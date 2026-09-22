@@ -263,7 +263,7 @@ test('Citi encrypted evidence updates ledger, balances, due date, source checks 
   c.rows[1].description='CHANGED ACCEPTED POSTED ROW';
   await assert.rejects(buildDirectWorkbook(saved,prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW})),{code:'ANCHOR_MISSING'});
   records.citi.record.capturedAt='2031-09-08T14:00:00Z';
-  assert.throws(()=>prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW}),{code:'STALE_INTAKE'});
+  assert.equal(prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW}).accounts.find(a=>a.key==='citi').capturedAt,'2031-09-08T14:00:00Z');
   if(process.env.BUDGET_FICTIONAL_PREVIEWS){
     await fs.mkdir(process.env.BUDGET_FICTIONAL_PREVIEWS,{recursive:true});
     for(const name of ['Start','Snapshots','Debt'])await fs.copyFile(path.join(path.dirname(result.backup),name+'.png'),path.join(process.env.BUDGET_FICTIONAL_PREVIEWS,'Citi-'+name+'.png'));

@@ -38,8 +38,8 @@ export function prepareWorkbookIntake({records,bindings,now=new Date()}){
       &&record.kind==='budget-collector-source-evidence'&&record.source===account.source,
     'INVALID_INTAKE','The selected evidence record does not match the source contract.');
     const age=now.getTime()-Date.parse(record.capturedAt);
-    check(Number.isFinite(age)&&age>=0&&age<=15*60*1000,
-      'STALE_INTAKE','Collector evidence is stale or future-dated; collect fresh evidence before importing.');
+    check(Number.isFinite(age)&&age>=0,
+      'INVALID_CAPTURE_TIME','Collector evidence has an invalid or future capture timestamp.');
     const candidate=record.payload;
     if(account.source==='citi'){
       const n=normalizeCitiActivity(candidate,reference);

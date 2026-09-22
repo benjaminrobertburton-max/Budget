@@ -53,7 +53,12 @@ export function reconcileWorkbookLedger(intake,ledger,rules){
       const k=oldSignature(r),n=counts.get(k)??0;check(n>0,'POSTED_HISTORY_CHANGED','Accepted activity is missing or changed in the captured overlap.');counts.set(k,n-1);
     }
     const used=new Set(),occurrences=new Map(),scope={posted:[],pending:[]};
+    const anchorStart=anchors.map(x=>sourceDate(x.r)).filter(Boolean).sort()[0];
+    const acceptedSignatures=new Set(oldPosted.map(x=>oldSignature(x.r)));
     for(const r of incoming){
+      // Inspect all loaded rows above, but do not backfill unrelated old history.
+      if(r.state==='posted'&&anchorStart&&r.date<anchorStart
+        &&!acceptedSignatures.has(signature(r.date,r.description,r.expense)))continue;
       const sig=signature(r.date,r.description,r.expense),group=r.state+'|'+sig;
       const occurrence=(occurrences.get(group)??0)+1;occurrences.set(group,occurrence);
       const hash=createHash('sha256').update(sig).digest('hex').slice(0,20);
