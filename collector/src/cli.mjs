@@ -61,7 +61,7 @@ else if (command.length === 1 && ["chase-work-test", "chase-prime-work-test", "c
     process.removeListener("SIGTERM", stop);
   }
 }
-else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh", "chase-pair-refresh", "citi-refresh", "paypal-refresh"].includes(command[0])) {
+else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refresh", "chase-sapphire-refresh", "chase-prime-refresh", "chase-pair-refresh", "citi-refresh", "paypal-refresh", "wealthfront-refresh"].includes(command[0])) {
   let bridge = null;
   try {
     const { runCollectorQc, formatCollectorQc } = await import("./collector-qc.mjs");
@@ -74,11 +74,20 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
     const chasePair=command[0]==='chase-pair-refresh';
     let chasePairPhase=0;
     bridge = await startChromeBridge({
-      nextCommand: command[0] === 'paypal-refresh' ? 'capture_paypal_financing' : command[0] === 'citi-refresh' ? 'capture_citi_activity' : command[0] === "wells-refresh" ? "open_wells"
+      nextCommand: command[0] === 'wealthfront-refresh' ? 'capture_wealthfront_cash' : command[0] === 'paypal-refresh' ? 'capture_paypal_financing' : command[0] === 'citi-refresh' ? 'capture_citi_activity' : command[0] === "wells-refresh" ? "open_wells"
         : command[0] === "chase-refresh" ? "open_chase"
           : command[0] === "chase-sapphire-refresh" ? "open_chase_sapphire"
             : command[0] === "chase-prime-refresh" || chasePair ? "open_chase_prime" : "none",
       captureAfterAuth: ["wells-refresh", "chase-refresh"].includes(command[0]),
+      onWealthfrontCapture: command[0]==='wealthfront-refresh'?async candidate=>{
+        const [{defaultPrivateRoot},{openPrivateEvidenceStore},{normalizeWealthfrontCash}]=await Promise.all([
+          import('./private-paths.mjs'),import('./private-evidence-store.mjs'),import('./wealthfront-normalize.mjs')]);
+        const n=normalizeWealthfrontCash(candidate);
+        if(!n.activityCaptured){console.log('Wealthfront activity could not be read; no workbook update.');return;}
+        const store=await openPrivateEvidenceStore({root:defaultPrivateRoot(),repositoryRoot});
+        await store.save({source:'wealthfront',capturedAt:new Date().toISOString(),payload:candidate});
+        console.log('Wealthfront activity saved privately; workbook import separately checks balances and the accepted anchor.');
+      }:null,
       onPaypalCapture: command[0]==='paypal-refresh'?async candidate=>{
         const [{defaultPrivateRoot},{openPrivateEvidenceStore},{normalizePaypalFinancing}]=await Promise.all([
           import('./private-paths.mjs'),import('./private-evidence-store.mjs'),import('./paypal-normalize.mjs')]);

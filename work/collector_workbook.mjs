@@ -15,6 +15,7 @@ import {windowsProtector} from '../collector/src/protection.mjs';
 import {intakeAccounts,prepareWorkbookIntake,validateIntakeBindings} from '../collector/src/workbook-intake.mjs';
 import {workbookBytes} from './workbook_bytes.mjs';
 import {preparePaypalImport} from '../collector/src/paypal-normalize.mjs';
+import {prepareWealthfrontImport} from '../collector/src/wealthfront-normalize.mjs';
 
 export const INTAKE_SHEET='Support - Collector Intake';
 const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -234,7 +235,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   check(path.isAbsolute(configFile),'UNSAFE_STORAGE_PATH','The intake configuration must be an absolute private path.');
   await assertPrivateDirectory(path.dirname(configFile),policy);await assertRegularFile(configFile,16000);
   const config=JSON.parse(await fs.readFile(configFile,'utf8'));
-  check(config?.version===1&&Object.keys(config).filter(k=>k!=='paypalPromotions').sort().join(',')==='baseWorkbook,bindings,outputRoot,privateRoot,version',
+  check(config?.version===1&&Object.keys(config).filter(k=>!['paypalPromotions','wealthfront'].includes(k)).sort().join(',')==='baseWorkbook,bindings,outputRoot,privateRoot,version',
     'INVALID_INTAKE_CONFIG','The intake configuration has unsupported or missing fields.');
   validateIntakeBindings(config.bindings);
   check(typeof config.baseWorkbook==='string'&&path.isAbsolute(config.baseWorkbook)&&path.extname(config.baseWorkbook).toLowerCase()==='.xlsx',
@@ -251,6 +252,13 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   }
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
   const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
+  if(Object.hasOwn(config,'wealthfront')){
+    check(apply,'WEALTHFRONT_DIRECT_REQUIRED','Cash updates use direct import only.');
+    const current=await SpreadsheetFile.importXlsx(original);
+    const reference=current.worksheets.getItem('Support - Account Snapshots').getRange('B13').values[0][0];
+    const prior=typeof reference==='string'&&reference.startsWith('local:evidence:')?await store.open(reference):null;
+    intake.wealthfront=prepareWealthfrontImport(await store.latestWealthfrontCapture(config.wealthfront?.accountId),config.wealthfront,prior,now);
+  }
   const direct=apply?await import('./collector_apply.mjs'):null;
   const imported=apply?await direct.buildDirectWorkbook(original,intake):null;
   const bytes=imported?.bytes??await buildCollectorWorkbook(original,intake);
@@ -262,11 +270,11 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   try{
     await fs.writeFile(pending,bytes,{flag:'wx',mode:0o600});
     const checks=apply?imported.checks:await formulaScanAndRender(pending,folder,original);
-    if(apply)await direct.renderDirectWorkbook(bytes,folder,{paypal:!!intake.paypal});
+    if(apply)await direct.renderDirectWorkbook(bytes,folder,{paypal:!!intake.paypal,wealthfront:!!intake.wealthfront});
     await assertRegularFile(config.baseWorkbook,40*1024*1024);
     check(sha(await fs.readFile(config.baseWorkbook))===originalHash,'WORKBOOK_CHANGED','The original workbook changed during intake; rerun against the current file.');
     const [encrypted]=await protector.sealMany([{version:1,kind:apply?'workbook_import_receipt':'workbook_intake_receipt',baseHash:originalHash,
-      workbookHash:sha(bytes),createdAt:intake.createdAt,references:[...intake.accounts.map(a=>a.evidenceRef),intake.paypal?.evidenceRef].filter(Boolean),workbookReady:false}]);
+      workbookHash:sha(bytes),createdAt:intake.createdAt,references:[...intake.accounts.map(a=>a.evidenceRef),intake.paypal?.evidenceRef,intake.wealthfront?.evidenceRef].filter(Boolean),workbookReady:false}]);
     await fs.writeFile(path.join(folder,'receipt.enc'),encrypted,{flag:'wx',mode:0o600});
     if(apply){
       await fs.writeFile(path.join(folder,'before.xlsx'),original,{flag:'wx',mode:0o600});

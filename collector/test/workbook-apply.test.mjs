@@ -21,6 +21,54 @@ const require=createRequire(new URL('../../work/workbook_bytes.mjs',import.meta.
 const {SpreadsheetFile}=await import(pathToFileURL(require.resolve('@oai/artifact-tool')));
 const intake=records=>prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
 const value=(wb,name,cell)=>wb.worksheets.getItem(name).getRange(cell).values[0][0];
+
+test('Wealthfront encrypted evidence updates cash, preserves savings logic, and rejects incomplete replay',async t=>{
+  const root=await tempDirectory(t),protector=fixtureProtector(),cash='Support - Account Snapshots',savings='5. Savings & Debt';
+  const wb=await SpreadsheetFile.importXlsx(await baseline());
+  wb.worksheets.getItem(cash).getRange('B6:G6').values=[['Wealthfront savings',100,0,0,100,'Prior cash snapshot']];
+  wb.worksheets.getItem(cash).getRange('B7:F7').values=[['Personal safe cash',20,0,0,20]];
+  wb.worksheets.getItem(cash).getRange('C6:F7').setNumberFormat('$#,##0.00');
+  wb.worksheets.getItem(savings).getRange('A5:A7').values=[['Wealthfront available now'],['Personal safe cash'],['Confirmed liquid savings']];
+  wb.worksheets.getItem(savings).getRange('B5').formulas=[[`='${cash}'!F6`]];
+  wb.worksheets.getItem(savings).getRange('B6').formulas=[[`='${cash}'!F7`]];
+  wb.worksheets.getItem(savings).getRange('B7').formulas=[['=SUM(B5:B6)']];
+  wb.worksheets.getItem(savings).getRange('B5:B7').setNumberFormat('$#,##0.00');
+  wb.worksheets.getItem('1. Start').getRange('F7').values=[['Wealthfront']];
+  wb.recalculate();const base=await workbookBytes(wb);
+  const payload={version:1,kind:'wealthfront_cash',finding:'captured',accountId:'FICTIONAL-CASH',title:'Individual Cash Account',
+    total:'$150.00',available:'$150.00',unavailable:'$0.00',pending:'$0.00',rows:[
+      {description:'FICTIONAL TRANSFER',amount:'-$50.00',date:'Sep 9, 2031',runningBalance:'$150.00'},
+      {description:'FICTIONAL DEPOSIT',amount:'+$100.00',date:'Sep 8, 2031',runningBalance:'$200.00'},
+      {description:'FICTIONAL INTEREST',amount:'+$1.00',date:'Sep 1, 2031',runningBalance:'$100.00'}]};
+  const config={version:1,baseWorkbook:path.join(root,'current.xlsx'),outputRoot:path.join(root,'runs'),privateRoot:path.join(root,'private'),bindings:INTAKE_BINDINGS,
+    wealthfront:{accountId:payload.accountId,initialAnchor:{date:'2031-09-08',description:'FICTIONAL DEPOSIT',amountMinor:10000}}};
+  await fs.writeFile(config.baseWorkbook,base);const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(config));
+  const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
+  for(const {record} of Object.values(intakeRecords()))await store.save(record);
+  const reference=await store.save({source:'wealthfront',capturedAt:INTAKE_NOW.toISOString(),payload});
+  const result=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
+  assert.deepEqual(await fs.readFile(result.backup),base);assert.equal(result.checks.formulaErrors,0);
+  const accepted=await fs.readFile(config.baseWorkbook),saved=await SpreadsheetFile.importXlsx(accepted);saved.recalculate();
+  assert.equal(value(saved,cash,'F6'),150);assert.equal(value(saved,cash,'F7'),20);
+  assert.equal(value(saved,savings,'B5'),150);assert.equal(value(saved,savings,'B7'),170);
+  assert.equal(saved.worksheets.getItem(savings).getRange('B5').formulas[0][0],`='${cash}'!F6`);
+  assert.equal(value(saved,'6. History','J5'),3);assert.equal(value(saved,'4. Money Plan','B28'),50);
+  assert.equal(value(saved,cash,'B13'),reference);assert.equal(value(saved,cash,'I13'),'Verified');
+  assert.equal(value(saved,cash,'D13'),3);assert.equal(value(saved,cash,'F13'),51);
+  assert.equal(value(saved,'2. Tuesday Review','E9'),'Done');assert.equal(result.workbookReady,false);
+  assert.equal(saved.worksheets.getItem('Support - Ledger').getRange('A5:A12').values.flat().includes('Wealthfront'),false);
+  if(process.env.BUDGET_FICTIONAL_PREVIEWS){
+    await fs.mkdir(process.env.BUDGET_FICTIONAL_PREVIEWS,{recursive:true});
+    for(const name of ['Start','Snapshots','Savings'])await fs.copyFile(path.join(path.dirname(result.backup),name+'.png'),path.join(process.env.BUDGET_FICTIONAL_PREVIEWS,'Wealthfront-'+name+'.png'));
+  }
+  const again=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
+  assert.equal(again.added,0);assert.deepEqual(await fs.readFile(again.backup),accepted);
+  const replay=await fs.readFile(config.baseWorkbook);
+  await store.save({source:'wealthfront',capturedAt:INTAKE_NOW.toISOString(),payload:{...payload,available:''}});
+  await assert.rejects(runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true}),{code:'WEALTHFRONT_CAPTURE_FAILED'});
+  assert.deepEqual(await fs.readFile(config.baseWorkbook),replay);
+});
+
 async function baseline(){
   const wb=await SpreadsheetFile.importXlsx(await fictionalWorkbook());
   const ledger=wb.worksheets.getItem('Support - Ledger');

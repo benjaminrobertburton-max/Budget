@@ -8,6 +8,7 @@ const required = Object.freeze([
   ["Chase page reader", "chrome-bridge/chase-page-state.js"],
   ["Citi page reader", "chrome-bridge/citi-page-state.js"],
   ["PayPal financing reader", "chrome-bridge/paypal-page-state.js"],
+  ["Wealthfront reader", "chrome-bridge/wealthfront-page-state.js"],
   ["R&D record", "../docs/COLLECTOR_RND.md"],
 ]);
 
@@ -33,8 +34,8 @@ export async function runCollectorQc({ repositoryRoot }) {
       }
       if (manifest.externally_connectable) fail("no visible trigger route", "externally_connectable is still configured");
       else pass("no visible trigger route", "no externally-connectable localhost page");
-      if (manifest.version === "0.4.15") pass("extension version", "0.4.15 focused PayPal financing reader");
-      else fail("extension version", `expected 0.4.15, found ${String(manifest.version)}`);
+      if (manifest.version === "0.4.19") pass("extension version", "0.4.19 Wealthfront activity-wrapper balance capture");
+      else fail("extension version", `expected 0.4.19, found ${String(manifest.version)}`);
       if (permissions.has("webNavigation")) pass("frame command delivery", "capture commands can reach every Wells frame");
       else fail("frame command delivery", "webNavigation permission is missing");
       if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");

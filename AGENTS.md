@@ -4,6 +4,15 @@ The user has a five-hour usage limit. Weekly imports must be completed in one se
 
 ## Collector transition
 
+**Wealthfront — September 22:** extension 0.4.19 passed live first-page capture,
+labeled balance reconciliation and same-session overlap, with verified temporary
+evidence cleanup. Private `wealthfront` binding enables shared workbook import;
+fictional encrypted-store-to-workbook, backup, replay, rejection, history and
+formula checks passed. Read the newest handoff/intake guide. No actual workbook
+was changed here. Activity remains encrypted evidence, not duplicate spending or
+automatic rent funding. Missing accepted overlap or nonzero pending/held funds
+blocks publication. Home acceptance/sign-in/one-button completion are not claimed.
+
 **PayPal scope — September 21 (newest):** the user selected Special financing →
 See all as the entire PayPal Credit collector scope. Collect Expiring, Active,
 and Paid off cards plus their read-only detail fields (remaining balance,

@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.4.15",
-  "description": "Local, read-only Wells, Chase, Citi and PayPal financing connection.",
+  "version": "0.4.19",
+  "description": "Local, read-only Wells, Chase, Citi, PayPal financing and Wealthfront connection.",
   "permissions": ["tabs", "alarms", "debugger", "webNavigation"],
   "host_permissions": [
     "https://*.wellsfargo.com/*",
     "https://*.chase.com/*",
     "https://*.citi.com/*",
     "https://www.paypal.com/*",
+    "https://www.wealthfront.com/*",
     "http://127.0.0.1/*"
   ],
   "background": {
@@ -16,6 +17,7 @@
     "type": "module"
   },
   "content_scripts": [
+    {"matches":["https://www.wealthfront.com/*"],"js":["wealthfront-page-state.js"],"run_at":"document_idle","all_frames":false},
     {
       "matches": ["https://www.paypal.com/*"],
       "js": ["paypal-page-state.js"],

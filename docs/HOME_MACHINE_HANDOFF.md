@@ -2,6 +2,48 @@
 
 ## September 21 — work-machine development resumes (current authority)
 
+### September 22 — Wealthfront capture and workbook integration
+
+Extension 0.4.18 passed a temporary live first-page capture and same-session
+repeat: ten loaded rows, no older pages requested, encrypted evidence deletion
+verified. Balance fields were missing, so workbook publication remained blocked.
+This is not accepted-home-anchor or end-to-end workbook acceptance.
+
+0.4.19 corrects the blanket dialog guard: an activity wrapper containing both
+the balance control and rows no longer prevents opening the read-only balance
+popup. Separate unknown dialogs still block; nested balance wrappers resolve to
+the innermost dialog. Existing open balance dialogs can be read without dismissing
+them. Bounded structural stages identify missing controls, blocked/missing dialogs
+or missing fields without exposing financial text. Transaction extraction is
+unchanged. Fictional Chrome regression passed; 24 focused normalization, import
+boundary, shared bridge and existing Chase worker tests passed. Diff checks passed.
+
+**0.4.19 live acceptance passed:** ten loaded rows, labeled balances reconciled,
+zero issues, same-session overlap matched, no older pages requested. Temporary
+encrypted evidence deletion was verified. No real workbook was modified.
+
+`wealthfront-refresh` stores private raw evidence at home. Optional private
+`wealthfront` configuration enables the existing `workbook-import` pipeline:
+accepted account/anchor, freshness, explicit zero pending/held funds, running
+balances and current available cash must reconcile. Cash inputs and source
+controls update; Savings & Debt uses its existing formulas. Activity stays in
+encrypted evidence, not duplicated into spending or automatically classified as
+rent contributions. The accepted evidence reference advances only with successful
+workbook publication. See COLLECTOR_WORKBOOK_INTAKE.md for private setup.
+
+Fictional encrypted-store-to-workbook acceptance passed, including exact backup,
+repeated import, missing-balance rejection with unchanged workbook, savings/safe
+cash separation, closed history, prior payment status and zero formula errors.
+Fictional Start, Snapshots and Savings renders were inspected. The small generic
+fixture clips some long audit references/notes; no production layout was changed
+or certified. Current home workbook/native Excel acceptance remains untested.
+
+Limits: one open Wealthfront tab; observed Individual Cash Account page with its
+balance control. The activity-only view can record rows but cannot publish cash
+without the labeled balances. Nonzero pending/held funds and missing accepted
+overlap block; no speculative pending interpretation or older-page navigation.
+Saved sign-in and the final one-button launcher remain separate unfinished work.
+
 ### PayPal Credit financing — newest checkpoint
 
 User scope: **Special financing → See all only**, including read-only promotion

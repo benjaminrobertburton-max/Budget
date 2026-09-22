@@ -15,6 +15,7 @@ let citiTabId = null;
 let pendingCitiCapture = false;
 let citiReloaded = false;
 let paypalTabId=null,pendingPaypalCapture=false,paypalReloaded=false;
+let wealthfrontTabId=null,pendingWealthfrontCapture=false,wealthfrontReloaded=false;
 let pendingChaseCapture = false;
 let chaseDeliveryInFlight = false;
 let chaseReloadAttempted = false;
@@ -61,7 +62,7 @@ async function nextCommand() {
     if (body?.version===1 && body.command==='capture_chase_more' && /^[a-f0-9]{8}$/.test(body.pageToken)) {
       chaseMoreToken=body.pageToken; return body.command;
     }
-    return body?.version === 1 && ["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime", "capture_citi_activity", "capture_paypal_financing"].includes(body.command)
+    return body?.version === 1 && ["none", "open_wells", "capture_wells_activity", "open_chase", "capture_chase_activity", "open_chase_sapphire", "open_chase_prime", "capture_citi_activity", "capture_paypal_financing", "capture_wealthfront_cash"].includes(body.command)
       ? body.command : "none";
   } catch { session = null; return "none"; }
 }
@@ -272,6 +273,15 @@ async function pollCommand() {
   try {
     if (!await startSession()) return;
       const command = await nextCommand();
+      if(command==='capture_wealthfront_cash'){
+        const tabs=await chrome.tabs.query({url:['https://www.wealthfront.com/*']});
+        if(tabs.length===1&&Number.isInteger(tabs[0].id)){
+          wealthfrontTabId=tabs[0].id;pendingWealthfrontCapture=true;
+          const delivered=await chrome.tabs.sendMessage(wealthfrontTabId,{command:'capture_wealthfront_cash'},{frameId:0}).then(r=>r?.accepted===true).catch(()=>false);
+          if(delivered)pendingWealthfrontCapture=false;
+          else if(!wealthfrontReloaded){wealthfrontReloaded=true;await chrome.tabs.reload(wealthfrontTabId);}
+        }
+      }
       if(command==='capture_paypal_financing'){
         const tabs=await chrome.tabs.query({url:['https://www.paypal.com/*']});
         if(tabs.length===1&&Number.isInteger(tabs[0].id)){
@@ -321,6 +331,15 @@ chrome.runtime.onInstalled.addListener(() => void pollCommand());
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
+  if(message.event==='wealthfront_page_ready'){
+    if(tabId===wealthfrontTabId&&pendingWealthfrontCapture){pendingWealthfrontCapture=false;void chrome.tabs.sendMessage(tabId,{command:'capture_wealthfront_cash'},{frameId:0}).catch(()=>{});}
+    else void pollCommand();return;
+  }
+  if(message.event==='wealthfront_cash_capture'){
+    if(session&&tabId===wealthfrontTabId&&sender.frameId===0&&/^https:\/\/www\.wealthfront\.com\//.test(sender.url||'')&&message.candidate)
+      void send('/v1/wealthfront-cash',message.candidate).then(()=>pollCommand());
+    return;
+  }
   if(message.event==='paypal_page_ready'){
     if(tabId===paypalTabId&&pendingPaypalCapture){pendingPaypalCapture=false;void chrome.tabs.sendMessage(tabId,{command:'capture_paypal_financing'},{frameId:0}).catch(()=>{});}
     else void pollCommand();return;

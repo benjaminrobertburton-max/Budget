@@ -2,6 +2,17 @@
 
 ## Current checkpoint — September 21
 
+**September 22 update:** bridge **0.4.19** adds Wealthfront cash/activity capture.
+Live balances and first-page repeat passed; temporary evidence was deleted.
+Home-only `wealthfront-refresh` and optional private `wealthfront` settings feed
+the existing direct `workbook-import`, with accepted overlap, backup and formula
+checks. Fictional end-to-end acceptance passed. One open signed-in Individual
+Cash Account tab is required; no older-history sweep or pending/held-funds guessing.
+Read the [current handoff](../docs/HOME_MACHINE_HANDOFF.md) and
+[private configuration](../docs/COLLECTOR_WORKBOOK_INTAKE.md). Historical checkpoint
+statements below do not supersede that newer direct-import status. Home acceptance,
+saved sign-in and the final one-button launcher remain incomplete.
+
 **New workbook review connection:** `workbook-intake <absolute-private-config>`
 reads encrypted Wells/both-Chase captures and creates a separate local review copy
 with source details and prior-plan warnings. It preserves the original workbook;

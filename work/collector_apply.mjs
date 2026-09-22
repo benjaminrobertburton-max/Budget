@@ -203,6 +203,20 @@ export async function buildDirectWorkbook(original,intake){
   }
   wb.recalculate();
   if(intake.paypal)check(sheet(CASH).getRange('I20').values[0][0]==='Promo verified','PAYPAL_SOURCE_MISMATCH','Promotion balance/count reconciliation failed.');
+  if(intake.wealthfront){
+    const w=intake.wealthfront;
+    check(w.coverageVerified&&w.balances.pending===0&&w.balances.unavailable===0,'WEALTHFRONT_CAPTURE_FAILED','Unresolved cash evidence cannot update the workbook.');
+    write(CASH,'A6',serialDate(w.capturedAt.slice(0,10)));write(CASH,'C6',w.balances.total/100);
+    write(CASH,'D6',0);write(CASH,'E6',0);write(CASH,'F6',w.balances.available/100);
+    write(CASH,'G6','Bank available balance. No additional deduction for past transfers.');
+    write(CASH,'B13',w.evidenceRef);write(CASH,'C13','Cash + first-page activity');
+    write(CASH,'D13',w.rows.length);write(CASH,'E13',w.rows.length);
+    const total=w.rows.reduce((s,r)=>s+r.amountMinor,0)/100;
+    write(CASH,'F13',total);write(CASH,'G13',total);write(CASH,'H13','Yes');write(CASH,'I13','Verified');
+    write(CASH,'J13','Private evidence: running balances and accepted overlap matched; zero pending/held displayed.');
+    write('1. Start','G7','Cash and activity refreshed');
+    wb.recalculate();
+  }
   for(const [,row] of controls){
     check(sheet(CASH).getRange(`E${row}`).values[0][0]===sheet(CASH).getRange(`D${row}`).values[0][0]
       &&Math.abs(sheet(CASH).getRange(`G${row}`).values[0][0]-sheet(CASH).getRange(`F${row}`).values[0][0])<0.005,
@@ -224,10 +238,10 @@ export async function buildDirectWorkbook(original,intake){
   return {bytes,checks:{formulaErrors:0,historyCellsPreserved:frozen.length},added:result.added,promoted:result.promoted,retired:result.retired,rows:result.rows.length};
 }
 
-export async function renderDirectWorkbook(bytes,folder,{paypal=false}={}){
+export async function renderDirectWorkbook(bytes,folder,{paypal=false,wealthfront=false}={}){
   const wb=await SpreadsheetFile.importXlsx(bytes);
   for(const [name,range,file] of [['1. Start','A1:H17','Start.png'],[LEDGER,'A1:M18','Ledger.png'],[HISTORY,'A1:M10','History.png'],[CASH,'A1:J21','Snapshots.png'],[DEBT,'A1:G10','Debt.png'],...(paypal?[
-    ['Support - Promo Detail','A1:G12','Promos.png'],['5. Savings & Debt','A17:D24','Savings.png'],['2. Tuesday Review','A10:I16','Tuesday.png'],['Support - Budget Inputs','A17:F22','Inputs.png']]:[])]){
+    ['Support - Promo Detail','A1:G12','Promos.png'],['5. Savings & Debt','A1:D24','Savings.png'],['2. Tuesday Review','A10:I16','Tuesday.png'],['Support - Budget Inputs','A17:F22','Inputs.png']]:wealthfront?[['5. Savings & Debt','A1:D18','Savings.png']]:[])]){
     const image=await wb.render({sheetName:name,range,scale:1,format:'png'});
     await fs.writeFile(path.join(folder,file),new Uint8Array(await image.arrayBuffer()),{flag:'wx'});
   }

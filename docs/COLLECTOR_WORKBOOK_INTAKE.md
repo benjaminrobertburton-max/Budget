@@ -201,3 +201,52 @@ outstanding promos block publication. An explicitly Paid off record with zero
 remaining balance may update the matching existing row to zero; disappearance alone
 never does. Source controls reconcile promotion count and remaining-balance total.
 `Promo verified` is intentionally narrower than payment/card verification.
+
+## Optional Wealthfront cash/activity integration
+
+Home command: `node collector/src/cli.mjs wealthfront-refresh`, with bridge
+0.4.19 and exactly one signed-in Wealthfront Individual Cash Account tab.
+Approve only `https://www.wealthfront.com/*` access. Work testing uses
+`node collector/src/wealthfront-work-test.mjs` instead; no persistent home store
+on the work machine. Capture only the loaded page, never sweep account history.
+
+Add `wealthfront` to the PRIVATE direct-import configuration, outside Git:
+
+```json
+"wealthfront": {
+  "accountId": "FICTIONAL-CASH",
+  "initialAnchor": {
+    "date": "2031-09-08",
+    "description": "FICTIONAL DEPOSIT",
+    "amountMinor": 10000
+  }
+}
+```
+
+These example values are fictional. Bind the actual account identity and a
+previously accepted transaction once during private home setup. Amounts are signed
+integer cents in the bank's direction: deposits positive, withdrawals negative.
+Do not accept the first capture as historical proof automatically. After successful
+publication, Snapshots B13 references the accepted encrypted capture. Later imports
+use up to three of its newest loaded rows as exact overlap, preserving duplicate
+occurrences. Keep that evidence with private backups; a missing referenced record
+blocks the import instead of resetting history.
+
+Freshness (15 minutes), account identity, explicit labeled total/available/pending/
+unavailable balances, running-balance reconciliation and accepted overlap all gate
+publication. Nonzero pending or held funds require further detail support and block
+this version. A missing anchor blocks without requesting older pages. An activity
+view without the balance control can be captured but cannot update cash.
+
+Verified inputs update Account Snapshots A/C:G6, source row 13 and Start G7.
+Savings & Debt recalculates through its existing cash link. The paired source
+counts/totals describe captured/parsed evidence, not independently bank-displayed
+counts; running balances and accepted overlap are the reconciliation checks.
+Transactions stay in encrypted evidence and are not added again to household
+spending. No automatic rent-contribution classification, pending transfer deduction,
+personal-safe spending change, payment completion or new payment plan is inferred.
+Existing backup, publication, formula scan and native-part preservation apply.
+
+Live 0.4.19 capture/repeat and fictional private-store-to-workbook acceptance passed.
+Actual home workbook, saved sign-in, nonzero pending/held cases and a complete
+one-button weekly refresh are not certified by those tests.

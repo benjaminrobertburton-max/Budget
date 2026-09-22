@@ -28,7 +28,7 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
 
   return Object.freeze({
     async save({ source, capturedAt, payload }) {
-      check(["wells", "chase", "citi", "paypal"].includes(source) && typeof capturedAt === "string" && Number.isFinite(Date.parse(capturedAt))
+      check(["wells", "chase", "citi", "paypal", "wealthfront"].includes(source) && typeof capturedAt === "string" && Number.isFinite(Date.parse(capturedAt))
         && payload && typeof payload === "object" && !Array.isArray(payload),
       "INVALID_EVIDENCE", "The private source evidence is incomplete.");
       const record = { version: 1, kind: "budget-collector-source-evidence", source, capturedAt, payload };
@@ -54,9 +54,19 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       await assertRegularFile(filename, MAX_RECORD_BYTES * 2);
       const [record] = await protector.openMany([await fs.readFile(filename)]);
       check(record?.version === 1 && record.kind === "budget-collector-source-evidence"
-        && ["wells", "chase", "citi", "paypal"].includes(record.source) && typeof record.capturedAt === "string" && record.payload,
+        && ["wells", "chase", "citi", "paypal", "wealthfront"].includes(record.source) && typeof record.capturedAt === "string" && record.payload,
       "INVALID_EVIDENCE", "The private evidence record is invalid.");
       return structuredClone(record);
+    },
+    async latestWealthfrontCapture(accountId) {
+      check(typeof accountId==='string'&&/^[A-Za-z0-9-]{4,100}$/.test(accountId),'INVALID_EVIDENCE','Invalid private account binding.');
+      await verify();
+      const candidates=await Promise.all((await fs.readdir(evidence)).filter(n=>filePattern.test(n)).map(async name=>({name,stat:await assertRegularFile(path.join(evidence,name),MAX_RECORD_BYTES*2)})));
+      candidates.sort((a,b)=>b.stat.mtimeMs-a.stat.mtimeMs);
+      for(const {name} of candidates.slice(0,64)){
+        const reference=`local:evidence:${name.slice(0,-4)}`,record=await this.open(reference);
+        if(record.source==='wealthfront'&&record.payload.kind==='wealthfront_cash'&&record.payload.accountId===accountId)return {reference,record};
+      }return null;
     },
     async latestPaypalCapture() {
       await verify();
