@@ -4,7 +4,7 @@ import path from 'node:path';
 import {SpreadsheetFile} from '@oai/artifact-tool';
 import {workbookBytes} from './workbook_bytes.mjs';
 import {workbookXml as X} from './collector_workbook.mjs';
-import {requireEvidence as check} from '../collector/src/errors.mjs';
+import {CollectionError,requireEvidence as check} from '../collector/src/errors.mjs';
 import {reconcileWorkbookLedger,serialDate,isoDate} from '../collector/src/workbook-reconcile.mjs';
 
 const LEDGER='Support - Ledger',HISTORY='6. History',CASH='Support - Account Snapshots',DEBT='Support - Debt Detail';
@@ -166,8 +166,25 @@ export async function buildDirectWorkbook(original,intake){
   write('1. Start','B6',wells.needsReview?'Needs review':'Verified');write('1. Start','C6','Ledger and current pending reconciled.');
   write('1. Start','A5','Wells — captured balance');
   write('1. Start','C5',`Captured ${wells.capturedAt.slice(0,16).replace('T',' ')} UTC; includes pending.`);
-  write('1. Start','B7','Import in progress');write('1. Start','C7','Payment plan not ready');
-  write('1. Start','B8','Finish source checks');write('1. Start','C8','See Account Snapshots');
+  const start=sheet('1. Start');
+  const planComparison=String(start.getRange('B17').formulas[0][0]??'').replace(/^=/,'').replace(/\s/g,'').toUpperCase();
+  if(planComparison==='ROUND(B5+B8-B7,2)'){
+    // The current dashboard owns numeric payment/transfer inputs in B7/B8.
+    // Never replace those formulas/values with legacy status messages.
+    check(['B7','B8'].every(cell=>typeof start.getRange(cell).values[0][0]==='number'),
+      'UNSUPPORTED_WORKBOOK','Dashboard payment/transfer inputs require review.');
+    write('1. Start','A7','Payments + transfers — unreviewed');
+    write('1. Start','C7','Not a current payment plan. Previous checklist retained.');
+    write('1. Start','A8','Wealthfront to Wells — unreviewed');
+    write('1. Start','C8','Do not transfer from this figure. Finish source checks and refresh Tuesday Review.');
+    write('1. Start','A17','Plan balance — unreviewed');
+    write('1. Start','C17','Not confirmed spending capacity. Payment plan needs review.');
+  }else{
+    check(!start.getRange('B7').formulas[0][0]&&!start.getRange('B8').formulas[0][0],
+      'UNSUPPORTED_WORKBOOK','Unrecognized dashboard formulas; no status cells overwritten.');
+    write('1. Start','B7','Import in progress');write('1. Start','C7','Payment plan not ready');
+    write('1. Start','B8','Finish source checks');write('1. Start','C8','See Account Snapshots');
+  }
   const checkpoints=sheet('1. Start').getRange('F6:F13').values;
   for(let i=0;i<checkpoints.length;i++){
     const report=result.reports.find(a=>a.label===checkpoints[i][0]);if(!report)continue;
@@ -224,7 +241,16 @@ export async function buildDirectWorkbook(original,intake){
       'SOURCE_CONTROL_MISMATCH','Imported count or signed total differs from captured source rows.');
   }
   const names=(await wb.inspect({kind:'sheet',include:'name',maxChars:20000})).ndjson.split('\n').filter(Boolean).map(JSON.parse).filter(x=>x.kind==='sheet').map(x=>x.name);
-  for(const name of names)check(!sheet(name).getUsedRange().values.flat().some(errorValue),'WORKBOOK_FORMULA_ERROR','Formula validation failed; no workbook updated.');
+  const formulaFailures=[];
+  for(const name of names){const values=sheet(name).getUsedRange().values;
+    for(let r=0;r<values.length;r++)for(let c=0;c<values[r].length;c++)if(errorValue(values[r][c]))
+      formulaFailures.push({sheet:name,cell:`${col(c)}${r+1}`,error:values[r][c]});
+  }
+  if(formulaFailures.length){
+    const error=new CollectionError('WORKBOOK_FORMULA_ERROR','Formula validation failed; no workbook updated.');
+    // Local diagnostics only; normal CLI/status still emits the fixed code.
+    error.formulaFailures=formulaFailures;throw error;
+  }
   for(const [address,value] of frozen)check(sheet(HISTORY).getRange(address).values[0][0]===value,'HISTORY_CHANGED','A closed weekly total changed.');
   const bytes=await mergeCells(original,await workbookBytes(wb),patches);
   const saved=await SpreadsheetFile.importXlsx(bytes);saved.recalculate();

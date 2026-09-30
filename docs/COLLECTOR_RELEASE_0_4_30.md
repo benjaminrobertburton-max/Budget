@@ -8,6 +8,16 @@ onto the home machine.
 
 ## What changed
 
+- Current Start dashboard compatibility: its B7/B8 cells are numeric plan and
+  transfer values, not the legacy status-message cells. The importer preserves
+  those values/formulas and the B17 balance formula, and writes unreviewed-plan
+  warnings in labels/notes instead. The observed B17 #VALUE! was caused by the
+  importer writing text over its numeric dependencies, not a defective budget
+  calculation. The recognized numeric dashboard and legacy status dashboard
+  are handled separately; unknown formulas in legacy target cells block rather
+  than being overwritten. Local formula diagnostics identify failing sheet/cell
+  locations; ordinary CLI/status retains its fixed privacy-safe error code.
+
 - September 30 approved importer correction: required posted-history coverage
   begins at the oldest of the accepted posted anchors, not the oldest incidental
   row on the loaded page. A page can end midway through an older date. Older
@@ -158,7 +168,7 @@ Subsequent 0.4.30 resume saved PayPal and Wealthfront successfully. The user
 reported extra PayPal panels despite a valid four-promotion result, and then
 explicitly stopped PayPal diagnosis. Do not claim that panel repeatability is
 proved or restart that investigation without direction. All six exact receipts
-are now retained in the private checkpoint. Wealthfront required normal sign-in.
+were retained in the private checkpoint. Wealthfront required normal sign-in.
 
 Final import initially stopped with POSTED_HISTORY_CHANGED on older Chase rows
 before the accepted anchor window. The user approved the narrow importer
@@ -167,17 +177,33 @@ import tests passed, covering preservation, replay, pending settlement, Citi,
 PayPal, Wealthfront, backups and formula checks; the workbook-anchor test also
 passed. QC and diff checks passed. Retrying all six saved receipts (without any
 new browser capture) then stopped at WORKBOOK_FORMULA_ERROR before publication.
-The failing formula cell has not yet been identified. Do not bypass the scan or
-change financial formulas merely to publish. Next: identify the exact formula
-failure in a private diagnostic run and compare it to the unchanged original;
-propose any material financial-logic repair before implementing it. Preserve the
-six-source checkpoint and retry import only after the relevant correction.
+The user authorized fixing that failure and completing today's import. Local
+diagnostics located Start B17; the older importer had overwritten its numeric
+B7/B8 dependencies with status text. The dashboard compatibility correction
+above passed three focused tests, then all 17 anchor/import tests passed.
 
-No private workbook update has yet been published. Required next: two attended
-work-machine passes with the exact release, then one home smoke test at the same
-Git commit. Verify account coverage/anchors, no unintended panel loops, no duplicate
-rows on replay, no workbook mutation before reconciliation, and zero saved formula
-errors. Do not describe non-live passing tests as either of those attended runs.
+**September 30 saved-data import completed on the work machine.** The normal
+persistent weekly runner consumed the six pinned receipts without new bank
+captures, passed source controls, formula scans and export-preservation checks,
+saved an exact original backup, published the private working XLSX, and cleared
+the resume checkpoint. Independent saved-file checks found zero error cells and
+confirmed the dashboard formulas and the two affected older ledger rows were
+preserved. Start and the full Tuesday header/checklist were visually inspected;
+the actual private workbook was requested in the Codex viewer. The import week
+is September 29; the local folder's older date does not define the reporting week.
+
+This is a completed data import, NOT a new approved payment plan. Classification
+exceptions, current manual-source updates and applicable payment requirements
+remain for review. Prior Tuesday confirmations stay historical; its header
+explicitly warns that it is not the current payment plan. Do not reset them or
+make transfers based on the unreviewed dashboard comparison.
+
+**Repeatability certification remains pending.** This was a resumed run with
+repairs, not two uninterrupted attended passes at one commit. The two work-machine
+passes and same-commit home smoke test are still needed before claiming that
+certification. Verify coverage/anchors, no unintended panel loops, no duplicates
+on replay, safe publication and zero saved formula errors. Do not recollect merely
+to repair today's now-completed import or label fictional tests as live passes.
 
 Do not promise identical behavior merely from the same model/Chrome account.
 Record the tested Git commit, extension build, runtime, source outcome codes and

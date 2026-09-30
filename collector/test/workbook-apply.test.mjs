@@ -22,6 +22,37 @@ const {SpreadsheetFile}=await import(pathToFileURL(require.resolve('@oai/artifac
 const intake=records=>prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
 const value=(wb,name,cell)=>wb.worksheets.getItem(name).getRange(cell).values[0][0];
 
+test('failed formula check reports local cell locations and still refuses publication',async()=>{
+  const wb=await SpreadsheetFile.importXlsx(await baseline());
+  wb.worksheets.getItem('4. Money Plan').getRange('B30').formulas=[['=1/0']];
+  const bytes=await workbookBytes(wb);
+  await assert.rejects(buildDirectWorkbook(bytes,intake(intakeRecords())),error=>{
+    assert.equal(error.code,'WORKBOOK_FORMULA_ERROR');
+    assert.ok(error.formulaFailures.some(e=>e.sheet==='4. Money Plan'&&e.cell==='B30'&&e.error==='#DIV/0!'));
+    assert.ok(error.formulaFailures.every(e=>Object.keys(e).sort().join(',')==='cell,error,sheet'));
+    return true;
+  });
+});
+
+test('current Start dashboard keeps numeric plan formulas and warns before payment review',async()=>{
+  const wb=await SpreadsheetFile.importXlsx(await baseline()),start=wb.worksheets.getItem('1. Start');
+  start.getRange('B5').formulas=[["='Support - Account Snapshots'!F5"]];
+  start.getRange('B7').formulas=[['=SUM(20,30)']];start.getRange('B8').values=[[10]];
+  start.getRange('B17').formulas=[['=ROUND(B5+B8-B7,2)']];wb.recalculate();
+  const base=await workbookBytes(wb),first=await buildDirectWorkbook(base,intake(intakeRecords()));
+  assert.equal(first.checks.formulaErrors,0);
+  const saved=await SpreadsheetFile.importXlsx(first.bytes);saved.recalculate();const s=saved.worksheets.getItem('1. Start');
+  assert.equal(s.getRange('B7').formulas[0][0],'=SUM(20,30)');assert.equal(s.getRange('B8').values[0][0],10);
+  assert.equal(s.getRange('B17').formulas[0][0],'=ROUND(B5+B8-B7,2)');assert.equal(s.getRange('B17').values[0][0],910);
+  assert.match(s.getRange('C8').values[0][0],/Do not transfer/);
+  const replay=await buildDirectWorkbook(first.bytes,intake(intakeRecords()));assert.equal(replay.added,0);assert.equal(replay.checks.formulaErrors,0);
+});
+
+test('unknown Start formulas block instead of being replaced by legacy status text',async()=>{
+  const wb=await SpreadsheetFile.importXlsx(await baseline());wb.worksheets.getItem('1. Start').getRange('B7').formulas=[['=SUM(20,30)']];
+  await assert.rejects(buildDirectWorkbook(await workbookBytes(wb),intake(intakeRecords())),{code:'UNSUPPORTED_WORKBOOK'});
+});
+
 test('Wealthfront encrypted evidence updates cash, preserves savings logic, and rejects incomplete replay',async t=>{
   const root=await tempDirectory(t),protector=fixtureProtector(),cash='Support - Account Snapshots',savings='5. Savings & Debt';
   const wb=await SpreadsheetFile.importXlsx(await baseline());
