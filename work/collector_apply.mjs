@@ -97,6 +97,9 @@ export async function buildDirectWorkbook(original,intake){
     }
   };
   const review=reviewTuesday(intake.createdAt),reviewSerial=serialDate(review);
+  // This serial-date control drives the recurring rent rule in Tuesday Review.
+  // It is refreshed by the import, rather than using a volatile TODAY() date.
+  write('2. Tuesday Review','B28',reviewSerial);
   const h=sheet(HISTORY).getUsedRange().values;
   // User-approved change: retain recorded past-week spending when pending rows
   // settle. Freeze only I/J inputs; K/L still use their original formulas.

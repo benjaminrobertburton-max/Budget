@@ -9,6 +9,14 @@ Software validation does not replace the two attended work passes and home smoke
 test. Manual Discover/Capital One, Wells-only CUTX evidence, and excluded RBC scope
 remain unchanged. No payment confirmation or safe-cash addition is inferred.
 
+## Rent timing
+
+The direct importer writes the review Tuesday into the private workbook's Tuesday
+Review control cell. The checklist treats rent as a full payment only when the
+first of the month falls from that Tuesday through the following Monday. On every
+other review it shows the normal capacity-limited weekly contribution. Actual rent
+payment/funding remains user-confirmed; the date rule never marks it paid.
+
 For a transferred private workbook, follow the release document's **Portable
 workbook handoff** section. The latest supplied work workbook includes accepted
 Wealthfront checkpoint metadata; preserve it, back up the existing home file and

@@ -217,8 +217,14 @@ savings.getRange("A25:F30").format.wrapText=true;savings.getRange("A26:F29").for
 sec(savings,"A32:F32","Rent reserve forecast");
 savings.getRange("A34:B39").values=[["Next rent due",new Date("2026-10-01")],["Rent due estimate",1169.46],["Opening tagged rent reserve",0],["Confirmed future rent funding",0],["Target rent reserve",null],["Tagged reserve before rent",null]];
 savings.getRange("B38").formulas=[["=MAX(B35,B30)"]];savings.getRange("B39").formulas=[["=B36+C30+B37"]];
+const savingsReviewDate="'2. Tuesday Review'!$B$28";
+const savingsRentDue=`DATE(YEAR(${savingsReviewDate}),MONTH(${savingsReviewDate})+(DAY(${savingsReviewDate})>1),1)`;
+const savingsRentDueThisWeek="'2. Tuesday Review'!$D$28";
+savings.getRange("A24").formulas=[[`="Rent due — "&TEXT($B$34,"mmmm")`]];
+savings.getRange("B34").formulas=[[`=${savingsRentDue}`]];
+savings.getRange("C5").formulas=[[`=IF(${savingsRentDueThisWeek},"Rent due this week","Next rent due")`]];
 savings.getRange("D34:E38").values=[["Confirmed funding vs. monthly plan",null],["Remaining rent funding gap",null],["Emergency draw if no more funding",null],["Cushion if rent paid today",null],["Next Tuesday rent cap",null]];
-savings.getRange("E34").formulas=[["=D30"]];savings.getRange("E35").formulas=[["=MAX(0,$B$38-$B$39)"]];savings.getRange("E36").formulas=[["=E35"]];savings.getRange("E37").formulas=[["=MAX(0,$B$39-$B$35)"]];savings.getRange("E38").formulas=[["=B27"]];
+savings.getRange("E34").formulas=[["=D30"]];savings.getRange("E35").formulas=[["=MAX(0,$B$38-$B$39)"]];savings.getRange("E36").formulas=[["=E35"]];savings.getRange("E37").formulas=[["=MAX(0,$B$39-$B$35)"]];savings.getRange("D38").formulas=[[`=IF(${savingsRentDueThisWeek},"Current rent payment","Next Tuesday rent cap")`]];savings.getRange("E38").formulas=[[`=IF(${savingsRentDueThisWeek},B35,'Support - Budget Inputs'!E12)`]];
 savings.getRange("D39:F39").merge();savings.getRange("D39").values=[["No catch-up is assumed. Enter future funding only after it is real or truly arranged."]];savings.getRange("D39:F39").format={fill:yellow,font:{italic:true,color:gray},wrapText:true,verticalAlignment:"center"};
 savings.getRange("A34:B39").format={fill:pale,borders:{preset:"inside",style:"thin",color:"#D9E5E7"}};savings.getRange("D34:E38").format={fill:pale,borders:{preset:"inside",style:"thin",color:"#D9E5E7"}};input(savings,"B34:B37");savings.getRange("B34").format.numberFormat="mmm d, yyyy";savings.getRange("B35:B39").format={fill:"#FFFFFF",font:{bold:true,size:12},numberFormat:usd};savings.getRange("E34:E38").format={fill:"#FFFFFF",font:{bold:true,size:12},numberFormat:usd};savings.getRange("E35:E36").conditionalFormats.add("cellIs",{operator:"greaterThan",formula:0,format:{fill:red,font:{bold:true,color:"#B91C1C"}}});
 widths(savings,[["A:A",30],["B:B",18],["C:C",18],["D:D",29],["E:E",22],["F:F",34]]);savings.getRange("A1:F39").format.wrapText=true;savings.getRange("A1:F39").format.font={size:12};savings.getRange("A5:D9").format.rowHeight=29;savings.getRange("A12:D17").format.rowHeight=25;savings.getRange("A20:D22").format.rowHeight=27;savings.getRange("A26:F30").format.rowHeight=28;savings.getRange("A34:F39").format.rowHeight=28;savings.showGridLines=false;savings.freezePanes.freezeRows(4);
@@ -515,7 +521,7 @@ funding.getRange("D19:E29").format.numberFormat=usd;funding.getRange("A18:G29").
 title(tuesday,"A1:G1","Tuesday Review — Payment and Funding Plan",operations);
 tuesday.getRange("A2:G2").merge();tuesday.getRange("A2").values=[["Use this checklist after Start is verified. The Codex preview is read-only: tell Codex when a manual action is complete, and this plan will update to Done. Automatic and not-due rows need no action."]];tuesday.getRange("A2:G2").format={font:{italic:true,color:gray},wrapText:true};
 sec(tuesday,"A4:G4","Payment and funding plan");
-tuesday.getRange("A5:G5").values=[["Source sets verified","Review period","Actions completed","Live plan",null,null,null]];headers(tuesday,"A5:G5");
+tuesday.getRange("A5:G5").values=[["Source sets verified","Review period","Actions completed","Live plan",null,"Review Tuesday",null]];headers(tuesday,"A5:G5");
 tuesday.getRange("A6:G6").values=[[null,"Sep 8–Sep 14 purchases","", "Current plan — Sep 15",null,null,null]];
 tuesday.getRange("A6").formulas=[["=COUNTIF('1. Start'!E6:E13,\"Verified\")&\" of \"&(COUNTA('1. Start'!F6:F14)-COUNTIF('1. Start'!E6:E14,\"Not due\"))&\" source sets verified\""]];tuesday.getRange("C6").formulas=[["=COUNTIFS(F9:F21,\"Manual\",E9:E21,\"Done\")&\" / \"&COUNTIF(F9:F21,\"Manual\")&\" manual payments complete\""]];
 tuesday.getRange("A6:G6").format={fill:pale,font:{bold:true},wrapText:true};
@@ -543,7 +549,20 @@ tuesday.getRange("A1:G26").format.wrapText=true;tuesday.getRange("A9:G21").forma
 tuesday.getRange("A21:C21").unmerge();tuesday.getRange("A22:C22").unmerge();tuesday.getRange("A23:D23").unmerge();tuesday.getRange("A24:D24").unmerge();tuesday.getRange("A25:D25").unmerge();tuesday.getRange("A26:D26").unmerge();
 tuesday.getRange("E23:G27").clear({applyTo:"contents"});
 tuesday.getRange("A21:G22").values=[["Automatic","AT&T","User-confirmed Wells payment",48.59,"Done","Automatic","Paid from Wells; include this $48.59 autopay in required cash"],["Transfer","Wealthfront to Wells","Cover the verified cash shortfall and leave $1 in Wells",null,"Done","Manual","Completed: $252.62 initial transfer plus $48.59 AT&T top-up, for a $301.21 total transfer."]];
-tuesday.getRange("D22").formulas=[["=MAX(0,E24+E26-E25)"]];tuesday.getRange("D15").formulas=[["=MAX(0,E25-SUM(D9:D14,D16:D21)-E26)"]];tuesday.getRange("C6").formulas=[['=COUNTIFS(F9:F22,"Manual",E9:E22,"Done")&" / "&COUNTIF(F9:F22,"Manual")&" manual payments complete']];
+tuesday.getRange("D22").formulas=[["=MAX(0,E24+E26-E25)"]];
+// The importer refreshes B28. The first is a payment only when it falls in
+// the Tuesday–Monday review window; all other weeks use the safe funding cap.
+tuesday.getRange("A28:D28").values=[["Plan review date (control)",new Date("2026-09-15"),"Rent due in review week (control)",null]];
+tuesday.getRange("G5").formulas=[["=\"Review Tuesday: \"&TEXT($B$28,\"mmm d, yyyy\")"]];
+const rentDue="DATE(YEAR($B$28),MONTH($B$28)+(DAY($B$28)>1),1)";
+tuesday.getRange("D28").formulas=[[`=${rentDue}<=$B$28+6`]];
+const rentDueThisWeek="$D$28";
+tuesday.getRange("A15").formulas=[[`=IF(${rentDueThisWeek},"Rent payment","Transfer")`]];
+tuesday.getRange("B15").formulas=[[`=IF(${rentDueThisWeek},TEXT(${rentDue},"mmmm")&" rent due","Rent fund — "&TEXT(${rentDue},"mmmm"))`]];
+tuesday.getRange("C15").formulas=[[`=IF(${rentDueThisWeek},"Due "&TEXT(${rentDue},"mmm d")&"; payment, not weekly funding.","Only verified Wells capacity after required actions (up to $300).")`]];
+tuesday.getRange("D15").formulas=[[`=IF(${rentDueThisWeek},ROUND('5. Savings & Debt'!B35,2),ROUND(MIN('Support - Budget Inputs'!E12,MAX(0,E25-SUM(D9:D14,D16:D21)-E26)),2))`]];
+tuesday.getRange("G15").formulas=[[`=IF(${rentDueThisWeek},"Pay "&TEXT(${rentDue},"mmmm")&" rent this week. The calculated Wealthfront top-up covers the full cash plan.","Fund rent only from verified Wells capacity. Record it as actual only after confirmation.")`]];
+tuesday.getRange("C6").formulas=[['=COUNTIFS(F9:F22,"Manual",E9:E22,"Done")&" / "&COUNTIF(F9:F22,"Manual")&" manual payments complete']];
 tuesday.getRange("A23:C23").merge();tuesday.getRange("A23").values=[["Planned subtotal (cash actions)"]];tuesday.getRange("D23").formulas=[["=SUM(D9:D21)"]];tuesday.getRange("A24:D24").merge();tuesday.getRange("A24").values=[["Cash required for payments and transfers"]];tuesday.getRange("E24").formulas=[["=SUM(D9:D21)"]];tuesday.getRange("A25:D25").merge();tuesday.getRange("A25").values=[["Wells available from verified import"]];tuesday.getRange("E25").formulas=[["='1. Start'!B5"]];tuesday.getRange("A26:D26").merge();tuesday.getRange("A26").values=[["Minimum Wells balance after all actions"]];tuesday.getRange("E26").values=[[1]];tuesday.getRange("A27:D27").merge();tuesday.getRange("A27").values=[["Move from Wealthfront to Wells if needed"]];tuesday.getRange("E27").formulas=[["=D22"]];
 tuesday.getRange("D9:D22").format.numberFormat=usd;tuesday.getRange("E24:E27").format={fill:pale,font:{bold:true,size:14},numberFormat:usd,borders:{preset:"outside",style:"medium",color:"#A7C9C8"}};tuesday.getRange("A23:D27").format.wrapText=true;tuesday.getRange("A23:D27").format={fill:pale,font:{bold:true,color:teal},wrapText:true};tuesday.getRange("D23").format.numberFormat=usd;tuesday.getRange("E24:E27").format={fill:pale,font:{bold:true,size:14},numberFormat:usd,borders:{preset:"outside",style:"medium",color:"#A7C9C8"}};tuesday.getRange("A24:E24").format={fill:mint,font:{bold:true,color:teal},wrapText:true};tuesday.getRange("A25:E25").format={fill:mint,font:{bold:true,color:teal},wrapText:true};tuesday.getRange("A26:E26").format={fill:yellow,font:{bold:true,color:navy},wrapText:true};tuesday.getRange("A27:E27").format={fill:mint,font:{bold:true,color:teal},wrapText:true};tuesday.getRange("A21:G22").format.rowHeight=30;tuesday.getRange("A23:G27").format.rowHeight=25;tuesday.getRange("A1:G27").format.wrapText=true;tuesday.getRange("A1:G27").format.font={size:12};
 
