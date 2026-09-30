@@ -12,8 +12,9 @@ syncing. Use `weekly-test` before the first home publication. It keeps local
 encrypted receipts but leaves the workbook byte-for-byte unchanged; successful
 receipts can be reused by `weekly-start`. If authentication is unavailable, report
 that separately from a parsing failure. One fresh work-machine six-source capture
-and full workbook validation passed. The fresh repeat stopped at Wells sign-in;
-repeat completion and a same-commit home smoke test remain required. No private
+and full workbook validation passed. After renewed sign-ins, the fresh repeat
+verified Wells/both Chase cards and is awaiting Citi authentication; repeat
+completion and a same-commit home smoke test remain required. No private
 workbook was changed during this release's tests.
 
 **Prior portability checkpoint (financial working point unchanged by 0.4.32):** the private workbook import completed,

@@ -105,6 +105,11 @@ September 30 measured checks:
   The owned non-publishing worker was stopped at this authentication boundary;
   receipts were preserved. Fresh-repeat acceptance is blocked on authentication,
   not completed. Do not claim home acceptance.
+- After the user renewed sign-ins, the fresh repeat resumed at 21:16:41 UTC.
+  Wells and both Chase cards verified with fresh receipts. Citi then displayed
+  its explicit inactivity sign-out notice and entered the authentication wait.
+  This remains an unfinished fresh repeat; no second all-source success is
+  claimed. Existing successful receipts are checkpointed for continuation.
 - Final automated validation: 403 core/CLI tests passed (400 core and 3 CLI,
   separated so the CLI bridge test did not compete for the live runner's port).
   All 27 real-Chrome fixture tests passed with the repository's documented
@@ -127,9 +132,12 @@ explicit exceptions, not permission to weaken reconciliation.
 
 ## Resume this checkpoint
 
-For the unfinished work-machine fresh repeat, select the saved Wells login in
-Chrome, then run `weekly-test` with the existing private configuration. It will
-request the unresolved sources; it must not restore the archived first-pass
+For the unfinished work-machine fresh repeat, check `collector-status` first.
+At the latest checkpoint Citi requires renewed authentication. If the worker is
+still waiting, sign into the existing bank tab and let it resume; do not start a
+second worker. If stopped, run `weekly-test` with the existing private configuration
+after authentication. It requests unresolved sources and keeps verified Wells/
+Chase receipts. It must not restore the archived first-pass
 session and count that as fresh testing. The first successful six-source session
 is preserved separately in the private root as a validated test checkpoint.
 Never commit or transfer its encrypted receipts to another machine.

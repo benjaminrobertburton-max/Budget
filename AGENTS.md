@@ -13,7 +13,8 @@ Preserve private workbook/configuration/evidence, accepted anchors, manual accou
 scope, and the user's no-expiry policy. Source failures preserve other completed
 sources. A resumed receipt is not a new live capture. Reload extension 0.4.32 after
 sync. One fresh six-source capture and full receipt-to-workbook validation passed;
-the fresh repeat is blocked on Wells sign-in. Home acceptance is still pending.
+the fresh repeat has verified Wells/both Chase cards and is awaiting renewed Citi
+authentication. Home acceptance is still pending.
 Read the release checkpoint; do not overstate test coverage.
 
 The user has a five-hour usage limit. Weekly imports must be completed in one session.
