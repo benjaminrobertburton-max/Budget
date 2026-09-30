@@ -1,6 +1,7 @@
 // Observed Individual Cash Account summary. Never loads older activity or moves money.
 const wfVisible=n=>n&&n.getClientRects().length>0&&getComputedStyle(n).visibility!=='hidden';
 const wfText=n=>(n?.innerText||'').trim();
+let wealthfrontAccountNavigationRequested=false;
 async function captureWealthfrontCash(){
   const c={version:1,kind:'wealthfront_cash',finding:'not_ready',stage:'account_page',accountId:'',title:'',total:'',available:'',unavailable:'',pending:'',rows:[]};
   const all=s=>[...document.querySelectorAll(s)].filter(wfVisible);
@@ -9,8 +10,12 @@ async function captureWealthfrontCash(){
   const route=/^\/accounts\/([A-Za-z0-9-]+)(?:\/cash-activity)?\/?$/.exec(location.pathname);
   if(!route){
     const buttons=all('button').filter(n=>/^Individual Cash Account/.test(wfText(n)));
-    if(buttons.length===1)buttons[0].click();return c;
+    if(buttons.length===1&&!wealthfrontAccountNavigationRequested){
+      wealthfrontAccountNavigationRequested=true;buttons[0].click();c.stage='account_navigation_requested';
+    }else c.stage='account_route_not_reached';
+    return c;
   }
+  wealthfrontAccountNavigationRequested=false;
   // Use the visible account label, not its heading level or modal wrapper.
   const title=all('*').filter(n=>n.children.length===0&&wfText(n)==='Individual Cash Account');
   const balance=all('button').filter(n=>wfText(n)==='Available balance');
@@ -55,10 +60,11 @@ async function captureWealthfrontCash(){
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
   let busy=false;const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
+  const pageInstance=Math.random().toString(36).slice(2,14);
   chrome.runtime.onMessage.addListener((m,s,reply)=>{
     if(m?.command!=='capture_wealthfront_cash')return;reply({accepted:true});if(busy)return;busy=true;const start=Date.now();
     const attempt=async()=>{let candidate;try{candidate=await captureWealthfrontCash();}catch{candidate={version:1,kind:'wealthfront_cash',finding:'blocked',accountId:'',title:'',total:'',available:'',unavailable:'',pending:'',rows:[]};}
       if(candidate.finding==='not_ready'&&Date.now()-start<30000){setTimeout(attempt,350);return;}
       busy=false;void send({event:'wealthfront_cash_capture',candidate});};void attempt();
-  });void send({event:'wealthfront_page_ready'});setInterval(()=>void send({event:'wealthfront_page_ready'}),3000);
+  });void send({event:'wealthfront_page_ready',pageInstance});
 }

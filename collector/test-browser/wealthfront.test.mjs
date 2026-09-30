@@ -45,6 +45,13 @@ test('visible Wealthfront rows survive a persistent balance-popup shell',async t
       });
       const activity=normalizeWealthfrontCash(await page.evaluate(()=>captureWealthfrontCash()));
       assert.equal(activity.rows.length,2);assert.equal(activity.activityCaptured,true);assert.equal(activity.coverageVerified,false);
+      await page.setContent('<button id="cash">Individual Cash Account</button>');
+      await page.evaluate(()=>{history.replaceState(null,'','/dashboard');document.getElementById('cash').onclick=()=>document.body.dataset.clicks=String(Number(document.body.dataset.clicks||0)+1);});
+      const firstNavigation=await page.evaluate(()=>captureWealthfrontCash());
+      const secondNavigation=await page.evaluate(()=>captureWealthfrontCash());
+      assert.equal(firstNavigation.stage,'account_navigation_requested');
+      assert.equal(secondNavigation.stage,'account_route_not_reached');
+      assert.equal(await page.locator('body').getAttribute('data-clicks'),'1');
     }catch(e){console.error('Fictional reader test:',e);throw e;}finally{run.stop();await run.done;}
   });assert.deepEqual(await fs.readdir(parent),[]);
 });

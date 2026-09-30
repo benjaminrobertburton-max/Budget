@@ -53,6 +53,7 @@ async function capturePaypalFinancing(){
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
   let busy=false;
+  const pageInstance=Math.random().toString(36).slice(2,14);
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((m,s,reply)=>{
     if(m?.command!=='capture_paypal_financing')return;reply({accepted:true});if(busy)return;busy=true;
@@ -61,5 +62,8 @@ if(typeof chrome!=='undefined'&&chrome.runtime){
       if(candidate.finding==='not_ready'&&Date.now()-start<30000){setTimeout(attempt,350);return;}
       busy=false;void send({event:'paypal_financing_capture',candidate});};void attempt();
   });
-  void send({event:'paypal_page_ready'});setInterval(()=>void send({event:'paypal_page_ready'}),3000);
+  // One ready notice per document. A navigation creates a new content-script
+  // instance; recurring heartbeats previously re-opened promotion panels while
+  // the same capture was still running.
+  void send({event:'paypal_page_ready',pageInstance});
 }

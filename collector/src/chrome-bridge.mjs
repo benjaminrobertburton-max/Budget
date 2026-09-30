@@ -96,16 +96,28 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
       if(req.url==='/v1/paypal-financing'){
         if(!origin||requestOrigin!==origin||req.headers['x-budget-collector-session']!==session)return response(res,403,null);
         if(typeof onPaypalCapture!=='function')return response(res,503,origin);
-        const decision=await onPaypalCapture(validatePaypalCandidate(await readJson(req)));
-        if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_paypal_financing';
-        return response(res,204,origin);
+        try {
+          const decision=await onPaypalCapture(validatePaypalCandidate(await readJson(req)));
+          if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_paypal_financing';
+          lastEvent='paypal_capture_received';onProgress({event:lastEvent});
+          return response(res,204,origin);
+        } catch {
+          nextCommand='none';lastEvent='paypal_capture_rejected';onProgress({event:lastEvent});
+          return response(res,422,origin);
+        }
       }
       if(req.url==='/v1/wealthfront-cash'){
         if(!origin||requestOrigin!==origin||req.headers['x-budget-collector-session']!==session)return response(res,403,null);
         if(typeof onWealthfrontCapture!=='function')return response(res,503,origin);
-        const decision=await onWealthfrontCapture(validateWealthfrontCandidate(await readJson(req)));
-        if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_wealthfront_cash';
-        return response(res,204,origin);
+        try {
+          const decision=await onWealthfrontCapture(validateWealthfrontCandidate(await readJson(req)));
+          if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_wealthfront_cash';
+          lastEvent='wealthfront_capture_received';onProgress({event:lastEvent});
+          return response(res,204,origin);
+        } catch {
+          nextCommand='none';lastEvent='wealthfront_capture_rejected';onProgress({event:lastEvent});
+          return response(res,422,origin);
+        }
       }
       if(req.url==='/v1/citi-activity'){
         if(!origin||requestOrigin!==origin||req.headers['x-budget-collector-session']!==session)return response(res,403,null);

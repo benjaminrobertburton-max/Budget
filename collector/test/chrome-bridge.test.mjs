@@ -196,6 +196,24 @@ test("a top-frame empty result can precede a child-frame candidate without termi
   } finally { await bridge.close(); }
 });
 
+test("PayPal and Wealthfront rejections are fixed bridge outcomes without retaining a command", async () => {
+  for (const [endpoint, option, event] of [
+    ["/v1/paypal-financing", "onPaypalCapture", "paypal_capture_rejected"],
+    ["/v1/wealthfront-cash", "onWealthfrontCapture", "wealthfront_capture_rejected"],
+  ]) {
+    const observed = [];
+    const bridge = await startChromeBridge({ port: 0, nextCommand: "none", [option]: async () => { throw new Error("fictional rejection"); }, onProgress: value => observed.push(value.event) });
+    try {
+      const { session } = await (await post(bridge.port, "/v1/session")).json();
+      const response = await post(bridge.port, endpoint, { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, kind: endpoint.includes("paypal") ? "paypal_financing" : "wealthfront_cash", finding: "captured", accountId: "FICTIONAL", title: "Fictional", total: "", available: "", unavailable: "", pending: "", rows: endpoint.includes("paypal") ? undefined : [] }));
+      assert.equal(response.status, 422);
+      assert.equal(bridge.status().lastEvent, event);
+      assert.deepEqual(observed, [event]);
+      assert.equal(bridge.status().commandQueued, false);
+    } finally { await bridge.close(); }
+  }
+});
+
 test("loopback bridge rejects raw page content and invalid paths", async () => {
   const bridge = await startChromeBridge({ port: 0 });
   try {

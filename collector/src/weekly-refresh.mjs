@@ -20,6 +20,16 @@ const sourceCommand = Object.freeze({
   citi: "capture_citi_activity", paypal: "capture_paypal_financing", wealthfront: "capture_wealthfront_cash",
 });
 
+// The bridge reports these as fixed, non-financial reader outcomes.  They are
+// terminal for the active Wells/Chase source and must not leave the weekly run
+// waiting for its overall timeout. Authentication remains a separate pause.
+export function terminalCaptureProgressCode(source, event) {
+  if (!['wells', 'chase_prime', 'chase_sapphire'].includes(source)) return null;
+  const suffix = event === 'activity_capture_no_table' ? 'ACTIVITY_TABLE_MISSING'
+    : event === 'activity_capture_page_limit' ? 'ACTIVITY_PAGE_LIMIT' : null;
+  return suffix ? `${source.toUpperCase()}_${suffix}` : null;
+}
+
 export function normalizeWeeklyLaunchConfig(value) {
   check(value && typeof value === "object" && !Array.isArray(value)
     && Object.keys(value).length === 1 && typeof value.workbookConfig === "string" && path.isAbsolute(value.workbookConfig),
@@ -92,7 +102,12 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
     bridge = await startBridge({
       nextCommand: sourceCommand.wells,
       captureAfterAuth: true,
-      onProgress: value => onStatus({ state: "collecting", source: sequence.current(), event: value.event }),
+      onProgress: value => {
+        const source = sequence.current();
+        onStatus({ state: "collecting", source, event: value.event });
+        const code = terminalCaptureProgressCode(source, value.event);
+        if (code) block(source, code);
+      },
       onActivityCapture: async candidate => {
         if (sequence.current() !== "wells") return;
         const prior = await store.latestPayload({ source: "wells", kind: "wells_normalized_activity" });

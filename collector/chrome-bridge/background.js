@@ -14,9 +14,9 @@ let chaseTabId = null;
 let citiTabId = null;
 let pendingCitiCapture = false;
 let citiReloaded = false;
-let paypalTabId=null,pendingPaypalCapture=false,paypalReloaded=false;
+let paypalTabId=null,pendingPaypalCapture=false,paypalCaptureInFlight=false,paypalPageInstance=null,paypalReloaded=false;
 let paypalCaptureDeadline=0;
-let wealthfrontTabId=null,pendingWealthfrontCapture=false,wealthfrontReloaded=false;
+let wealthfrontTabId=null,pendingWealthfrontCapture=false,wealthfrontCaptureInFlight=false,wealthfrontPageInstance=null,wealthfrontReloaded=false;
 let pendingChaseCapture = false;
 let chaseDeliveryInFlight = false;
 let chaseReloadAttempted = false;
@@ -143,6 +143,32 @@ function chaseNavigationStep(label, completed) {
   if(candidates.length!==1)return {state:candidates.length?'ambiguous':'waiting'};
   const n=candidates[0];n.scrollIntoView({block:'center'});
   const r=n.getBoundingClientRect();return {state:'click',action,rect:[r.x,r.y,r.width,r.height]};
+}
+
+// A page-ready signal is a delivery opportunity, not authorization to start a
+// second reader.  One active source request may survive a same-tab navigation
+// (for example, PayPal Credit -> Special financing), but repeated heartbeats
+// must never reopen detail panels or account drawers.
+async function deliverPaypalCapture(tabId) {
+  if (!Number.isInteger(tabId) || paypalCaptureInFlight) return false;
+  paypalCaptureInFlight = true;
+  const delivered = await chrome.tabs.sendMessage(tabId, { command: "capture_paypal_financing" }, { frameId: 0 })
+    .then(response => response?.accepted === true).catch(() => false);
+  if (delivered) { pendingPaypalCapture = false; return true; }
+  paypalCaptureInFlight = false;
+  if (!paypalReloaded) { paypalReloaded = true; await chrome.tabs.reload(tabId).catch(() => {}); }
+  return false;
+}
+
+async function deliverWealthfrontCapture(tabId) {
+  if (!Number.isInteger(tabId) || wealthfrontCaptureInFlight) return false;
+  wealthfrontCaptureInFlight = true;
+  const delivered = await chrome.tabs.sendMessage(tabId, { command: "capture_wealthfront_cash" }, { frameId: 0 })
+    .then(response => response?.accepted === true).catch(() => false);
+  if (delivered) { pendingWealthfrontCapture = false; return true; }
+  wealthfrontCaptureInFlight = false;
+  if (!wealthfrontReloaded) { wealthfrontReloaded = true; await chrome.tabs.reload(tabId).catch(() => {}); }
+  return false;
 }
 
 async function navigateChaseAccount(tabId, label) {
@@ -280,20 +306,15 @@ async function pollCommand() {
       if(command==='capture_wealthfront_cash'){
         const tabs=await chrome.tabs.query({url:['https://www.wealthfront.com/*']});
         if(tabs.length===1&&Number.isInteger(tabs[0].id)){
-          wealthfrontTabId=tabs[0].id;pendingWealthfrontCapture=true;
-          const delivered=await chrome.tabs.sendMessage(wealthfrontTabId,{command:'capture_wealthfront_cash'},{frameId:0}).then(r=>r?.accepted===true).catch(()=>false);
-          if(delivered)pendingWealthfrontCapture=false;
-          else if(!wealthfrontReloaded){wealthfrontReloaded=true;await chrome.tabs.reload(wealthfrontTabId);}
+          if(wealthfrontTabId!==tabs[0].id){wealthfrontTabId=tabs[0].id;wealthfrontCaptureInFlight=false;wealthfrontPageInstance=null;wealthfrontReloaded=false;}
+          if(!wealthfrontCaptureInFlight){pendingWealthfrontCapture=true;await deliverWealthfrontCapture(wealthfrontTabId);}
         }
       }
       if(command==='capture_paypal_financing'){
         const tabs=await chrome.tabs.query({url:['https://www.paypal.com/*']});
         if(tabs.length===1&&Number.isInteger(tabs[0].id)){
-          paypalTabId=tabs[0].id;pendingPaypalCapture=true;paypalCaptureDeadline=Date.now()+45000;
-          const delivered=await chrome.tabs.sendMessage(paypalTabId,{command:'capture_paypal_financing'},{frameId:0}).then(r=>r?.accepted===true).catch(()=>false);
-          // Keep the bounded request alive through Credit -> financing navigation.
-          // An acknowledgement is not a completed source capture.
-          if(!delivered&&!paypalReloaded){paypalReloaded=true;await chrome.tabs.reload(paypalTabId);}
+          if(paypalTabId!==tabs[0].id){paypalTabId=tabs[0].id;paypalCaptureInFlight=false;paypalPageInstance=null;paypalReloaded=false;}
+          if(!paypalCaptureInFlight){pendingPaypalCapture=true;paypalCaptureDeadline=Date.now()+45000;await deliverPaypalCapture(paypalTabId);}
         }
       }
     if(command==='capture_citi_activity'){
@@ -337,22 +358,36 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
   if(message.event==='wealthfront_page_ready'){
-    if(tabId===wealthfrontTabId&&pendingWealthfrontCapture){pendingWealthfrontCapture=false;void chrome.tabs.sendMessage(tabId,{command:'capture_wealthfront_cash'},{frameId:0}).catch(()=>{});}
+    const newDocument=typeof message.pageInstance==='string'&&message.pageInstance!==wealthfrontPageInstance;
+    if(typeof message.pageInstance==='string')wealthfrontPageInstance=message.pageInstance;
+    if(tabId===wealthfrontTabId&&(pendingWealthfrontCapture||(wealthfrontCaptureInFlight&&newDocument))){
+      // A fresh document after the one permitted account-navigation attempt
+      // needs one delivery; ordinary page heartbeats are no longer emitted.
+      if(newDocument)wealthfrontCaptureInFlight=false;
+      void deliverWealthfrontCapture(tabId);
+    }
     else void pollCommand();return;
   }
   if(message.event==='wealthfront_cash_capture'){
-    if(session&&tabId===wealthfrontTabId&&sender.frameId===0&&/^https:\/\/www\.wealthfront\.com\//.test(sender.url||'')&&message.candidate)
+    if(session&&tabId===wealthfrontTabId&&sender.frameId===0&&/^https:\/\/www\.wealthfront\.com\//.test(sender.url||'')&&message.candidate){
+      pendingWealthfrontCapture=false;wealthfrontCaptureInFlight=false;
       void send('/v1/wealthfront-cash',message.candidate).then(()=>pollCommand());
+    }
     return;
   }
   if(message.event==='paypal_page_ready'){
     if(pendingPaypalCapture&&Date.now()>=paypalCaptureDeadline)pendingPaypalCapture=false;
-    if(tabId===paypalTabId&&sender.frameId===0&&pendingPaypalCapture){void chrome.tabs.sendMessage(tabId,{command:'capture_paypal_financing'},{frameId:0}).catch(()=>{});}
+    const newDocument=typeof message.pageInstance==='string'&&message.pageInstance!==paypalPageInstance;
+    if(typeof message.pageInstance==='string')paypalPageInstance=message.pageInstance;
+    if(tabId===paypalTabId&&sender.frameId===0&&(pendingPaypalCapture||(paypalCaptureInFlight&&newDocument))){
+      if(newDocument)paypalCaptureInFlight=false;
+      void deliverPaypalCapture(tabId);
+    }
     else void pollCommand();return;
   }
   if(message.event==='paypal_financing_capture'){
     if(session&&tabId===paypalTabId&&sender.frameId===0&&/^https:\/\/www\.paypal\.com\//.test(sender.url||'')&&message.candidate){
-      pendingPaypalCapture=false;
+      pendingPaypalCapture=false;paypalCaptureInFlight=false;
       void send('/v1/paypal-financing',message.candidate).then(()=>pollCommand());
     }
     return;

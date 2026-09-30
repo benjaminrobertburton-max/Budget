@@ -45,6 +45,32 @@ PayPal structural diagnostics.  They passed syntax checks and the focused
 loopback bridge test, but they are not a completed or accepted implementation.
 Do not assume they exist on the other machine.
 
+## September 30 lifecycle repair — accepted implementation
+
+The shared collector now contains an accepted, fictional-test-covered repair
+for the observed panel burst. The extension version is **0.4.21**; its source
+commit, rather than the displayed label alone, remains authoritative.
+
+- PayPal sends one readiness signal per document and the background permits one
+  active capture delivery. A later navigation to a new document gets one new
+  delivery; ordinary readiness notifications cannot repeatedly reopen promotion
+  details.
+- Wealthfront makes at most one `Individual Cash Account` navigation request
+  per content-script document. Its bounded reader retries can no longer keep
+  clicking a drawer or subpanel while the route has not changed.
+- PayPal and Wealthfront bridge handler failures now become fixed, nonfinancial
+  lifecycle outcomes (`*_capture_rejected`) rather than an undifferentiated
+  adapter error. No source contents are put into diagnostics.
+- The weekly coordinator now blocks Wells and Chase immediately on fixed
+  no-table/page-limit reader outcomes instead of waiting for the overall
+  timeout. Authentication remains a normal user-action pause.
+
+This repair deliberately does not alter PayPal's already-confirmed selector
+contract, financial rules, private evidence format, browser security controls,
+or workbook data. It has not been live-tested against a bank page on this
+machine; the next home run should reload version 0.4.21, sign in normally, and
+run each source individually before a complete weekly refresh.
+
 ## Global result
 
 - No real workbook import, payment action, ledger update, or budget-plan update

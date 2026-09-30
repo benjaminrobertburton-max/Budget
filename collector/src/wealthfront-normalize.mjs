@@ -4,7 +4,7 @@ import {requireEvidence as check} from './errors.mjs';
 export function validateWealthfrontCandidate(c){
   check(c?.version===1&&c.kind==='wealthfront_cash'&&['captured','not_ready','blocked'].includes(c.finding)
     &&Object.keys(c).filter(k=>k!=='stage').sort().join(',')==='accountId,available,finding,kind,pending,rows,title,total,unavailable,version'
-    &&(c.stage===undefined||['account_page','page_limit','authentication','account_label','activity_rows_missing','activity_row_shape','activity_captured','balance_control_missing','balance_dialog_blocked','balance_dialog_missing','balance_fields_missing'].includes(c.stage))
+    &&(c.stage===undefined||['account_page','page_limit','authentication','account_navigation_requested','account_route_not_reached','account_label','activity_rows_missing','activity_row_shape','activity_captured','balance_control_missing','balance_dialog_blocked','balance_dialog_missing','balance_fields_missing'].includes(c.stage))
     &&['accountId','title','total','available','unavailable','pending'].every(k=>typeof c[k]==='string'&&c[k].length<=200)
     &&Array.isArray(c.rows)&&c.rows.length<=100&&c.rows.every(r=>r&&Object.keys(r).sort().join(',')==='amount,date,description,runningBalance'
       &&Object.values(r).every(v=>typeof v==='string'&&v.length<=700)),
