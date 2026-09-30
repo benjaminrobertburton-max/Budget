@@ -33,11 +33,21 @@ export function citiWorkbookAnchors(ledger,bindings){
   return {identity:{product:'aadvantage',suffix:bindings.citi},transactions};
 }
 
-function classify(description,category,rules,oldRows){
+function amountScoped(rule,description,amount){
+  // A private workbook may use "[amount 26.50-27.50] EXXON" to distinguish
+  // an otherwise identical merchant. The personal amounts stay in that
+  // private workbook; this is only generic parser support.
+  const match=/^\[amount\s+(-?\d+(?:\.\d+)?)\s*[-–]\s*(-?\d+(?:\.\d+)?)\]\s+(.+)$/i.exec(String(rule[0]??''));
+  return !!(match&&Number.isFinite(amount)&&amount>=Number(match[1])&&amount<=Number(match[2])
+    &&text(description).includes(text(match[3]))&&rule[1]&&rule[2]);
+}
+
+function classify(description,category,rules,oldRows,amount){
+  const scoped=rules.filter(r=>amountScoped(r,description,amount));
   const exact=rules.filter(r=>text(r[0])===text(description)&&r[1]&&r[2]);
   const past=oldRows.filter(r=>text(r[2])===text(description)&&r[12]==='Verified').map(r=>[null,r[5],r[6]]);
   const fallback=category?rules.filter(r=>text(r[3])===text(category)&&r[4]&&r[5]).map(r=>[null,r[4],r[5]]):[];
-  const candidates=exact.length?exact:past.length?past:fallback;
+  const candidates=scoped.length?scoped:exact.length?exact:past.length?past:fallback;
   const choices=new Set(candidates.map(r=>JSON.stringify([r[1],r[2]])));
   return choices.size===1?JSON.parse([...choices][0]):['Needs classification','Needs classification'];
 }
@@ -113,7 +123,7 @@ export function reconcileWorkbookLedger(intake,ledger,rules){
       }
       const row=match?structuredClone(match.r):Array(13).fill(null);
       const [category,treatment]=match&&row[5]&&row[5]!=='Needs classification'&&['Include','Exclude','Transfer / verify'].includes(row[6])
-        ?[row[5],row[6]]:classify(r.description,r.sourceCategory,rules,previous.map(x=>x.r));
+        ?[row[5],row[6]]:classify(r.description,r.sourceCategory,rules,previous.map(x=>x.r),r.expense/100);
       const date=match&&!pendingDateShifted&&isoDate(row[1])?isoDate(row[1]):r.date;
       const verified=!!date&&!ambiguous&&category!=='Needs classification';
       const archive=`${account.evidenceRef}:${r.state}`;
