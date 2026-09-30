@@ -6,7 +6,8 @@ import {validateActivityCandidate} from '../src/activity-probe.mjs';
 
 async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
   posted = ['Sep 1, 2031','FICTIONAL B','$2.00',''], single = false,
-  duplicateHeader = false, headings = ['Date','Description','Amount','Action'], rangeReadyAfter = 0, elapsedMsPerTick = 0 } = {}) {
+  duplicateHeader = false, headings = ['Date','Description','Amount','Action'], rangeReadyAfter = 0, elapsedMsPerTick = 0,
+  signedOutControl = true } = {}) {
   const messages=[], listeners=[], timers=[];
   let elapsedTicks=0;
   const visibleText=innerText=>({innerText,getClientRects:()=>[{}]});
@@ -20,7 +21,7 @@ async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
   const tables=[...(single ? [] : [table('PENDING-dataTableId-mds-diy-data-table',pending)]),
     table('ACTIVITY-dataTableId-mds-diy-data-table',posted)];
   const document={documentElement:{},querySelector:()=>null,querySelectorAll:s=>s==='table,[role=table],[role=grid]'?tables:
-    s==='a,button,[role=button],[role=link]'?[visibleText('Sign out')]:
+    s==='a,button,[role=button],[role=link]'?(signedOutControl?[visibleText('Sign out')]:[]):
     s==='#mds-navigation-bar-exp-heading'?[visibleText('Prime Visa (...1234)')]:
     s==='#select-ACTIVITY-header-selector-label' && elapsedTicks>=rangeReadyAfter?[visibleText('Activity since last statement')]:[]};
   const context={document,Date:{now:()=>elapsedTicks*elapsedMsPerTick},getComputedStyle:()=>({visibility:'visible',display:'table-row'}),
@@ -40,6 +41,12 @@ test('Chase waits for the range control after both activity tables render',async
   const candidate=await captureFixture({rangeReadyAfter:3});
   assert.equal(candidate.source.chase.range,'Activity since last statement');
   assert.equal(candidate.finding,'candidate_read');
+});
+
+test('Chase recognizes the visible account heading even without a sign-out control', async () => {
+  const candidate = await captureFixture({ signedOutControl: false });
+  assert.equal(candidate.finding, 'candidate_read');
+  assert.equal(candidate.source.chase.product, 'prime_visa');
 });
 
 test('Chase missing range stays unknown after the bounded readiness window',async()=>{

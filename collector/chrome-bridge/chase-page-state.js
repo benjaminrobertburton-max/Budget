@@ -52,6 +52,12 @@
       && columns.includes("description") && columns.some(column => ["amount", "credit", "debit"].includes(column));
   };
   const currentState = () => {
+    // The signed-in account heading is the strongest local state marker. Some
+    // Chase dashboard variants retain a visible, inert sign-in control in a
+    // component tree; that must not override an already-rendered account page.
+    const accountHeading = deepQueryAll('#mds-navigation-bar-exp-heading')
+      .some(node => visible(node) && /^(Prime Visa|Sapphire Preferred)\s*\(\.\.\.\d{4}\)$/.test(text(node)));
+    if (accountHeading) return "chase_authenticated_page";
     const controls = deepQueryAll("input");
     const loginControls = controls.some(input => visible(input) && !input.disabled
       && (input.type === "password" || /^(username|current-password|new-password|one-time-code)$/.test(input.autocomplete)))
