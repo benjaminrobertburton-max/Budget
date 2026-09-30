@@ -141,7 +141,7 @@ machine's working version before broadening zero-pending logic.  A correct fix
 must distinguish an explicit bank no-pending state from an incomplete, delayed,
 or filtered page.
 
-### PayPal Credit promotions — layout contract mismatch diagnosed
+### PayPal Credit promotions — reader-stage report contradicted by live structure
 
 #### Initial behavior
 
@@ -171,25 +171,44 @@ and never sends financial text.  The PayPal run reported:
 paypal_financing_sections_missing
 ```
 
-This proves all of the following:
+At the time, this was correctly interpreted only as a content-script response;
+it did **not** prove that the visible page lacked the required layout.
 
-- the PayPal content script was present and responded;
-- the collector was on the signed-in approved financing route;
-- the strict expected three-section contract did not match the rendered page.
+#### September 30 follow-up: page structure is confirmed compatible
 
-The current reader expects the exact visible section-heading sequence
-`Expiring`, `Active`, `Paid off`.  The home-machine page does not render that
-contract as expected.  Possible causes include responsive layout, browser zoom,
-Windows display scaling, an A/B page variant, or a changed PayPal DOM.  The
-diagnostic does **not** prove which one.
+The user kept the same signed-in PayPal Credit financing tab open and requested
+one additional run.  A direct, read-only structural check of that already-open
+tab confirmed all of the reader's public, non-financial prerequisites:
 
-**PayPal next diagnostic:** compare only sanitized structural information from
-both machines: viewport dimensions, device-pixel ratio, Chrome site zoom,
-visible heading count, recognized-section count, card-container count, and
-whether relevant content is in shadow DOM/iframe.  Do not copy or upload the
-heading text, card text, screenshots, or DOM dumps.  Then adapt the reader to a
-stable structural contract and test it with fictional fixtures plus one
-attended local read.
+- the tab was on the exact approved financing route;
+- the three visible `section h2` headings were present in the expected order:
+  `Expiring`, `Active`, and `Paid off`;
+- each recognized section contained visible card links, four cards in total;
+- every card had the three visible paragraph fields the current reader expects;
+- the DOM was small enough that the reader's page-limit guard could not apply.
+
+This **contradicts** the prior `paypal_financing_sections_missing` report.  The
+problem is therefore no longer best characterized as a responsive-layout,
+zoom, display-scaling, or PayPal heading-selector mismatch.  It is more likely
+that the extension and the observed page were out of lifecycle/session sync,
+or that an earlier/stale content-script state was reported for a different page
+state.  No source text, amounts, or detail fields were retained in this report.
+
+The immediate repeated `paypal-refresh` attempt then ended with the CLI's
+sanitized `ADAPTER_ERROR` before it printed a bridge progress state.  The CLI
+intentionally suppresses the underlying error to avoid exposing private source
+details.  This leaves the exact post-reader boundary unisolated: it may be
+bridge startup, content-script delivery, capture callback, normalization, or
+private evidence-store save.  It must not be guessed from the generic code.
+
+**PayPal repair priority:** retain the existing selector contract and add
+bounded, non-financial lifecycle markers for bridge startup, tab selection,
+message acknowledgement, reader-ready, candidate delivery, normalization, and
+private-save completion.  The next run must report the first failed marker as
+a fixed code instead of `ADAPTER_ERROR`.  Do not alter the reader selectors or
+blame display settings until those markers prove a selector failure.  Test that
+instrumentation with fictional fixtures first, then perform one attended local
+read of the already-known compatible page.
 
 ### Wealthfront — signed-in page reached, content-reader handoff unconfirmed
 
@@ -272,8 +291,11 @@ proof that a responsive-layout difference is the root cause.
    timeout.
 5. Add bounded lifecycle tracing to Citi and Wealthfront, matching the new
    PayPal diagnostic style.  Keep it structural and non-financial.
-6. Compare the working other-machine Citi/PayPal/Wealthfront reader contracts
-   with this machine before changing selectors or verification rules.
+6. For PayPal, add fixed, non-financial markers across bridge startup through
+   private-save completion before changing selectors; the current page has
+   already been confirmed compatible with the reader's selector contract.
+   Compare the working other-machine Citi/Wealthfront reader contracts with
+   this machine before changing their selectors or verification rules.
 7. Test each source individually after sign-in, then verify its encrypted
    evidence/normalization gates.  Do not run a six-source weekly refresh until
    each individual source reaches a deterministic outcome.
