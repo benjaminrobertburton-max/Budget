@@ -8,6 +8,16 @@ onto the home machine.
 
 ## What changed
 
+- September 30 approved importer correction: required posted-history coverage
+  begins at the oldest of the accepted posted anchors, not the oldest incidental
+  row on the loaded page. A page can end midway through an older date. Older
+  accepted posted ledger rows remain unchanged, including their notes/provenance;
+  unrelated older source rows are not backfilled. All current pending and loaded
+  postings matching prior pending remain in scope. Missing/changed/duplicate
+  history at or after the anchor boundary still blocks. Replaying a receipt
+  retains source-control counts for its already-imported late postings. This is
+  an importer-only change: extension 0.4.30 remains current, with no reload needed.
+
 - PayPal retries no longer click the same observed account/financing destination
   repeatedly while an SPA route loads. Each destination gets one click per
   explicit request; a new document still uses the existing single-delivery guard.
@@ -144,6 +154,25 @@ retry passed Citi and preserved four completed-source receipts. PayPal initially
 failed while its observed tab was on the public site. A later direct check
 confirmed the same tab on an authenticated account route; resume starts at PayPal,
 not Wells. Do not infer global sign-in state from an earlier page snapshot.
+Subsequent 0.4.30 resume saved PayPal and Wealthfront successfully. The user
+reported extra PayPal panels despite a valid four-promotion result, and then
+explicitly stopped PayPal diagnosis. Do not claim that panel repeatability is
+proved or restart that investigation without direction. All six exact receipts
+are now retained in the private checkpoint. Wealthfront required normal sign-in.
+
+Final import initially stopped with POSTED_HISTORY_CHANGED on older Chase rows
+before the accepted anchor window. The user approved the narrow importer
+correction above. Four anchor-scope regression tests and ten existing real-XLSX
+import tests passed, covering preservation, replay, pending settlement, Citi,
+PayPal, Wealthfront, backups and formula checks; the workbook-anchor test also
+passed. QC and diff checks passed. Retrying all six saved receipts (without any
+new browser capture) then stopped at WORKBOOK_FORMULA_ERROR before publication.
+The failing formula cell has not yet been identified. Do not bypass the scan or
+change financial formulas merely to publish. Next: identify the exact formula
+failure in a private diagnostic run and compare it to the unchanged original;
+propose any material financial-logic repair before implementing it. Preserve the
+six-source checkpoint and retry import only after the relevant correction.
+
 No private workbook update has yet been published. Required next: two attended
 work-machine passes with the exact release, then one home smoke test at the same
 Git commit. Verify account coverage/anchors, no unintended panel loops, no duplicate

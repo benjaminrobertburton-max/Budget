@@ -68,23 +68,29 @@ export function reconcileWorkbookLedger(intake,ledger,rules){
     check(anchors.length>0||posted.length===0&&oldPosted.length===0,'MISSING_ACCEPTED_ANCHOR','The workbook needs its first accepted account anchor before automatic merging.');
     for(const {r} of anchors){const key=oldSignature(r),count=available.get(key)??0;
       check(count>0,'ANCHOR_MISSING','An accepted posted anchor is absent; do not guess or duplicate history.');available.set(key,count-1);}
-    // Missing/edited posted rows in the observed overlap must not disappear.
-    const oldest=posted.map(r=>r.date).sort()[0],counts=new Map();
+    // The accepted anchor window, not the oldest incidental page row, defines
+    // required history coverage. Page boundaries can split an older date.
+    const anchorStart=anchors.map(x=>sourceDate(x.r)).filter(Boolean).sort()[0];
+    const counts=new Map();
     for(const r of posted){const k=signature(r.date,r.description,r.expense);counts.set(k,(counts.get(k)??0)+1);}
-    for(const {r} of oldPosted.filter(x=>sourceDate(x.r)>=oldest)){
+    for(const {r} of oldPosted.filter(x=>anchorStart&&sourceDate(x.r)>=anchorStart)){
       const k=oldSignature(r),n=counts.get(k)??0;check(n>0,'POSTED_HISTORY_CHANGED','Accepted activity is missing or changed in the captured overlap.');counts.set(k,n-1);
     }
     const used=new Set(),occurrences=new Map(),scope={posted:[],pending:[]};
-    const anchorStart=anchors.map(x=>sourceDate(x.r)).filter(Boolean).sort()[0];
+    // Replaying the same receipt must retain its already-imported older rows
+    // in source controls without rewriting them (for example, late posting).
+    scope.posted.push(...oldPosted.filter(x=>anchorStart&&sourceDate(x.r)<anchorStart
+      &&x.r[10]===`${account.evidenceRef}:posted`).map(x=>x.i));
     const acceptedSignatures=new Set(oldPosted.map(x=>oldSignature(x.r)));
     for(const r of incoming){
-      // Inspect all loaded rows above, but do not backfill unrelated old history.
+      // Keep accepted older history byte-for-byte in the ledger, even when
+      // loaded again. Still inspect every loaded row for a prior pending match.
       if(r.state==='posted'&&anchorStart&&r.date<anchorStart
-        &&!acceptedSignatures.has(signature(r.date,r.description,r.expense))
+        &&(acceptedSignatures.has(signature(r.date,r.description,r.expense))
         // A formerly pending purchase can post behind the newest anchor. It
         // is not unrelated old history; the normal exact/ambiguous matching
         // below must still reconcile it without counting the purchase twice.
-        &&!oldPending.some(x=>text(x.r[2])===text(r.description)&&cents(x.r[3])===r.expense))continue;
+        ||!oldPending.some(x=>text(x.r[2])===text(r.description)&&cents(x.r[3])===r.expense)))continue;
       const sig=signature(r.date,r.description,r.expense),group=r.state+'|'+sig;
       const occurrence=(occurrences.get(group)??0)+1;occurrences.set(group,occurrence);
       const hash=createHash('sha256').update(sig).digest('hex').slice(0,20);
