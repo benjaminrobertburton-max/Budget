@@ -12,9 +12,10 @@ the specific reported failure. `weekly-test` validates without workbook writes;
 Preserve private workbook/configuration/evidence, accepted anchors, manual account
 scope, and the user's no-expiry policy. Source failures preserve other completed
 sources. A resumed receipt is not a new live capture. Reload extension 0.4.32 after
-sync. One fresh six-source capture and full receipt-to-workbook validation passed;
-the fresh repeat has verified Wells/both Chase cards and is awaiting renewed Citi
-authentication. Home acceptance is still pending.
+sync. Two distinct six-source capture sets passed full workbook validation; the
+second required renewed authentication and a PayPal retry. The current saved test
+session is validated, workbook unchanged; do not recapture it unnecessarily.
+Uninterrupted hands-off operation and home acceptance are still unverified.
 Read the release checkpoint; do not overstate test coverage.
 
 The user has a five-hour usage limit. Weekly imports must be completed in one session.

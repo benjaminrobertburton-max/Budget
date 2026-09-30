@@ -103,13 +103,23 @@ September 30 measured checks:
   Version 0.4.32 reached the Wells sign-in form correctly; Chrome did not supply
   an autofilled login. The user was asked to select the saved login locally.
   The owned non-publishing worker was stopped at this authentication boundary;
-  receipts were preserved. Fresh-repeat acceptance is blocked on authentication,
-  not completed. Do not claim home acceptance.
+  receipts were preserved. This was an authentication interruption, not a
+  successful uninterrupted repeat.
 - After the user renewed sign-ins, the fresh repeat resumed at 21:16:41 UTC.
   Wells and both Chase cards verified with fresh receipts. Citi then displayed
   its explicit inactivity sign-out notice and entered the authentication wait.
-  This remains an unfinished fresh repeat; no second all-source success is
-  claimed. Existing successful receipts are checkpointed for continuation.
+  That segment ended after 377 seconds with Wells, both Chase cards and
+  Wealthfront verified. Citi required authentication; PayPal returned an
+  incomplete financing snapshot. Both blocked publication, preserving the four
+  successful source receipts.
+- After Citi sign-in, the 21:23:52 UTC retry collected only Citi and PayPal and
+  passed full workbook validation in 44 seconds. The other four receipts were
+  reused from this second collection session, not from the first-pass archive.
+  All six second-session evidence references differ from the first capture set.
+  The authoritative workbook's SHA-256 is unchanged. Two distinct complete
+  capture sets now pass validation, but the second required authentication and
+  a PayPal retry; this is not proof of an uninterrupted all-account run or home
+  acceptance. The PayPal transient failure must remain visible in this record.
 - Final automated validation: 403 core/CLI tests passed (400 core and 3 CLI,
   separated so the CLI bridge test did not compete for the live runner's port).
   All 27 real-Chrome fixture tests passed with the repository's documented
@@ -122,9 +132,9 @@ September 30 measured checks:
 Test mode verifies the full workbook calculation path and exact source-file
 preservation before reporting `validated`; `complete` means actual publication.
 
-Acceptance still requires a successful fresh repeat on this machine and a home
-smoke test with the home-private workbook/config. A resumed receipt-only pass is
-not a second fresh navigation pass. Record elapsed times, per-source outcomes,
+Acceptance still requires a home smoke test with the home-private workbook/config.
+Uninterrupted, no-assistance sign-in is not certified. A resumed receipt-only pass
+is not a fresh navigation pass. Record elapsed times, per-source outcomes,
 whether evidence was reused, and any MFA/autofill exception. Do not guarantee
 repeatability merely because Chrome account/settings match or a larger model was
 used to develop the code. Website changes and unsupported challenges remain
@@ -132,14 +142,13 @@ explicit exceptions, not permission to weaken reconciliation.
 
 ## Resume this checkpoint
 
-For the unfinished work-machine fresh repeat, check `collector-status` first.
-At the latest checkpoint Citi requires renewed authentication. If the worker is
-still waiting, sign into the existing bank tab and let it resume; do not start a
-second worker. If stopped, run `weekly-test` with the existing private configuration
-after authentication. It requests unresolved sources and keeps verified Wells/
-Chase receipts. It must not restore the archived first-pass
-session and count that as fresh testing. The first successful six-source session
-is preserved separately in the private root as a validated test checkpoint.
+The work-machine test is now `validated`, with the worker stopped normally and
+all six second-session receipts pinned. Do not collect again just to finish the
+test. An explicitly authorized `weekly-start` can use these exact receipts to
+publish the import without revisiting banks, if workbook/config still match.
+No actual publication was authorized or performed in this reliability test.
+The first successful six-source session is preserved separately in the private
+root as a validated test checkpoint. Do not restore it and count it as fresh work.
 Never commit or transfer its encrypted receipts to another machine.
 
 On the home machine, sync this branch, reload 0.4.32, retain the home-private

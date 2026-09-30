@@ -11,11 +11,12 @@ and accepted workbook anchors. Reload the unpacked extension to **0.4.32** after
 syncing. Use `weekly-test` before the first home publication. It keeps local
 encrypted receipts but leaves the workbook byte-for-byte unchanged; successful
 receipts can be reused by `weekly-start`. If authentication is unavailable, report
-that separately from a parsing failure. One fresh work-machine six-source capture
-and full workbook validation passed. After renewed sign-ins, the fresh repeat
-verified Wells/both Chase cards and is awaiting Citi authentication; repeat
-completion and a same-commit home smoke test remain required. No private
-workbook was changed during this release's tests.
+that separately from a parsing failure. Two distinct work-machine six-source
+capture sets passed full workbook validation. The second required renewed sign-in
+and a PayPal retry; the final 44-second segment collected Citi/PayPal and reused
+four verified second-session receipts. Uninterrupted hands-off operation and a
+same-commit home smoke test remain unverified. The saved work-machine test is
+validated and no private workbook was changed during this release's tests.
 
 **Prior portability checkpoint (financial working point unchanged by 0.4.32):** the private workbook import completed,
 and its accepted Wealthfront anchors now travel inside the XLSX. Use the newly
