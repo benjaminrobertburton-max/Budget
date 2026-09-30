@@ -6,6 +6,8 @@ import {workbookBytes} from './workbook_bytes.mjs';
 import {workbookXml as X} from './collector_workbook.mjs';
 import {CollectionError,requireEvidence as check} from '../collector/src/errors.mjs';
 import {reconcileWorkbookLedger,serialDate,isoDate} from '../collector/src/workbook-reconcile.mjs';
+import {makeWealthfrontCheckpoint} from '../collector/src/wealthfront-normalize.mjs';
+import {embedWealthfrontCheckpoint} from './wealthfront_checkpoint.mjs';
 
 const LEDGER='Support - Ledger',HISTORY='6. History',CASH='Support - Account Snapshots',DEBT='Support - Debt Detail';
 const col=n=>String.fromCharCode(65+n);
@@ -252,7 +254,8 @@ export async function buildDirectWorkbook(original,intake){
     error.formulaFailures=formulaFailures;throw error;
   }
   for(const [address,value] of frozen)check(sheet(HISTORY).getRange(address).values[0][0]===value,'HISTORY_CHANGED','A closed weekly total changed.');
-  const bytes=await mergeCells(original,await workbookBytes(wb),patches);
+  let bytes=await mergeCells(original,await workbookBytes(wb),patches);
+  if(intake.wealthfront)bytes=await embedWealthfrontCheckpoint(bytes,makeWealthfrontCheckpoint(intake.wealthfront));
   const saved=await SpreadsheetFile.importXlsx(bytes);saved.recalculate();
   for(const name of names){
     const actual=saved.worksheets.getItem(name).getUsedRange().values,expected=sheet(name).getUsedRange().values;

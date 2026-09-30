@@ -36,6 +36,28 @@ export function wealthfrontOverlap(current,anchors){
   const counts=new Map();for(const r of current.rows){const k=wealthfrontRowKey(r);counts.set(k,(counts.get(k)||0)+1);}
   return anchors.length>0&&anchors.every(r=>{const k=wealthfrontRowKey(r),n=counts.get(k)||0;if(!n)return false;counts.set(k,n-1);return true;});
 }
+export function validateWealthfrontCheckpoint(p){
+  check(p?.version===1&&p.kind==='wealthfront_accepted_anchor'
+    &&Object.keys(p).sort().join(',')==='accountId,activityTotalMinor,anchors,capturedAt,evidenceRef,kind,rowCount,totalMinor,version'
+    &&typeof p.accountId==='string'&&/^[A-Za-z0-9-]{4,100}$/.test(p.accountId)
+    &&/^local:evidence:[a-f0-9-]{36}$/.test(p.evidenceRef??'')
+    &&typeof p.capturedAt==='string'&&Number.isFinite(Date.parse(p.capturedAt))
+    &&Number.isSafeInteger(p.totalMinor)&&Number.isSafeInteger(p.activityTotalMinor)
+    &&Number.isInteger(p.rowCount)&&p.rowCount>0&&p.rowCount<=100
+    &&Array.isArray(p.anchors)&&p.anchors.length===Math.min(3,p.rowCount)
+    &&p.anchors.every((r,i)=>r&&Object.keys(r).sort().join(',')==='amountMinor,date,description'
+      &&validDate(r.date)&&typeof r.description==='string'&&r.description.length>0&&r.description.length<=700
+      &&Number.isSafeInteger(r.amountMinor)&&(!i||p.anchors[i-1].date>=r.date)),
+    'WEALTHFRONT_CHECKPOINT_INVALID','The workbook Wealthfront checkpoint is invalid.');
+  return p;
+}
+export function makeWealthfrontCheckpoint(n){
+  check(n.coverageVerified,'WEALTHFRONT_CHECKPOINT_INVALID','Only verified accepted cash evidence can become a workbook checkpoint.');
+  return validateWealthfrontCheckpoint({version:1,kind:'wealthfront_accepted_anchor',accountId:n.accountId,
+    evidenceRef:n.evidenceRef,capturedAt:n.capturedAt,totalMinor:n.balances.total,
+    rowCount:n.rows.length,activityTotalMinor:sumMinor(n.rows.map(r=>r.amountMinor)),
+    anchors:n.rows.slice(0,3).map(({date,description,amountMinor})=>({date,description,amountMinor}))});
+}
 export function prepareWealthfrontImport(item,binding,prior,now){
   check(binding&&Object.keys(binding).sort().join(',')==='accountId,initialAnchor'&&typeof binding.accountId==='string'
     &&/^[A-Za-z0-9-]{4,100}$/.test(binding.accountId)&&binding.initialAnchor
@@ -49,7 +71,12 @@ export function prepareWealthfrontImport(item,binding,prior,now){
   const n=normalizeWealthfrontCash(r.payload);
   check(n.coverageVerified&&n.accountId===binding.accountId,'WEALTHFRONT_CAPTURE_FAILED','Wealthfront balance/identity checks failed.');
   let anchors=[binding.initialAnchor];
-  if(prior){check(prior.source==='wealthfront','WEALTHFRONT_ANCHOR_INVALID','Prior accepted source is invalid.');
+  if(prior?.kind==='wealthfront_accepted_anchor'){
+    validateWealthfrontCheckpoint(prior);
+    check(prior.accountId===n.accountId&&Date.parse(prior.capturedAt)<=Date.parse(r.capturedAt),
+      'WEALTHFRONT_ANCHOR_INVALID','The accepted checkpoint account or chronology differs.');
+    anchors=prior.anchors;
+  }else if(prior){check(prior.source==='wealthfront','WEALTHFRONT_ANCHOR_INVALID','Prior accepted source is invalid.');
     const p=normalizeWealthfrontCash(prior.payload);check(p.coverageVerified&&p.accountId===n.accountId,'WEALTHFRONT_ANCHOR_INVALID','Prior accepted account is invalid.');anchors=p.rows.slice(0,3);}
   check(wealthfrontOverlap(n,anchors),'WEALTHFRONT_ANCHOR_MISSING','Accepted overlap is missing from the first page; no older history requested.');
   return {...n,evidenceRef:item.reference,capturedAt:r.capturedAt};

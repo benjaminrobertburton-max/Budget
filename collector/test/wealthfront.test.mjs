@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeWealthfrontCash,wealthfrontOverlap,prepareWealthfrontImport} from '../src/wealthfront-normalize.mjs';
+import {normalizeWealthfrontCash,wealthfrontOverlap,prepareWealthfrontImport,makeWealthfrontCheckpoint,validateWealthfrontCheckpoint} from '../src/wealthfront-normalize.mjs';
 const sample=()=>({version:1,kind:'wealthfront_cash',finding:'captured',accountId:'FICTIONAL-CASH',title:'Individual Cash Account',
   total:'$150.00',available:'$150.00',unavailable:'$0.00',pending:'$0.00',rows:[
     {description:'FICTIONAL TRANSFER',amount:'-$50.00',date:'Sep 9, 2031',runningBalance:'$150.00'},
@@ -29,4 +29,17 @@ test('workbook boundary requires balanced evidence and an accepted anchor withou
   assert.throws(()=>prepareWealthfrontImport(item,binding,null,new Date(now.getTime()-1)),/valid capture timestamp/);
   const incomplete=structuredClone(item);incomplete.record.payload.available='';
   assert.throws(()=>prepareWealthfrontImport(incomplete,binding,null,now),/balance\/identity checks failed/);
+});
+
+test('portable anchors require exact multiplicity, account identity, chronology and schema',()=>{
+ const payload=sample(),now=new Date('2031-09-09T12:00:00Z');
+ const item={reference:'local:evidence:11111111-1111-4111-8111-111111111111',record:{version:1,kind:'budget-collector-source-evidence',source:'wealthfront',capturedAt:now.toISOString(),payload}};
+ const n=normalizeWealthfrontCash(payload),p=makeWealthfrontCheckpoint({...n,evidenceRef:item.reference,capturedAt:item.record.capturedAt});
+ const binding={accountId:payload.accountId,initialAnchor:{...p.anchors[0],description:'STALE INITIAL ANCHOR'}};
+ assert.equal(prepareWealthfrontImport(item,binding,p,now).coverageVerified,true);
+ assert.throws(()=>prepareWealthfrontImport(item,binding,{...p,accountId:'OTHER-ACCOUNT'},now),{code:'WEALTHFRONT_ANCHOR_INVALID'});
+ assert.throws(()=>prepareWealthfrontImport(item,binding,{...p,capturedAt:'2031-09-10T12:00:00Z'},now),{code:'WEALTHFRONT_ANCHOR_INVALID'});
+ assert.throws(()=>prepareWealthfrontImport(item,binding,{...p,anchors:[p.anchors[0],p.anchors[0],p.anchors[2]]},now),{code:'WEALTHFRONT_ANCHOR_MISSING'});
+ assert.throws(()=>validateWealthfrontCheckpoint({...p,anchors:p.anchors.slice(0,1)}),{code:'WEALTHFRONT_CHECKPOINT_INVALID'});
+ assert.throws(()=>validateWealthfrontCheckpoint({...p,unexpected:'value'}),{code:'WEALTHFRONT_CHECKPOINT_INVALID'});
 });

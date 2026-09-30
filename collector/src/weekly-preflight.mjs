@@ -90,6 +90,12 @@ export async function weeklyPreflight(configFile,{protector=windowsProtector(),c
     const sealed=await protector.sealMany([{probe:'fictional preflight'}]);
     check((await protector.openMany(sealed))[0]?.probe==='fictional preflight','PROTECTION_FAILED','Local encryption check failed.');
     const workbookAnchors=checkRuntime?await (await import('../../work/collector_workbook.mjs')).readCollectorWorkbookAnchors(workbookBytes,config.bindings):undefined;
+    if(checkRuntime){
+      const {openPrivateEvidenceStore}=await import('./private-evidence-store.mjs');
+      const {resolveWealthfrontPrior}=await import('../../work/wealthfront_checkpoint.mjs');
+      await resolveWealthfrontPrior(workbookBytes,config.wealthfront,
+        await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector}));
+    }
     const fingerprint=createHash('sha256').update(configBytes).update(workbookHash).digest('hex');
     const assertUnchanged=async()=>{
       check((await fs.readFile(configFile)).equals(configBytes)

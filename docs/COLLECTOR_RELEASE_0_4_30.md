@@ -8,6 +8,16 @@ onto the home machine.
 
 ## What changed
 
+- Wealthfront's accepted three-row overlap now travels inside the authoritative
+  private workbook as native custom-property metadata. It is bound to the account,
+  accepted evidence reference, capture time, cash balance, activity count and
+  signed total. New verified imports refresh it automatically. Preflight checks
+  portability before starting bank collection; malformed or mismatched metadata
+  never falls back to a stale initial anchor. The old evidence reference remains
+  for provenance, but a migrated workbook no longer requires that originating
+  machine's encrypted file. This is importer/preflight code only; no extension
+  update or new bank permission is required.
+
 - Current Start dashboard compatibility: its B7/B8 cells are numeric plan and
   transfer values, not the legacy status-message cells. The importer preserves
   those values/formulas and the B17 balance formula, and writes unreviewed-plan
@@ -211,10 +221,54 @@ whether import committed on each machine. Keep all financial results local. The
 remaining home check exists because its Windows encryption context, runtime,
 extension installation and bank sessions cannot be certified from work.
 
-Private workbook portability needs a local check too: the Wealthfront snapshot
-currently references encrypted evidence in that machine's store. Before using a
-workbook transferred from another machine, verify the referenced accepted evidence
-exists and decrypts locally. Do not copy Windows-bound ciphertext, silently fall
-back to a stale initial anchor, erase the reference or reset financial history.
-If unavailable, an explicit, verified machine-neutral accepted-anchor migration
-is still needed; a Git pull alone cannot supply private evidence.
+## Portable workbook handoff — September 30
+
+The current private work-machine workbook has been migrated successfully. Three
+accepted Wealthfront anchors resolved with originating-machine evidence access
+deliberately unavailable, and normal weekly preflight passed without bank capture.
+An exact pre-migration backup was kept. Every original worksheet and financial
+part stayed byte-identical, so prior formula/visual QC remains applicable. The
+visible workbook was not redesigned or reimported. Send this updated workbook,
+not a previously exported copy without its portable checkpoint.
+
+Software validation: 23 focused Wealthfront/preflight/workbook tests passed.
+After tightening Excel-compatible metadata encoding, the cross-machine import
+test passed again. It uses different test encryption keys, no originating source
+file on the simulated home machine, and a deliberately stale bootstrap anchor.
+The copied workbook imports/replays without added duplicates; wrong identity,
+changed metadata, changed snapshot totals and missing exact overlap still block.
+Actual live home acceptance remains pending.
+
+Home continuation:
+
+1. Preserve local changes and sync `codex/budget-collector`, not just `main`.
+   Read AGENTS, this release document and the September 29 incident report.
+2. Receive the newly provided private workbook separately from Git. Keep an exact
+   backup of the existing home workbook; compare any newer home changes instead
+   of overwriting them blindly. Put the supplied workbook outside Git/OneDrive
+   and point the existing home import configuration at it. Keep home-specific
+   paths, encryption setup and account bindings; do not copy work configuration,
+   passwords, profiles, cookies, encrypted evidence, locks or resume sessions.
+3. Confirm the extension's loaded checkout and build 0.4.30, runtime and private
+   paths. Run normal preflight. The portable Wealthfront identity must match the
+   home binding; the exact saved overlap remains mandatory on the next capture.
+4. Run one attended home smoke test with `weekly-start <private-config>` and
+   inspect status. Resume failures rather than resetting checkpoints. Do not
+   claim home certification solely from the simulated two-store test here.
+
+For an older accepted workbook that lacks metadata, run
+`node collector/src/cli.mjs workbook-portability <absolute-private-config>` **on
+the originating machine**, where its exact accepted Wealthfront evidence can
+still decrypt. It refuses an active/saved weekly session, validates the accepted
+source against the workbook, creates an exact backup and changes only metadata.
+Running it again on a valid migrated workbook is a no-op. Missing evidence blocks
+with `WEALTHFRONT_PORTABILITY_REQUIRED`; never replace the accepted checkpoint
+with an initial anchor or newest unaccepted test capture to bypass that failure.
+
+The metadata is private financial information in the already-private XLSX, not
+encrypted separately or suitable for Git. Its digest detects incomplete/changed
+parts, not malicious forgery; the workbook remains the trusted financial baseline,
+as with other accounts' ledger anchors. Preserve its native custom properties
+when editing or moving it. Removing them can block a later cross-machine import.
+Each string property is kept below Excel's documented 255-character limit.
+See [Microsoft's custom-document-property documentation](https://learn.microsoft.com/en-us/office/vba/api/excel.workbook.customdocumentproperties).

@@ -7,7 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {fictionalWorkbook} from '../../work/collector_workbook_fixture.mjs';
 import {workbookBytes} from '../../work/workbook_bytes.mjs';
 import {buildDirectWorkbook} from '../../work/collector_apply.mjs';
-import {runWorkbookIntake} from '../../work/collector_workbook.mjs';
+import {runWorkbookIntake,workbookXml as X} from '../../work/collector_workbook.mjs';
 import {prepareWorkbookIntake} from '../src/workbook-intake.mjs';
 import {reconcileWorkbookLedger} from '../src/workbook-reconcile.mjs';
 import {intakeRecords,INTAKE_BINDINGS,INTAKE_NOW} from '../fixtures/workbook-intake.mjs';
@@ -17,6 +17,8 @@ import {fictionalCiti} from '../fixtures/citi.mjs';
 import {randomUUID} from 'node:crypto';
 import {fictionalPaypal,fictionalPaypalBindings} from '../fixtures/paypal.mjs';
 import {preparePaypalImport} from '../src/paypal-normalize.mjs';
+import {readWealthfrontCheckpoint,resolveWealthfrontPrior} from '../../work/wealthfront_checkpoint.mjs';
+import {migrateWealthfrontCheckpoint} from '../../work/collector_portability.mjs';
 const require=createRequire(new URL('../../work/workbook_bytes.mjs',import.meta.url));
 const {SpreadsheetFile}=await import(pathToFileURL(require.resolve('@oai/artifact-tool')));
 const intake=records=>prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
@@ -80,6 +82,9 @@ test('Wealthfront encrypted evidence updates cash, preserves savings logic, and 
   const result=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
   assert.deepEqual(await fs.readFile(result.backup),base);assert.equal(result.checks.formulaErrors,0);
   const accepted=await fs.readFile(config.baseWorkbook),saved=await SpreadsheetFile.importXlsx(accepted);saved.recalculate();
+  const portable=await readWealthfrontCheckpoint(accepted,config.wealthfront);
+  assert.equal(portable.anchors.length,3);assert.equal(portable.evidenceRef,reference);
+  assert.equal((await resolveWealthfrontPrior(accepted,config.wealthfront,{open(){throw new Error('Must not need originating evidence');}})).evidenceRef,reference);
   assert.equal(value(saved,cash,'F6'),150);assert.equal(value(saved,cash,'F7'),20);
   assert.equal(value(saved,savings,'B5'),150);assert.equal(value(saved,savings,'B7'),170);
   assert.equal(saved.worksheets.getItem(savings).getRange('B5').formulas[0][0],`='${cash}'!F6`);
@@ -94,6 +99,54 @@ test('Wealthfront encrypted evidence updates cash, preserves savings logic, and 
   }
   const again=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
   assert.equal(again.added,0);assert.deepEqual(await fs.readFile(again.backup),accepted);
+
+  // A separate machine has a different encryption key and no originating
+  // evidence. Only the authoritative XLSX travels; fresh captures stay local.
+  const homeRoot=await tempDirectory(t),homeProtector=fixtureProtector();
+  const homeConfig={...config,baseWorkbook:path.join(homeRoot,'home.xlsx'),outputRoot:path.join(homeRoot,'runs'),privateRoot:path.join(homeRoot,'private'),
+    wealthfront:{...config.wealthfront,initialAnchor:{...config.wealthfront.initialAnchor,description:'STALE BOOTSTRAP MUST NOT BE USED'}}};
+  await fs.writeFile(homeConfig.baseWorkbook,accepted);const homeFile=path.join(homeRoot,'config.json');await fs.writeFile(homeFile,JSON.stringify(homeConfig));
+  const homeStore=await openPrivateEvidenceStore({root:homeConfig.privateRoot,repositoryRoot,protector:homeProtector});
+  for(const {record} of Object.values(intakeRecords()))await homeStore.save(record);
+  const homeRef=await homeStore.save({source:'wealthfront',capturedAt:INTAKE_NOW.toISOString(),payload});
+  await assert.rejects(homeStore.open(reference));
+  const homeResult=await runWorkbookIntake(homeFile,{protector:homeProtector,now:INTAKE_NOW,apply:true});
+  assert.equal(homeResult.added,0);assert.equal(homeResult.checks.formulaErrors,0);
+  const homeAccepted=await fs.readFile(homeConfig.baseWorkbook);
+  assert.equal((await readWealthfrontCheckpoint(homeAccepted,homeConfig.wealthfront)).evidenceRef,homeRef);
+  const wrongAnchor=structuredClone(payload);wrongAnchor.rows[0].description='DIFFERENT POSTED ROW';
+  await homeStore.save({source:'wealthfront',capturedAt:INTAKE_NOW.toISOString(),payload:wrongAnchor});
+  await assert.rejects(runWorkbookIntake(homeFile,{protector:homeProtector,now:INTAKE_NOW,apply:true}),{code:'WEALTHFRONT_ANCHOR_MISSING'});
+  assert.deepEqual(await fs.readFile(homeConfig.baseWorkbook),homeAccepted);
+
+  // An older workbook with no portable property can be migrated only on a
+  // machine which can open its exact accepted record, with a byte-exact backup.
+  const legacyZip=await require('jszip').loadAsync(accepted),baseZip=await require('jszip').loadAsync(base);
+  legacyZip.remove('docProps/custom.xml');
+  for(const name of ['_rels/.rels','[Content_Types].xml'])legacyZip.file(name,await baseZip.file(name).async('nodebuffer'));
+  const legacy=await legacyZip.generateAsync({type:'nodebuffer'});
+  await assert.rejects(resolveWealthfrontPrior(legacy,config.wealthfront,homeStore),{code:'WEALTHFRONT_PORTABILITY_REQUIRED'});
+  await fs.writeFile(config.baseWorkbook,legacy);
+  const migrated=await migrateWealthfrontCheckpoint(file,{protector});assert.equal(migrated.financialPartsUnchanged,true);
+  assert.deepEqual(await fs.readFile(migrated.backup),legacy);
+  const migratedBytes=await fs.readFile(config.baseWorkbook),migratedZip=await require('jszip').loadAsync(migratedBytes);
+  const propertyDoc=X.xml(await migratedZip.file('docProps/custom.xml').async('string'));
+  const properties=X.elements(X.root(propertyDoc,'Properties'));
+  assert.ok(properties.length>1);assert.ok(properties.every(p=>X.child(p,'lpwstr').elements[0].text.length<=240));
+  for(const [name,part] of Object.entries(legacyZip.files))if(!part.dir&&!['_rels/.rels','[Content_Types].xml'].includes(name))
+    assert.deepEqual(await migratedZip.file(name).async('nodebuffer'),await part.async('nodebuffer'));
+  assert.equal((await migrateWealthfrontCheckpoint(file,{protector})).status,'already_portable');
+  assert.deepEqual(await fs.readFile(config.baseWorkbook),migratedBytes);
+  const badZip=await require('jszip').loadAsync(migratedBytes);
+  const badSnapshot=await require('jszip').loadAsync(migratedBytes),snapshotMap=await X.sheetMap(badSnapshot);
+  const snapshotEntry=snapshotMap.map.get(cash),snapshotSheet=X.root(snapshotEntry.document,'worksheet');
+  X.child(X.getCell(snapshotSheet,'F6'),'v').elements=[{type:'text',text:'999'}];badSnapshot.file(snapshotEntry.part,X.serial(snapshotEntry.document));
+  await assert.rejects(readWealthfrontCheckpoint(await badSnapshot.generateAsync({type:'nodebuffer'}),config.wealthfront),{code:'WEALTHFRONT_CHECKPOINT_MISMATCH'});
+  badZip.file('docProps/custom.xml',(await badZip.file('docProps/custom.xml').async('string')).replaceAll('FICTIONAL-CASH','WRONG-CASH'));
+  await assert.rejects(readWealthfrontCheckpoint(migratedBytes,{...config.wealthfront,accountId:'WRONG-CASH'}),{code:'WEALTHFRONT_CHECKPOINT_MISMATCH'});
+  await assert.rejects(readWealthfrontCheckpoint(await badZip.generateAsync({type:'nodebuffer'}),config.wealthfront),{code:'WEALTHFRONT_CHECKPOINT_INVALID'});
+  badZip.file('docProps/custom.xml','<Properties><property name="BudgetCollectorWealthfrontCheckpointV1"><lpwstr>{bad}</lpwstr></property></Properties>');
+  await assert.rejects(resolveWealthfrontPrior(await badZip.generateAsync({type:'nodebuffer'}),config.wealthfront,store),{code:'WEALTHFRONT_CHECKPOINT_INVALID'});
   const replay=await fs.readFile(config.baseWorkbook);
   await store.save({source:'wealthfront',capturedAt:INTAKE_NOW.toISOString(),payload:{...payload,available:''}});
   await assert.rejects(runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true}),{code:'WEALTHFRONT_CAPTURE_FAILED'});

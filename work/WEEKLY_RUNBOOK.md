@@ -9,6 +9,12 @@ Software validation does not replace the two attended work passes and home smoke
 test. Manual Discover/Capital One, Wells-only CUTX evidence, and excluded RBC scope
 remain unchanged. No payment confirmation or safe-cash addition is inferred.
 
+For a transferred private workbook, follow the release document's **Portable
+workbook handoff** section. The latest supplied work workbook includes accepted
+Wealthfront checkpoint metadata; preserve it, back up the existing home file and
+keep home-local configuration/evidence. Normal preflight checks this before bank
+collection. Do not reset anchors or copy Windows-bound encrypted files.
+
 Collector development now has a direct private-workbook entry point:
 `work/run_weekly_import.ps1 -CollectorConfig <absolute-private-config>`.
 Read `docs/COLLECTOR_WORKBOOK_INTAKE.md` before using it. It reconciles Wells/Chase

@@ -16,6 +16,7 @@ import {intakeAccounts,prepareWorkbookIntake,validateIntakeBindings} from '../co
 import {workbookBytes} from './workbook_bytes.mjs';
 import {preparePaypalImport} from '../collector/src/paypal-normalize.mjs';
 import {prepareWealthfrontImport} from '../collector/src/wealthfront-normalize.mjs';
+import {resolveWealthfrontPrior} from './wealthfront_checkpoint.mjs';
 
 export const INTAKE_SHEET='Support - Collector Intake';
 const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -257,9 +258,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
   if(Object.hasOwn(config,'wealthfront')){
     check(apply,'WEALTHFRONT_DIRECT_REQUIRED','Cash updates use direct import only.');
-    const current=await SpreadsheetFile.importXlsx(original);
-    const reference=current.worksheets.getItem('Support - Account Snapshots').getRange('B13').values[0][0];
-    const prior=typeof reference==='string'&&reference.startsWith('local:evidence:')?await store.open(reference):null;
+    const prior=await resolveWealthfrontPrior(original,config.wealthfront,store);
     intake.wealthfront=prepareWealthfrontImport(evidenceReferences?{reference:evidenceReferences.wealthfront,record:await store.open(evidenceReferences.wealthfront)}:await store.latestWealthfrontCapture(config.wealthfront?.accountId),config.wealthfront,prior,now);
   }
   const direct=apply?await import('./collector_apply.mjs'):null;

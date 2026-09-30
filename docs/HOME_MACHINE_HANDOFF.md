@@ -9,6 +9,14 @@ below. Use `codex/budget-collector`. Preserve the private authoritative workbook
 and accepted Wells checkpoint. Non-live validation is not live certification:
 two work-machine passes and a same-commit home smoke test remain required.
 
+**Newest portability checkpoint:** today's private workbook import completed,
+and its accepted Wealthfront anchors now travel inside the XLSX. Use the newly
+provided workbook plus the latest collector branch; Git alone does not carry the
+financial working point. Read the release document's **Portable workbook handoff**
+section for home paths/bindings, preflight, legacy migration and acceptance. Do not
+copy work-machine encrypted evidence or reset accepted anchors. Extension 0.4.30
+is unchanged; the portability update does not require another extension reload.
+
 ## September 21 — work-machine development resumes (current authority)
 
 ### September 22 — first real import preparation (newest authority)
