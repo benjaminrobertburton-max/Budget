@@ -242,6 +242,27 @@ chat if it contains none of the excluded private content above.
 Do **not** send screenshots, HTML/DOM dumps, network traces, cookies, browser
 storage, copied profiles, credentials, OTPs, or source URLs with tokens.
 
+## Confirmed display configuration on this home machine
+
+The user provided Windows Display screenshots during this run.  This is the
+configuration to reproduce or compare before attributing a reader mismatch to
+resolution:
+
+| Property | Display 1 — collector/Chrome | Display 2 — Codex |
+|---|---|---|
+| Physical arrangement | Left display | Right display |
+| Display mode | Extended displays | Extended displays |
+| Use during this run | Collector/ordinary Chrome | Codex desktop app |
+| Resolution | 1920 × 1080 | 1920 × 1080 (recommended) |
+| Windows scale | 100% (recommended) | 100% (recommended) |
+| Night light | Off | Off |
+| HDR | On | Status not shown in the provided capture |
+
+Chrome site zoom was not captured and remains an important missing comparison
+point.  Record it separately for Citi, PayPal, and Wealthfront.  The display
+information is diagnostic context only; it must not be treated as proof that a
+responsive-layout difference is the root cause.
+
 ## Recommended other-machine repair sequence
 
 1. Fetch `codex/budget-collector` and begin at documentation commit `1b484eb`.
