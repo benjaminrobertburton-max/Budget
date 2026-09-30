@@ -196,6 +196,20 @@ test("a top-frame empty result can precede a child-frame candidate without termi
   } finally { await bridge.close(); }
 });
 
+test("an invalid activity packet becomes a fixed rejection without calling the evidence writer", async () => {
+  const saved = [];
+  const observed = [];
+  const bridge = await startChromeBridge({ port: 0, onActivityCapture: async value => saved.push(value), onProgress: value => observed.push(value.event) });
+  try {
+    const { session } = await (await post(bridge.port, "/v1/session")).json();
+    const response = await post(bridge.port, "/v1/activity", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1 }));
+    assert.equal(response.status, 422);
+    assert.deepEqual(saved, []);
+    assert.deepEqual(observed, ["activity_capture_rejected"]);
+    assert.equal(bridge.status().lastEvent, "activity_capture_rejected");
+  } finally { await bridge.close(); }
+});
+
 test("PayPal and Wealthfront rejections are fixed bridge outcomes without retaining a command", async () => {
   for (const [endpoint, option, event] of [
     ["/v1/paypal-financing", "onPaypalCapture", "paypal_capture_rejected"],

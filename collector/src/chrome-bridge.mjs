@@ -162,7 +162,16 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
       if (req.url === "/v1/activity") {
         if (!origin || requestOrigin !== origin || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
         if (!onActivityCapture) return response(res, 503, origin);
-        const candidate = validateActivityCandidate(await readJson(req));
+        let candidate;
+        try { candidate = validateActivityCandidate(await readJson(req)); }
+        catch {
+          // The page reader can be newer or structurally incompatible. Keep
+          // the failure fixed and non-financial so a weekly run does not turn
+          // a rejected source packet into a generic adapter error.
+          lastEvent = "activity_capture_rejected";
+          onProgress({ event: lastEvent });
+          return response(res, 422, origin);
+        }
         // A source table is the only candidate that can contain private activity
         // text. Empty/unsupported outcomes become fixed, non-financial states;
         // they are not represented as a successful capture.

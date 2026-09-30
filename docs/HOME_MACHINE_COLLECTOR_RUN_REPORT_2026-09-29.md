@@ -71,6 +71,34 @@ or workbook data. It has not been live-tested against a bank page on this
 machine; the next home run should reload version 0.4.21, sign in normally, and
 run each source individually before a complete weekly refresh.
 
+## September 30 portable launch and recovery protocol
+
+The first attended refresh on the work machine exposed two operational issues
+that must not be rediscovered on the home machine:
+
+1. The collector QC gate must match the installed source manifest. Version
+   `0.4.21` is the accepted lifecycle repair version; a stale QC expectation
+   must block before any browser or workbook work, rather than reporting a
+   generic adapter failure.
+2. Start **one** weekly collector process. If the Codex task or terminal view
+   is interrupted, the local loopback bridge may still be alive and connected
+   to Chrome. Do not start a second weekly refresh while it owns the bridge.
+   Resume the ordinary bank sign-in/MFA step in the tab it opened. The bridge
+   will queue its next read-only command after authenticated page state returns.
+
+The collector exposes only a bounded local bridge status: listening state,
+extension connection, fixed last lifecycle event, and whether a command is
+queued. It never returns page text, balances, account identifiers, transaction
+rows, browser storage, or credentials. A local operator can use that status to
+decide whether to resume the existing source tab or safely stop the owned
+collector process before a new launch.
+
+Before the next home run: sync `codex/budget-collector`, reload the unpacked
+extension so its displayed version is `0.4.21`, keep the private workbook and
+configuration outside Git/cloud storage, and verify collector QC before launch.
+These are software/operational requirements only; no financial data from this
+run belongs in Git.
+
 ## Global result
 
 - No real workbook import, payment action, ledger update, or budget-plan update

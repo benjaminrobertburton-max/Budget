@@ -26,7 +26,8 @@ const sourceCommand = Object.freeze({
 export function terminalCaptureProgressCode(source, event) {
   if (!['wells', 'chase_prime', 'chase_sapphire'].includes(source)) return null;
   const suffix = event === 'activity_capture_no_table' ? 'ACTIVITY_TABLE_MISSING'
-    : event === 'activity_capture_page_limit' ? 'ACTIVITY_PAGE_LIMIT' : null;
+    : event === 'activity_capture_page_limit' ? 'ACTIVITY_PAGE_LIMIT'
+      : event === 'activity_capture_rejected' ? 'CAPTURE_REJECTED' : null;
   return suffix ? `${source.toUpperCase()}_${suffix}` : null;
 }
 
@@ -83,9 +84,12 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
   check(typeof configFile === "string" && path.isAbsolute(configFile), "PRIVATE_CONFIG_REQUIRED", "Choose the private collector configuration file before refreshing.");
   check(Number.isInteger(timeoutMs) && timeoutMs >= 60_000 && timeoutMs <= 30 * 60 * 1000, "INVALID_TIMEOUT", "The local refresh timeout is invalid.");
   const privateRoot = defaultPrivateRoot();
-  await assertPrivateDirectory(privateRoot, { repositoryRoot });
+  try { await assertPrivateDirectory(privateRoot, { repositoryRoot }); }
+  catch { throw new CollectionError("PRIVATE_ROOT_UNAVAILABLE", "The private collector store is unavailable."); }
   const sequence = createWeeklySequence();
-  const store = await openPrivateEvidenceStore({ root: privateRoot, repositoryRoot });
+  let store;
+  try { store = await openPrivateEvidenceStore({ root: privateRoot, repositoryRoot }); }
+  catch { throw new CollectionError("PRIVATE_STORE_UNAVAILABLE", "The private collector store is unavailable."); }
   let bridge, settle;
   const completion = new Promise((resolve, reject) => { settle = { resolve, reject }; });
   const next = source => {
@@ -99,7 +103,7 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
   };
   const capturedAt = () => new Date().toISOString();
   try {
-    bridge = await startBridge({
+    try { bridge = await startBridge({
       nextCommand: sourceCommand.wells,
       captureAfterAuth: true,
       onProgress: value => {
@@ -111,14 +115,20 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
       onActivityCapture: async candidate => {
         if (sequence.current() !== "wells") return;
         const prior = await store.latestPayload({ source: "wells", kind: "wells_normalized_activity" });
-        const at = capturedAt(); const reference = await store.save({ source: "wells", capturedAt: at, payload: candidate });
-        const normalized = normalizeWellsActivity(candidate, reference, at, { hasPriorAnchor: prior !== null });
+        const at = capturedAt(); let reference, normalized;
+        try { reference = await store.save({ source: "wells", capturedAt: at, payload: candidate }); }
+        catch { return block("wells", "WELLS_EVIDENCE_SAVE_FAILED"); }
+        try { normalized = normalizeWellsActivity(candidate, reference, at, { hasPriorAnchor: prior !== null }); }
+        catch { return block("wells", "WELLS_NORMALIZATION_REJECTED"); }
         try { reconcileWeeklyWells(normalized, prior); }
         catch { return block("wells", "WELLS_RECONCILIATION_BLOCKED"); }
         // Keep the raw source candidate as the newest evidence. The direct
         // importer—not this coordinator—reconciles it with the accepted ledger
         // inside the transferred workbook and decides which rows can publish.
-        if (prior !== null) await store.save({ source: "wells", capturedAt: at, payload: reconcileWeeklyWells(normalized, prior) });
+        if (prior !== null) {
+          try { await store.save({ source: "wells", capturedAt: at, payload: reconcileWeeklyWells(normalized, prior) }); }
+          catch { return block("wells", "WELLS_RECONCILED_SAVE_FAILED"); }
+        }
         next("wells");
       },
       onChaseActivityCapture: async candidate => {
@@ -152,7 +162,8 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
         if (!normalizeWealthfrontCash(candidate).activityCaptured) return block("wealthfront", "WEALTHFRONT_RECONCILIATION_BLOCKED");
         await store.save({ source: "wealthfront", capturedAt: capturedAt(), payload: candidate }); next("wealthfront");
       },
-    });
+    }); }
+    catch { throw new CollectionError("LOCAL_BRIDGE_UNAVAILABLE", "The local collector bridge could not start."); }
     onStatus({ state: "collecting", source: sequence.current() });
     const abort = new Promise((_, reject) => signal?.addEventListener("abort", () => reject(Object.assign(new Error("REFRESH_CANCELLED"), { code: "REFRESH_CANCELLED" })), { once: true }));
     await Promise.race([completion, timeout(timeoutMs, () => sequence.cancel()), abort]);

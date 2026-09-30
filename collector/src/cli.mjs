@@ -27,6 +27,23 @@ if(command[0]==='weekly-refresh'){
     finally{process.removeListener('SIGINT',stop);process.removeListener('SIGTERM',stop);}
   }
 }
+else if(command.length===1&&command[0]==='collector-status'){
+  // Read only the bridge's deliberately bounded local lifecycle state. This is
+  // useful after a Codex/terminal interruption: it never reveals page text,
+  // financial data, identifiers, or browser state.
+  try {
+    const response=await fetch('http://127.0.0.1:43811/v1/status',{signal:AbortSignal.timeout(3000)});
+    if(!response.ok)throw new Error('STATUS_UNAVAILABLE');
+    const value=await response.json();
+    const valid=value&&typeof value==='object'&&Object.keys(value).sort().join(',')==='commandQueued,extensionConnected,lastEvent,listening,version'
+      &&value.version===1&&typeof value.listening==='boolean'&&typeof value.extensionConnected==='boolean'
+      &&typeof value.commandQueued==='boolean'&&(typeof value.lastEvent==='string'||value.lastEvent===null);
+    if(!valid)throw new Error('STATUS_INVALID');
+    console.log(`Collector bridge: ${value.listening?'running':'stopped'} · extension ${value.extensionConnected?'connected':'not connected'} · ${value.lastEvent??'waiting'} · command ${value.commandQueued?'queued':'idle'}.`);
+  } catch {
+    console.log('Collector bridge: not running. Start one weekly refresh; do not infer that a workbook changed.');
+  }
+}
 else if(command[0]==='workbook-import'){
   if(command.length!==2){console.error('Usage: workbook-import <absolute-private-config>');process.exitCode=1;}
   else{try{const {workbookImportCli}=await import('../../work/collector_workbook.mjs');process.exitCode=await workbookImportCli(command[1]);}
@@ -245,7 +262,7 @@ else if (command.length === 1 && ["chrome-bridge", "wells-refresh", "chase-refre
     process.exitCode = 1;
   }
 } else if (command.length !== 1 || !["demo", "storage-demo", "browser-demo", "browser-interactive"].includes(command[0])) {
-  console.error("Available commands: node collector/src/cli.mjs weekly-refresh <absolute-private-config> | workbook-import <absolute-private-config> | demo | storage-demo | browser-demo | browser-interactive | chrome-bridge | wells-refresh | chase-refresh | chase-sapphire-refresh | chase-prime-refresh");
+  console.error("Available commands: node collector/src/cli.mjs weekly-refresh <absolute-private-config> | collector-status | workbook-import <absolute-private-config> | demo | storage-demo | browser-demo | browser-interactive | chrome-bridge | wells-refresh | chase-refresh | chase-sapphire-refresh | chase-prime-refresh");
   console.error("Live account collection is not installed. Collection demos use fictional data; the Wells development pilot can capture unverified activity tables privately.");
   console.error("Stopped-test inspection: node collector/src/cli.mjs recover-test [--confirm-cleanup]");
   console.error("Separate, manual pilot controls: node collector/src/cli.mjs pilot-rehearsal | wells-pilot");
