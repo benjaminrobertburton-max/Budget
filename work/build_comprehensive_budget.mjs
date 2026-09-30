@@ -97,6 +97,7 @@ const planRows=[
 budget.getRange("A12:F31").values=planRows;
 budget.getRange("E12").formulas=[["=IF(C12=\"Weekly\",D12,IF(C12=\"Every 5 weeks\",D12/5,D12*12/52))"]]; budget.getRange("E12:E31").fillDown();
 budget.getRange("D20").formulas=[["='Support - Promo Detail'!F12"]]; budget.getRange("E20").formulas=[["=D20"]];
+budget.getRange("E13").formulas=[["=D13/4"]];
 budget.getRange("A32:F32").values=[["Total weekly plan",null,null,null,null,null]]; budget.getRange("E32").formulas=[["=SUM(E12:E31)"]];
 budget.getRange("A34:F34").values=[["Amount left after plan",null,null,null,null,null]]; budget.getRange("E34").formulas=[["=D8-E32"]];
 budget.getRange("A38:F38").values=[["CAD conversion reference",null,null,null,null,null]]; budget.getRange("A39:C40").values=[["CAD-to-USD rate",0.73,null],["Original CAD bills (monthly)",182.33,null]]; budget.getRange("C40").formulas=[["=SUM(E21:E22)"]];
@@ -134,7 +135,7 @@ const billRows=[
  ["Capital One card",0,0,null,"28.99% purchases","USD","Current balance $0 in Sep. 15 app screenshot"],
  ["Prime Visa card",0,0,null,"27.49% purchases","USD","User-reported current balance $0.00 on Sep. 15; activity was not captured, so any new charges still need review."],
  ["PayPal Credit",1170.31,0,null,"Promos: 29.64% deferred interest if not paid by deadlines","USD","Sep. 15 active-promo list totals $1,170.31. The Sep. 10 $148.62 payment reduced Progressive to $20.75."],
- ["Genesis G70 auto loan",21784.21,746.47,new Date("2026-09-26"),"6.70% APR","USD","User-confirmed recurring due date. Fund $172.26 each Tuesday except the review week containing the 26th; the exact $746.47 payment is due on the 26th."],
+ ["Genesis G70 auto loan",21784.21,746.47,new Date("2026-09-26"),"6.70% APR","USD","User-confirmed recurring due date. Fund $186.62 each Tuesday except the review week containing the 26th; this is $746.47 divided by four."],
  ["RBC Canada student loan",null,80,null,"Balance and terms pending","CAD","Monthly payment confirmed; balance unknown"],
  ["Life insurance",null,102.33,null,"Monthly premium","CAD","Monthly amount confirmed"],
  ["Direct Energy",0,0,null,"Next bill not supplied","USD","Prior $65.72 bill posted to Chase. Do not treat the old Sep. 14 due date as current."],
@@ -502,7 +503,7 @@ funding.getRange("C5").formulas=[["='2. Tuesday Review'!D15"]];funding.getRange(
 funding.getRange("D5:D12").values=[[new Date("2026-10-01")],[new Date("2026-09-26")],[new Date("2026-10-10")],[new Date("2026-09-16")],[new Date("2026-09-30")],[new Date("2026-09-27")],[new Date("2026-10-16")],["Every Tuesday — next card payoff"]];
 funding.getRange("E5:H12").values=[
  ["Wealthfront rent bucket","Wealthfront to rent payment","Fund only Wells capacity, up to $300","Track the actual Tuesday contribution in Savings & Debt. Do not assume a catch-up contribution is feasible."],
- ["Wealthfront car reserve","Wealthfront to CUTX on the 26th","Set aside the displayed weekly amount except in the payment week","Pay the exact $746.47 monthly amount on the 26th. The weekly $172.26 reserve is intentionally skipped only in the Tuesday–Monday review week that contains the 26th."],
+ ["Wealthfront car reserve","Wealthfront to CUTX on the 26th","Set aside the displayed weekly amount except in the payment week","Pay the exact $746.47 monthly amount on the 26th. The weekly $186.62 reserve is $746.47 divided by four and is skipped only in the Tuesday–Monday review week that contains the 26th."],
  ["Wells until paid","Wells to PayPal Credit","Pay scheduled promo amount","Funded separately from purchases so deferred interest is avoided"],
  ["Wealthfront AT&T reserve","Wealthfront to Wells; Wells AutoPay","Reserve this cycle's $48.59","Confirmed AT&T payment for this cycle is $48.59; normal baseline remains $65/month"],
  ["Wealthfront Canada-bills reserve","Wealthfront to Wise to RBC","Continue weekly reserve","Debit occurs on the last day of each month; use Wise lead time"],
