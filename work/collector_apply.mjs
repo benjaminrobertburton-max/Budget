@@ -10,6 +10,7 @@ import {makeWealthfrontCheckpoint} from '../collector/src/wealthfront-normalize.
 import {embedWealthfrontCheckpoint} from './wealthfront_checkpoint.mjs';
 
 const LEDGER='Support - Ledger',HISTORY='6. History',CASH='Support - Account Snapshots',DEBT='Support - Debt Detail';
+const WEEKLY_FULL_BALANCE_CARDS=new Set(['chase_sapphire','chase_prime','citi']);
 const col=n=>String.fromCharCode(65+n);
 const errorValue=v=>typeof v==='string'&&/^#(?:REF!|DIV\/0!|VALUE!|NAME\?|N\/A|NUM!|NULL!|SPILL!|CALC!)/.test(v);
 function reviewTuesday(createdAt){
@@ -143,8 +144,13 @@ export async function buildDirectWorkbook(original,intake){
     write(CASH,`E${row}`,'='+archives.map(a=>`COUNTIF('${LEDGER}'!$K$5:$K$${end},"${a}")`).join('+'),true);
     write(CASH,`G${row}`,'='+archives.map(a=>`SUMIF('${LEDGER}'!$K$5:$K$${end},"${a}",'${LEDGER}'!$D$5:$D$${end})`).join('+'),true);
     write(CASH,`H${row}`,'Yes');
-    const paymentStatus=key!=='wells'&&!['no_payment_due','requirements_captured'].includes(report.bankPaymentStatus)
-      ?'Needs payment details':'Verified';
+    // User policy: active credit cards are funded to their current balance
+    // weekly. For those cards, a bank-displayed minimum/due date is useful
+    // context but is not an import gate; the captured current balance and
+    // reconciled activity remain mandatory.
+    const weeklyFullBalance=WEEKLY_FULL_BALANCE_CARDS.has(key);
+    const paymentStatus=weeklyFullBalance||['no_payment_due','requirements_captured'].includes(report.bankPaymentStatus)
+      ?'Verified':'Needs payment details';
     // Status must remain live after a reviewer resolves ledger categories.  The
     // imported receipt references scope this COUNTIFS check to this account's
     // exact current posted/pending snapshot, not historical rows.
@@ -165,7 +171,7 @@ export async function buildDirectWorkbook(original,intake){
     write(DEBT,`C${row}`,key==='citi'?report.balances.find(b=>b.type==='minimum_due').amountMinor/100:report.bankPaymentStatus==='no_payment_due'?0:null);
     write(DEBT,`D${row}`,key==='citi'?serialDate(report.dueDate):null);
     write(DEBT,`G${row}`,report.balances.map(b=>`${b.type.replaceAll('_',' ')}: ${(b.amountMinor/100).toFixed(2)}`).join('; ')
-      +`; ${key==='citi'?'Minimum and due date captured':report.bankPaymentStatus==='no_payment_due'?'Bank displays no payment due':'Payment requirements need source verification'}`);
+      +`; ${key==='citi'?'Weekly full-balance payoff policy; current balance, minimum and due date captured':WEEKLY_FULL_BALANCE_CARDS.has(key)?'Weekly full-balance payoff policy; current balance captured':report.bankPaymentStatus==='no_payment_due'?'Bank displays no payment due':'Payment requirements need source verification'}`);
   }
   write('1. Start','A2',`${importedLabel} imported. Complete remaining source checks before creating the payment plan.`);
   write('1. Start','A4',`Current import — ${review}`);

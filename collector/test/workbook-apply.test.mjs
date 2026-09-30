@@ -304,6 +304,9 @@ test('direct private save backs up the exact original and updates the configured
   assert.equal(result.status,'ledger_updated');assert.equal(result.output,config.baseWorkbook);
   assert.deepEqual(await fs.readFile(result.backup),base);assert.notDeepEqual(await fs.readFile(config.baseWorkbook),base);
   assert.equal(result.workbookReady,false);assert.equal(result.checks.formulaErrors,0);
+  const applied=await SpreadsheetFile.importXlsx(await fs.readFile(config.baseWorkbook));applied.recalculate();
+  assert.equal(value(applied,'Support - Account Snapshots','I14'),'Verified');
+  assert.match(value(applied,'Support - Debt Detail','G5'),/Weekly full-balance payoff policy/);
   if(process.env.BUDGET_FICTIONAL_PREVIEWS){
     await fs.mkdir(process.env.BUDGET_FICTIONAL_PREVIEWS,{recursive:true});
     for(const name of ['Start','Ledger','History','Snapshots','Debt'])

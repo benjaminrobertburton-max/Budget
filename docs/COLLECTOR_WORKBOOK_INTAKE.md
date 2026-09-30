@@ -51,8 +51,10 @@ Chase balances, independent source controls and the prior Tuesday–Monday analy
 period. It preserves the existing workbook layout and financial assumptions. With
 the user's approval, recorded earlier History posted/pending totals become fixed
 values so later settlement cannot rewrite closed weeks; downstream History formulas
-remain. Unknown card payment requirements are not assumed zero; only explicit bank
-no-payment-due evidence permits zero. Other account checks remain required.
+remain. The current weekly full-balance payoff policy funds active Chase and Citi
+cards from their captured current balances; a bank-displayed minimum or due date is
+not an import gate and is never inferred as zero. Other account checks remain
+required.
 
 Before replacement: recalculate, scan errors, verify source counts/signed totals,
 compare saved values, preserve native workbook parts, render changed input sheets,
