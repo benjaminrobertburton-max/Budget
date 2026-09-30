@@ -143,10 +143,14 @@ export async function buildDirectWorkbook(original,intake){
     write(CASH,`E${row}`,'='+archives.map(a=>`COUNTIF('${LEDGER}'!$K$5:$K$${end},"${a}")`).join('+'),true);
     write(CASH,`G${row}`,'='+archives.map(a=>`SUMIF('${LEDGER}'!$K$5:$K$${end},"${a}",'${LEDGER}'!$D$5:$D$${end})`).join('+'),true);
     write(CASH,`H${row}`,'Yes');
-    const needs=indices.some(i=>result.rows[i][12]!=='Verified');
-    const status=needs?'Needs classification':key!=='wells'&&!['no_payment_due','requirements_captured'].includes(report.bankPaymentStatus)?'Needs payment details':'Verified';
-    write(CASH,`I${row}`,`=IF(OR(E${row}<>D${row},ABS(G${row}-F${row})>0.005),"Source check needed","${status}")`,true);
-    write(CASH,`J${row}`,`Captured ${report.capturedAt}. `+report.pendingBasis+(needs?'; resolve ledger date/category exceptions':''));
+    const paymentStatus=key!=='wells'&&!['no_payment_due','requirements_captured'].includes(report.bankPaymentStatus)
+      ?'Needs payment details':'Verified';
+    // Status must remain live after a reviewer resolves ledger categories.  The
+    // imported receipt references scope this COUNTIFS check to this account's
+    // exact current posted/pending snapshot, not historical rows.
+    const unresolved=states.map(state=>`COUNTIFS('${LEDGER}'!$K$5:$K$${end},B${row}&":${state}",'${LEDGER}'!$M$5:$M$${end},"Needs verification")`).join('+');
+    write(CASH,`I${row}`,`=IF(OR(E${row}<>D${row},ABS(G${row}-F${row})>0.005),"Source check needed",IF(${unresolved}>0,"Needs classification","${paymentStatus}"))`,true);
+    write(CASH,`J${row}`,`Captured ${report.capturedAt}. ${report.pendingBasis}; resolve any ledger date/category exceptions before creating the payment plan.`);
   }
   if(typeof oldReview!=='number'||oldReview<reviewSerial)for(const row of [13,16,18,19,20]){
     if(controls.some(c=>c[1]===row))continue;

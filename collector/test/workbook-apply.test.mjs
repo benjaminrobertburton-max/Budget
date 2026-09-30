@@ -9,7 +9,7 @@ import {workbookBytes} from '../../work/workbook_bytes.mjs';
 import {buildDirectWorkbook} from '../../work/collector_apply.mjs';
 import {runWorkbookIntake,workbookXml as X} from '../../work/collector_workbook.mjs';
 import {prepareWorkbookIntake} from '../src/workbook-intake.mjs';
-import {reconcileWorkbookLedger} from '../src/workbook-reconcile.mjs';
+import {reconcileWorkbookLedger,serialDate} from '../src/workbook-reconcile.mjs';
 import {intakeRecords,INTAKE_BINDINGS,INTAKE_NOW} from '../fixtures/workbook-intake.mjs';
 import {openPrivateEvidenceStore} from '../src/private-evidence-store.mjs';
 import {tempDirectory,fixtureProtector,repositoryRoot} from './store-helpers.mjs';
@@ -283,13 +283,15 @@ test('identical purchases are separate occurrences and unknown merchants/dates s
   assert.equal(new Set(again.rows.map(r=>r[8])).size,again.rows.length);
 });
 
-test('a changed pending date is surfaced rather than silently assigning it to an old purchase week',async()=>{
+test('a unique pending settlement keeps the posted date instead of assigning the old purchase week',async()=>{
   const wb=await SpreadsheetFile.importXlsx(await baseline());
   const records=intakeRecords(),s=records.chase_sapphire.record.payload;s.tables.shift();
   s.tables[0].rows.push(['Sep 8, 2031','FICTIONAL PENDING','$3.00']);Object.assign(s.source.chase,{pendingObserved:false,pendingHeader:'',pendingSummary:''});
   const r=reconcileWorkbookLedger(intake(records),wb.worksheets.getItem('Support - Ledger').getRange('A5:M9').values,[]);
-  assert.equal(r.promoted,0);assert.equal(r.retired,1);
-  assert.equal(r.rows.find(row=>row[2]==='FICTIONAL PENDING'&&row[4]==='Posted')[12],'Needs verification');
+  assert.equal(r.promoted,1);assert.equal(r.retired,0);
+  const settled=r.rows.find(row=>row[2]==='FICTIONAL PENDING'&&row[4]==='Posted');
+  assert.equal(settled[1],serialDate('2031-09-08'));assert.equal(settled[12],'Verified');
+  assert.match(settled[9],/posted date replaces prior pending date/);
 });
 
 test('direct private save backs up the exact original and updates the configured workbook',async t=>{
@@ -342,6 +344,7 @@ for(const incremental of [false,true])test(`Citi ${incremental?'incremental':'fu
   assert.equal(value(after,'Support - Debt Detail','B7'),15);assert.equal(value(after,'Support - Debt Detail','C7'),7.25);
   assert.equal(value(after,'Support - Debt Detail','D7'),(Date.parse('2031-10-01')-Date.UTC(1899,11,30))/86400000);
   assert.equal(value(after,'Support - Account Snapshots','I16'),'Verified');
+  assert.match(after.worksheets.getItem('Support - Account Snapshots').getRange('I16').formulas[0][0],/COUNTIFS\('Support - Ledger'!/);
   assert.equal(value(after,'Support - Account Snapshots','D16'),incremental?4:3);assert.equal(value(after,'Support - Account Snapshots','F16'),incremental?16:15);
   assert.match(value(after,'1. Start','G9'),/2031-09-07/);assert.equal(value(after,'6. History','J5'),3);
   if(incremental){

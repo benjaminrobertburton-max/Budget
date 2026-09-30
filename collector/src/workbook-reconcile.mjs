@@ -98,26 +98,29 @@ export function reconcileWorkbookLedger(intake,ledger,rules){
       const pool=r.state==='posted'?oldPosted:oldPending;
       let match=pool.find(x=>!used.has(x.i)&&x.r[8]===id)
         ??pool.find(x=>!used.has(x.i)&&oldSignature(x.r)===sig);
-      let ambiguous=false;
+      let ambiguous=false,pendingDateShifted=false;
       if(!match){
         const pendingMatches=oldPending.filter(x=>!used.has(x.i)&&text(x.r[2])===text(r.description)&&cents(x.r[3])===r.expense);
         if(pendingMatches.length===1){
           const previousDate=isoDate(pendingMatches[0].r[1]);
-          if(previousDate&&r.date&&previousDate!==r.date)ambiguous=true;
-          else match=pendingMatches[0];
+          // A unique exact description/amount match has enough identity to
+          // settle a normal pending-to-posted date shift. Keep the bank's
+          // posted date so the purchase is never silently assigned back to
+          // the earlier pending week.
+          match=pendingMatches[0];pendingDateShifted=!!(previousDate&&r.date&&previousDate!==r.date);
         }
         else if(pendingMatches.length>1)ambiguous=true;
       }
       const row=match?structuredClone(match.r):Array(13).fill(null);
       const [category,treatment]=match&&row[5]&&row[5]!=='Needs classification'&&['Include','Exclude','Transfer / verify'].includes(row[6])
         ?[row[5],row[6]]:classify(r.description,r.sourceCategory,rules,previous.map(x=>x.r));
-      const date=match&&isoDate(row[1])?isoDate(row[1]):r.date;
+      const date=match&&!pendingDateShifted&&isoDate(row[1])?isoDate(row[1]):r.date;
       const verified=!!date&&!ambiguous&&category!=='Needs classification';
       const archive=`${account.evidenceRef}:${r.state}`;
       row[0]=name;row[1]=date?serialDate(date):null;row[2]=r.description;row[3]=r.expense/100;
       row[4]=r.state==='posted'?'Posted':'Pending';row[5]=category;row[6]=treatment;row[8]=id;
       // Preserve user notes; replace only the prior collector suffix on replay.
-      row[9]=String(row[9]??'').split('\nCollector:')[0]+`\nCollector: source date ${r.date??'not supplied'}; ${r.evidenceRef}${ambiguous?'; ambiguous prior pending match':''}`;
+      row[9]=String(row[9]??'').split('\nCollector:')[0]+`\nCollector: source date ${r.date??'not supplied'}; ${r.evidenceRef}${pendingDateShifted?'; unique prior pending matched; posted date replaces prior pending date':ambiguous?'; ambiguous prior pending match':''}`;
       row[10]=archive;row[11]=r.state==='posted'?'Posted transactions':'Pending transactions';row[12]=verified?'Verified':'Needs verification';
       if(match){used.add(match.i);if(match.r[4]==='Pending'&&r.state==='posted')promoted++;rows[match.i]=row;scope[r.state].push(match.i);}
       else{rows.push(row);scope[r.state].push(rows.length-1);added++;}
