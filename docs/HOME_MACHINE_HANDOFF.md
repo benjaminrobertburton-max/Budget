@@ -1,5 +1,80 @@
 # Collector home-machine handoff and release checklist
 
+## Home resume — read this first (September 30)
+
+**Transfer scope:** software and this handover are delivered through GitHub,
+not directly installed on the home PC. Sync `codex/budget-collector`, not only
+`main`. Tested software is commit `59d65bb`; completed work-machine test evidence
+is documented at `daf3bd4`. This handover is a later documentation-only change.
+Extension release is **0.4.32**. Do not downgrade any newer compatible release.
+
+### What the home assistant should do
+
+1. Inspect Git status and preserve home changes. Fetch and safely switch/update
+   `codex/budget-collector` to the latest remote commit. Do not force-reset the
+   checkout, overwrite local work, or merge the collector into `main` as a setup
+   shortcut. If changes prevent a safe sync, identify the exact conflict first.
+2. Read this section and the **Routine operation** section in
+   [release 0.4.32](COLLECTOR_RELEASE_0_4_32.md). Use the existing local runtime;
+   do not repeat three weeks of R&D, run the old dated builder, or redesign the
+   workbook as a launch step. The older sections below are historical evidence.
+3. Locate the existing home-private configuration through
+   `%LOCALAPPDATA%\BudgetCollector\weekly-refresh.json` or the previously configured
+   private import-config path. Preserve it, the authoritative private workbook,
+   existing backups, ledger/history, financial rules and accepted anchors.
+   Resolve home paths locally: never paste this work PC's absolute paths into
+   the home configuration. Do not replace the private workbook with Git's template.
+4. Verify the unpacked Budget Collector Bridge is loaded from the updated home
+   checkout's `collector/chrome-bridge` directory (or synchronize its existing
+   local installation copy). Reload it and confirm **0.4.32**. Git pull alone does
+   not reload Chrome extensions, and sharing a Chrome account does not deploy an
+   unpacked extension. No new permissions are required for this release.
+5. Run `node collector/src/cli.mjs collector-qc`, then `collector-status`. Do not
+   start a duplicate worker. Confirm the configured workbook exists, retain an
+   exact private backup, and record its SHA-256 before the first home test.
+6. With the user available for authentication, run
+   `node collector/src/cli.mjs weekly-test` (or supply the resolved absolute private
+   config if the launch configuration is absent). This is a non-publishing test.
+   The collector opens/reuses each bank sequentially and navigates to activity;
+   the user should not need to find special panels or transaction tables.
+7. Use compact `collector-status` updates. Let the deterministic runner work;
+   do not manually repeat navigation, start legacy per-bank commands alongside
+   it, or poll entire bank pages. If a source fails, preserve completed sources,
+   use `collector-diagnose` once after the worker stops, resolve that specific
+   blocker, and retry the same test. Never reset anchors to force a pass.
+8. Home acceptance requires six verified sources, final `validated` status,
+   unchanged workbook SHA-256, and an explicit record of which captures were
+   fresh versus reused, elapsed time, and any authentication/retry exceptions.
+   Existing home receipts can legitimately be reused for recovery, but a
+   receipt-only replay is not proof that fresh home navigation works. Do not
+   delete checkpoints merely to manufacture a new test.
+9. Report the result. Do **not** publish an actual import just because the test
+   passed. On explicit import authorization, `weekly-start` can reuse that
+   home-local verified session when workbook/config still match. Then open the
+   configured private workbook in the viewer. Manual-account confirmation and
+   Tuesday payment-plan review remain separate checks.
+
+### What is and is not proven
+
+- Two distinct work-machine capture sets passed full workbook validation for
+  Wells, Chase Prime, Chase Sapphire, Citi, PayPal financing and Wealthfront.
+  All 403 core/CLI tests and 27 sequential Chrome fixture tests passed.
+- The final retry took 44 seconds for Citi/PayPal plus complete workbook
+  validation, reusing the other four sources. **44 seconds is not a six-account
+  cold-start benchmark.** The repeat needed renewed sign-ins and a PayPal retry.
+- Home operation and uninterrupted hands-off sign-in are not yet certified.
+  Chrome owns credentials. The collector can submit explicitly autofilled login
+  forms, but if Chrome does not fill them, the user must select the saved login
+  locally and approve normal MFA. Never request passwords or codes in chat.
+- The latest test did not change the working financial workbook. No new Excel
+  export is needed solely for these collector fixes. If the home financial copy
+  is behind the previously supplied authoritative working-point export, resolve
+  that separately using the private file; Git cannot supply the missing finances.
+- Work-machine encrypted captures and session references cannot be used on the
+  home PC. Do not commit or transfer captures, financial workbooks, credentials,
+  private configurations or backups. The home's accepted anchors live in its
+  authoritative workbook, including the portable Wealthfront checkpoint.
+
 ## September 30 — current engineering checkpoint
 
 Read [Collector 0.4.32](COLLECTOR_RELEASE_0_4_32.md), especially Routine operation.
