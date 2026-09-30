@@ -230,7 +230,7 @@ Until that collector passes its documented shadow-mode and acceptance checks, th
 - Render only Start and Tuesday Review for import/payment phases. Render analytical and support sheets only at closeout or when explicitly requested.
 # September 30 collector reliability authority
 
-For collector work, read `docs/COLLECTOR_RELEASE_0_4_29.md` and
+For collector work, read `docs/COLLECTOR_RELEASE_0_4_30.md` and
 `docs/HOME_MACHINE_COLLECTOR_RUN_REPORT_2026-09-29.md` before historical guidance.
 Use `codex/budget-collector`, preserve private financial state, and prefer the
 persistent `weekly-start` command. Never claim live certification from fictional

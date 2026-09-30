@@ -38,6 +38,20 @@ test('financing reader opens only promotion details and detects missing sections
       });
       assert.equal((await page.evaluate(()=>capturePaypalFinancing())).finding,'not_ready');
       assert.equal(await page.locator('body').getAttribute('data-navigated'),'yes');
+      await page.evaluate(()=>{document.body.removeAttribute('data-navigated');});
+      for(let i=0;i<4;i++)await page.evaluate(()=>capturePaypalFinancing());
+      assert.equal(await page.locator('body').getAttribute('data-navigated'),null,'same navigation must not be clicked repeatedly');
+      await page.setContent('<a href="/myaccount/credit/paypal-credit/us/activities/financing">See all</a>');
+      await page.evaluate(()=>{
+        history.replaceState(null,'','/myaccount/credit/paypal-credit/us');
+        window.fixtureClicks=0;document.querySelector('a').onclick=e=>{
+          e.preventDefault();window.fixtureClicks++;setTimeout(()=>history.replaceState(null,'','/myaccount/credit/paypal-credit/us/activities/financing'),700);
+        };
+      });
+      for(let i=0;i<4;i++)await page.evaluate(()=>capturePaypalFinancing());
+      await page.waitForFunction(()=>location.pathname.endsWith('/activities/financing'));
+      assert.equal(await page.evaluate(()=>window.fixtureClicks),1);
+      await page.evaluate(()=>history.replaceState(null,'','/myaccount/summary'));
       await page.evaluate(()=>{document.body.removeAttribute('data-navigated');document.querySelector('a').href='https://example.invalid/myaccount/credit/paypal-credit/us';});
       await page.evaluate(()=>capturePaypalFinancing());
       assert.equal(await page.locator('body').getAttribute('data-navigated'),null);

@@ -1,6 +1,7 @@
 // Financing only. No credentials, payments, transaction-history or hidden state.
 const paypalVisible=n=>n&&n.getClientRects().length>0&&getComputedStyle(n).visibility!=='hidden';
 const paypalText=n=>(n?.innerText||'').replace(/\s+/g,' ').trim();
+let paypalNavigationRequested=new Set();
 function paypalCards(){
   return [...document.querySelectorAll('section')].filter(paypalVisible).flatMap(s=>{
     const h=s.querySelector('h2'),section=paypalText(h);
@@ -24,7 +25,12 @@ async function capturePaypalFinancing(){
     for(const href of hrefs){const links=all('a[href]').filter(a=>{
       try { const url=new URL(a.href);return url.origin===location.origin&&url.pathname===href; }
       catch { return false; }
-    });if(links.length===1){links[0].click();return out;}}
+    });if(links.length===1){
+      // Slow SPA navigation must not be restarted every retry tick. Each
+      // observed destination gets one click per explicit capture request.
+      if(!paypalNavigationRequested.has(href)){paypalNavigationRequested.add(href);links[0].click();}
+      return out;
+    }}
     return out;
   }
   if(all('[role="dialog"]').length)return out;
@@ -52,13 +58,14 @@ async function capturePaypalFinancing(){
   out.finding='captured';return out;
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.29';
+  const COLLECTOR_BUILD='0.4.30';
   let busy=false;
   const pageInstance=Math.random().toString(36).slice(2,14);
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((m,s,reply)=>{
     if(m?.command==='probe_collector_build'){reply({accepted:true,build:COLLECTOR_BUILD});return;}
     if(m?.command!=='capture_paypal_financing')return;reply({accepted:true,build:COLLECTOR_BUILD});if(busy)return;busy=true;
+    paypalNavigationRequested=new Set();
     const start=Date.now();
     const attempt=async()=>{let candidate;try{candidate=await capturePaypalFinancing();}catch{candidate={version:1,kind:'paypal_financing',finding:'blocked',sections:[],rows:[]};}
       if(candidate.finding==='not_ready'&&Date.now()-start<30000){setTimeout(attempt,350);return;}

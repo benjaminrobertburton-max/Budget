@@ -1,7 +1,7 @@
 # Local weekly budget runbook — screenshot fallback only
 
 **September 30 collector checkpoint:** before a collector run, read
-`docs/COLLECTOR_RELEASE_0_4_29.md` and the September 29 home incident report.
+`docs/COLLECTOR_RELEASE_0_4_30.md` and the September 29 home incident report.
 Use the private authoritative workbook and the existing local import configuration.
 `weekly-start` survives its terminal closing and resumes saved source receipts.
 Do not run the dated builder below or replace the private workbook from Git.

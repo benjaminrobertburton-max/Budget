@@ -57,7 +57,7 @@ function revealCitiFilters(candidate){
 }
 
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.29';
+  const COLLECTOR_BUILD='0.4.30';
   let busy=false;
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((message,sender,reply)=>{

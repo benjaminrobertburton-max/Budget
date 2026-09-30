@@ -20,7 +20,7 @@ test('initial CORS preflight allows only an extension origin; a stale build cann
   }finally{await bridge.close();}
 });
 const post = (port, path, headers = {}, body = "") => fetch(`http://127.0.0.1:${port}${path}`, {
-  method: "POST", headers: { Origin: origin, "X-Budget-Collector-Build": "0.4.29", ...headers }, body,
+  method: "POST", headers: { Origin: origin, "X-Budget-Collector-Build": "0.4.30", ...headers }, body,
 });
 
 test('reload transition permits exactly one same-card navigation retry, not a capture retry',async()=>{

@@ -2,7 +2,7 @@
 // read only after the local collector sends a bounded capture command, and then
 // goes directly to the encrypted local evidence boundary.
 (() => {
-  const COLLECTOR_BUILD = "0.4.29";
+  const COLLECTOR_BUILD = "0.4.30";
   let previous = null;
   let readinessAttempts = 0;
   let readinessTimer = null;

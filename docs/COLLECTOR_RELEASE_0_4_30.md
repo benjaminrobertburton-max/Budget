@@ -1,4 +1,4 @@
-# Collector 0.4.29: reliability checkpoint
+# Collector 0.4.30: reliability checkpoint
 
 This document supersedes conflicting historical launch/version/retry directions
 in the collector README and home handoff. Use `codex/budget-collector`, not only
@@ -7,6 +7,14 @@ proved causes. Do not copy work-machine private configuration or DPAPI evidence
 onto the home machine.
 
 ## What changed
+
+- PayPal retries no longer click the same observed account/financing destination
+  repeatedly while an SPA route loads. Each destination gets one click per
+  explicit request; a new document still uses the existing single-delivery guard.
+  An attended trusted click reached financing from the Credit dashboard, while
+  the old retry path had stopped there. Repeated clicks are a code-confirmed
+  hazard, not proof of every prior incident's cause. A fictional Chrome test
+  verifies a delayed route transition receives exactly one click.
 
 - User-approved Citi incremental verification: when the source explicitly shows
   Load More Transactions, its full-period posted total is retained separately.
@@ -55,7 +63,7 @@ onto the home machine.
   options. No desktop app/executable is installed. It acknowledges startup over
   IPC and writes bounded local status. Duplicate owners are refused; a provably
   dead lock owner can be recovered without killing any process.
-- Manifest, worker, all five readers and bridge must agree on 0.4.29. QC checks
+- Manifest, worker, all five readers and bridge must agree on 0.4.30. QC checks
   each literal. The worker probes reader build **before** sending a capture and
   reloads only the requested tab, at most once per session. Extension installation
   no longer reloads every bank tab. Pairing also rejects a second extension origin.
@@ -72,7 +80,7 @@ onto the home machine.
 1. Inspect local changes, sync this branch without overwriting private financial
    work, and run `node collector/src/cli.mjs collector-qc` from the repository.
 2. Load the extension from **that checkout's** `collector/chrome-bridge` folder.
-   The installed manifest must show 0.4.29. A shared Chrome account is not proof
+   The installed manifest must show 0.4.30. A shared Chrome account is not proof
    that unpacked extension files match. Reload only when the version check proves
    it necessary. Do not copy cookies, sessions, credentials or browser profiles.
 3. Keep the authoritative local XLSX, exact backup, import configuration, evidence
@@ -131,8 +139,12 @@ Chase receipts and left the workbook unchanged. This prompted the explicit user
 request for sequential missing-site opening in 0.4.28. Its retry found Citi's
 pending total and all three workbook anchors matched, but the full-period posted
 total differed from the visible first page, with Load More Transactions present.
-The user explicitly approved the scoped 0.4.29 repair described above. No private
-workbook update has yet been published. Required next: two attended
+The user explicitly approved the scoped 0.4.29 repair described above. Its live
+retry passed Citi and preserved four completed-source receipts. PayPal initially
+failed while its observed tab was on the public site. A later direct check
+confirmed the same tab on an authenticated account route; resume starts at PayPal,
+not Wells. Do not infer global sign-in state from an earlier page snapshot.
+No private workbook update has yet been published. Required next: two attended
 work-machine passes with the exact release, then one home smoke test at the same
 Git commit. Verify account coverage/anchors, no unintended panel loops, no duplicate
 rows on replay, no workbook mutation before reconciliation, and zero saved formula
@@ -143,3 +155,11 @@ Record the tested Git commit, extension build, runtime, source outcome codes and
 whether import committed on each machine. Keep all financial results local. The
 remaining home check exists because its Windows encryption context, runtime,
 extension installation and bank sessions cannot be certified from work.
+
+Private workbook portability needs a local check too: the Wealthfront snapshot
+currently references encrypted evidence in that machine's store. Before using a
+workbook transferred from another machine, verify the referenced accepted evidence
+exists and decrypts locally. Do not copy Windows-bound ciphertext, silently fall
+back to a stale initial anchor, erase the reference or reset financial history.
+If unavailable, an explicit, verified machine-neutral accepted-anchor migration
+is still needed; a Git pull alone cannot supply private evidence.
