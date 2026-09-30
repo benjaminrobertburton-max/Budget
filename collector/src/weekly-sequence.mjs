@@ -8,11 +8,11 @@ export const WEEKLY_SOURCES = Object.freeze(["wells", "chase_prime", "chase_sapp
 export function createWeeklySequence(sources = WEEKLY_SOURCES, completed = []) {
   check(Array.isArray(sources) && sources.length > 0 && sources.every(value => typeof value === "string"),
     "INVALID_SEQUENCE", "The weekly source sequence is invalid.");
-  check(Array.isArray(completed) && completed.length < sources.length
+  check(Array.isArray(completed) && completed.length <= sources.length
     && completed.every((source, index) => source === sources[index]),
   "INVALID_SEQUENCE", "The weekly source resume state is invalid.");
   let index = completed.length;
-  let state = "collecting";
+  let state = index === sources.length ? "ready_to_import" : "collecting";
   const finished = new Set(completed);
   const current = () => state === "collecting" ? sources[index] : null;
   return Object.freeze({

@@ -55,11 +55,13 @@ function revealCitiFilters(candidate){
 }
 
 if(typeof chrome!=='undefined'&&chrome.runtime){
+  const COLLECTOR_BUILD='0.4.28';
   let busy=false;
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((message,sender,reply)=>{
+    if(message?.command==='probe_collector_build'){reply({accepted:true,build:COLLECTOR_BUILD});return;}
     if(message?.command!=='capture_citi_activity')return;
-    reply({accepted:true});if(busy)return;busy=true;
+    reply({accepted:true,build:COLLECTOR_BUILD});if(busy)return;busy=true;
     const started=Date.now();
     let expanded=false;
     const attempt=()=>{

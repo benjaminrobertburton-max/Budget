@@ -1,5 +1,14 @@
 # Collector home-machine handoff and release checklist
 
+## September 30 — current engineering checkpoint
+
+Read [Collector 0.4.28](COLLECTOR_RELEASE_0_4_28.md) first, then
+[the September 29 home incident report](HOME_MACHINE_COLLECTOR_RUN_REPORT_2026-09-29.md).
+That release document supersedes historical version, launch and retry instructions
+below. Use `codex/budget-collector`. Preserve the private authoritative workbook
+and accepted Wells checkpoint. Non-live validation is not live certification:
+two work-machine passes and a same-commit home smoke test remain required.
+
 ## September 21 — work-machine development resumes (current authority)
 
 ### September 22 — first real import preparation (newest authority)

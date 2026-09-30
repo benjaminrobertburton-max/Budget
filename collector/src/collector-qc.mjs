@@ -4,6 +4,7 @@ import path from "node:path";
 const required = Object.freeze([
   ["bridge manifest", "chrome-bridge/manifest.json"],
   ["bridge worker", "chrome-bridge/background.js"],
+  ["bridge server", "src/chrome-bridge.mjs"],
   ["Wells page reader", "chrome-bridge/wells-page-state.js"],
   ["Chase page reader", "chrome-bridge/chase-page-state.js"],
   ["Citi page reader", "chrome-bridge/citi-page-state.js"],
@@ -34,8 +35,13 @@ export async function runCollectorQc({ repositoryRoot }) {
       }
       if (manifest.externally_connectable) fail("no visible trigger route", "externally_connectable is still configured");
       else pass("no visible trigger route", "no externally-connectable localhost page");
-      if (manifest.version === "0.4.21") pass("extension version", "0.4.21 capture-lifecycle fixes");
-      else fail("extension version", `expected 0.4.21, found ${String(manifest.version)}`);
+      if (manifest.version === "0.4.28") pass("extension version", "0.4.28 build-verified reader lifecycle");
+      else fail("extension version", `expected 0.4.28, found ${String(manifest.version)}`);
+      for(const id of ['bridge worker','bridge server','Wells page reader','Chase page reader','Citi page reader','PayPal financing reader','Wealthfront reader']){
+        const build=/(?:COLLECTOR_BUILD|extensionBuild)\s*=\s*["']([^"']+)["']/.exec(files[id]??'')?.[1];
+        if(build===manifest.version)pass(`${id} build`, 'matches manifest');
+        else fail(`${id} build`, 'release mismatch; no live capture allowed');
+      }
       if (permissions.has("webNavigation")) pass("frame command delivery", "capture commands can reach every Wells frame");
       else fail("frame command delivery", "webNavigation permission is missing");
       if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");

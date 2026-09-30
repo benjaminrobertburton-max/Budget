@@ -8,7 +8,7 @@ async function worker({accepted=true,rectangle=[0,0,100,30],steps=null}={}) {
   const context={Set,Number,JSON,Array,RegExp,fetch:async()=>({ok:false}),setTimeout:f=>steps?f():timers.push(f),
     chrome:{alarms:{create(){},onAlarm:{addListener(){}}},
       runtime:{onStartup:{addListener(){}},onInstalled:{addListener(){}},onMessage:{addListener(){}}},
-      tabs:{sendMessage:async(tab,message)=>{calls.push({type:'message',message});return {accepted};},reload:async()=>{}},
+      tabs:{sendMessage:async(tab,message)=>{calls.push({type:'message',message});return {accepted,build:'0.4.28'};},reload:async()=>{}},
       webNavigation:{getAllFrames:async()=>[{frameId:0}]},debugger:{
         attach:async()=>calls.push({type:'attach'}),detach:async()=>calls.push({type:'detach'}),
         sendCommand:async(target,command,args)=>{calls.push({type:command,args});return {result:{value:steps&&command==='Runtime.evaluate'?steps.shift():rectangle}};}}}};
@@ -35,6 +35,34 @@ test('ambiguous navigation or authentication never clicks or captures',async()=>
     assert.equal(calls.some(c=>c.type==='Input.dispatchMouseEvent'||c.type==='message'),false);
     assert.equal(calls.at(-1).type,'detach');
   }
+});
+
+test('statement rollover selects unfiltered first page once before capture',async()=>{
+  const {context,calls}=await worker({steps:[
+    {state:'click',action:'activity_range',rect:[0,0,100,30]},
+    {state:'click',action:'all_transactions',rect:[0,0,100,30]},
+    {state:'waiting'},{state:'ready'}]});
+  assert.equal(await vm.runInContext("navigateChaseAccount(7,'Prime Visa')",context),true);
+  assert.equal(calls.filter(c=>c.type==='Input.dispatchMouseEvent').length,4);
+  assert.equal(calls.filter(c=>c.type==='message'&&c.message.command==='capture_chase_activity').length,1);
+});
+
+test('range selection requires exact observed labels and never repeatedly toggles',async()=>{
+  const {context}=await worker();
+  const node=(id,innerText,attrs={})=>({id,innerText,tagName:'BUTTON',disabled:false,matches:()=>true,
+    getClientRects:()=>[{}],getAttribute:key=>attrs[key]??null,scrollIntoView(){},
+    getBoundingClientRect:()=>({x:1,y:2,width:100,height:30})});
+  const heading=node('mds-navigation-bar-exp-heading','Prime Visa (...1234)');
+  const range=node('select-ACTIVITY-header-selector-label','Activity since last statement');
+  const nodes=[node('','Sign out'),heading,range];
+  context.document={querySelectorAll:()=>nodes};context.getComputedStyle=()=>({display:'block',visibility:'visible'});
+  assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',[]).action",context),'activity_range');
+  assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',['activity_range']).state",context),'waiting');
+  range.getAttribute=key=>key==='aria-expanded'?'true':null;
+  nodes.push(node('','All transactions All transactions',{role:'option'}));
+  assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',['activity_range']).action",context),'all_transactions');
+  range.innerText='All transactions';
+  assert.equal(vm.runInContext("chaseNavigationStep('Prime Visa',[]).state",context),'ready');
 });
 
 test('navigation timeout cannot silently capture the old card',async()=>{

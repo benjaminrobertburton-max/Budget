@@ -28,7 +28,7 @@ test('Citi local bridge requires session, repeats capture, encrypts and removes 
   const result=await runCitiWorkTest({repositoryRoot,parent,protector:fixtureProtector(),port:0,onReady:async({port})=>{
     const base=`http://127.0.0.1:${port}`,origin='chrome-extension://abcdefghijklmnopabcdefghijklmnop';
     assert.equal((await fetch(base+'/v1/citi-activity',{method:'POST',body:JSON.stringify(fictionalCiti())})).status,403);
-    const {session}=await(await fetch(base+'/v1/session',{method:'POST',headers:{Origin:origin}})).json();
+    const {session}=await(await fetch(base+'/v1/session',{method:'POST',headers:{Origin:origin,'X-Budget-Collector-Build':'0.4.28'}})).json();
     const headers={Origin:origin,'X-Budget-Collector-Session':session,'Content-Type':'application/json'};
     for(let i=0;i<2;i++){
       assert.equal((await(await fetch(base+'/v1/command',{headers})).json()).command,'capture_citi_activity');

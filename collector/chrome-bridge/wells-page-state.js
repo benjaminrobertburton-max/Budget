@@ -2,6 +2,7 @@
 // read only after the local collector sends a bounded capture command, and then
 // goes directly to the encrypted local evidence boundary.
 (() => {
+  const COLLECTOR_BUILD = "0.4.28";
   let previous = null;
   let readinessAttempts = 0;
   let readinessTimer = null;
@@ -193,9 +194,11 @@
     const candidate = capture();
     if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
   };
-  chrome.runtime.onMessage.addListener(message => {
-    if (message?.command === "probe_wells_state") { previous = null; checkingNavigationStarted = false; report(); return; }
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if(message?.command==="probe_collector_build"){sendResponse({accepted:true,build:COLLECTOR_BUILD});return;}
+    if (message?.command === "probe_wells_state") { sendResponse({ accepted: true, build: COLLECTOR_BUILD }); previous = null; checkingNavigationStarted = false; report(); return; }
     if (message?.command !== "capture_wells_activity") return;
+    sendResponse({ accepted: true, build: COLLECTOR_BUILD });
     captureAttempts = 0;
     captureWhenReady();
   });

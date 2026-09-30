@@ -4,12 +4,15 @@
 // encrypted evidence store. This is deliberately separate from Wells because
 // their activity layouts and coverage controls are not interchangeable.
 (() => {
+  const COLLECTOR_BUILD = "0.4.28";
   let previous = null;
   let captureAttempts = 0;
   let captureTimer = null;
   let captureDeadline = 0;
   let captureRoots = null;
   let afterPageToken = null;
+  let captureActive = false;
+  let stableToken = null, stableSince = 0;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
   const roots = () => {
@@ -40,6 +43,7 @@
   // accessibility sort status. Recognize only that exact, matching-label shape;
   // retain the original header/evidence text and fail closed on other wording.
   const normalized = value => value.toLowerCase()
+    .replace(/^date, sorted by most recent date$/, "date")
     .replace(/^(date|description|amount), not sorted \1$/, "$1").replace(/[^a-z]/g, "");
   const classify = value => ({ date: "date", transactiondate: "date", posteddate: "posted_date", postingdate: "posted_date",
     description: "description", transactiondescription: "description", merchant: "description", details: "description",
@@ -75,6 +79,7 @@
     const balances=[];
     for(const [id,label,type] of [['currentBalance','Current balance','current_balance'],
       ['remainingStatementBalance-dataItem','Remaining statement balance','remaining_statement_balance'],
+      ['lastStatementBalance-dataItem','Last statement balance','last_statement_balance'],
       ['availableCredit-dataItem','Available credit','available_credit']]){
       const containers=deepQueryAll('#'+id).filter(visible);
       if(containers.length!==1||!heading)continue;
@@ -128,7 +133,9 @@
     source: { accountSuffix: null, balances: [], nextPage: "next_unavailable", pageToken: "00000000" },
     layout: { tableCount: 0, rowCount: 0, headerCount: 0, hasShadowRoots: hasShadowRoots(), tables: [] } });
   const captureBody = () => {
-    if (currentState() === "chase_auth_required") return { ...empty(), finding: "authentication_controls" };
+    // A verified activity table is stronger evidence than a transient or
+    // duplicated sign-in control in an account-page component tree.
+    if (currentState() === "chase_auth_required" && !hasActivityTable()) return { ...empty(), finding: "authentication_controls" };
     const candidate = empty();
     const found = containers();
     candidate.layout.tableCount = found.length;
@@ -191,30 +198,38 @@
     try{return captureBody();}finally{captureRoots=null;}
   };
   const captureWhenReady = () => {
-    if (currentState() === "chase_auth_required") return;
     const candidate = hasActivityTable() ? capture() : null;
+    if (!candidate && currentState() === "chase_auth_required") {
+      captureActive=false;
+      chrome.runtime.sendMessage({event:'chase_activity_capture',candidate:capture()}).catch(()=>{});return;
+    }
     // Absent pending is unknown. Wait through the existing bounded render
     // window for its independently loaded section and account/range context;
     // timeout never proves zero or supplies missing context.
-    if ((!candidate || candidate.finding==='candidate_read' && (!candidate.source.chase?.pendingObserved
-      || !candidate.source.accountSuffix || !candidate.source.chase?.range
+    if(candidate?.source.pageToken!==stableToken){stableToken=candidate?.source.pageToken;stableSince=Date.now();}
+    const pendingSettling=candidate?.finding==='candidate_read'&&!candidate.source.chase?.pendingObserved&&Date.now()-stableSince<2000;
+    if ((!candidate || pendingSettling || candidate.finding==='candidate_read' && (!candidate.source.accountSuffix || !candidate.source.chase?.range
       || afterPageToken && candidate.source.pageToken===afterPageToken)) && captureAttempts < 150 && Date.now()<captureDeadline) {
       captureAttempts++;
       if (captureTimer === null) captureTimer = setTimeout(() => { captureTimer = null; captureWhenReady(); }, 200);
       return;
     }
     captureAttempts = 0;
+    captureActive=false;
     chrome.runtime.sendMessage({ event: "chase_activity_capture", candidate:candidate??capture() }).catch(() => {});
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if(message?.command==="probe_collector_build"){sendResponse({accepted:true,build:COLLECTOR_BUILD});return;}
     if(message?.command==='check_chase_more') {
       const candidate=capture();
       sendResponse({accepted:candidate.finding==='candidate_read' && candidate.source.pageToken===message.pageToken
         && candidate.source.nextPage==='next_enabled'});return;
     }
-    if (message?.command === "probe_chase_state") { sendResponse({ accepted: true }); previous = null; report(); return; }
+    if (message?.command === "probe_chase_state") { sendResponse({ accepted: true, build: COLLECTOR_BUILD }); previous = null; report(); return; }
     if (message?.command !== "capture_chase_activity") return;
-    sendResponse({ accepted: true });
+    sendResponse({ accepted: true, build: COLLECTOR_BUILD });
+    if(captureActive)return;
+    captureActive=true;stableToken=null;stableSince=Date.now();
     afterPageToken=/^[a-f0-9]{8}$/.test(message.afterPageToken??'')?message.afterPageToken:null;
     captureDeadline=Date.now()+30000;
     captureAttempts = 0; captureWhenReady();

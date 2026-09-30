@@ -1,5 +1,14 @@
 # Local weekly budget runbook — screenshot fallback only
 
+**September 30 collector checkpoint:** before a collector run, read
+`docs/COLLECTOR_RELEASE_0_4_28.md` and the September 29 home incident report.
+Use the private authoritative workbook and the existing local import configuration.
+`weekly-start` survives its terminal closing and resumes saved source receipts.
+Do not run the dated builder below or replace the private workbook from Git.
+Software validation does not replace the two attended work passes and home smoke
+test. Manual Discover/Capital One, Wells-only CUTX evidence, and excluded RBC scope
+remain unchanged. No payment confirmation or safe-cash addition is inferred.
+
 Collector development now has a direct private-workbook entry point:
 `work/run_weekly_import.ps1 -CollectorConfig <absolute-private-config>`.
 Read `docs/COLLECTOR_WORKBOOK_INTAKE.md` before using it. It reconciles Wells/Chase

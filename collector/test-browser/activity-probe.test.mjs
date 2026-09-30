@@ -79,6 +79,33 @@ test("actual Chase extension reader validates paired tables in Chrome without cu
     assert.notEqual(original.source.pageToken,'00000000');
     assert.deepEqual(original.source.balances,[{type:'current_balance',text:'-$12.34'},
       {type:'remaining_statement_balance',text:'($2.00)'},{type:'available_credit',text:'$800.00'}]);
+    // Exercise the alternate labeled statement balance and absent-pending
+    // layout in real Chrome, not just hand-built candidate objects.
+    await page.evaluate(()=>{
+      window.pendingFixture=document.querySelector('#PENDING-fictional').outerHTML;
+      document.querySelector('#PENDING-fictional').remove();
+      document.querySelector('#custom-accordion-heading-container-pending-activity-accordion').remove();
+      const b=document.querySelector('#remainingStatementBalance-dataItem');
+      b.id='lastStatementBalance-dataItem';b.querySelector('a').textContent='Last statement balance';
+      document.querySelector('#ACTIVITY-fictional th button').textContent='Date, sorted by most recent';
+      document.querySelector('#select-ACTIVITY-header-selector-label').textContent='All transactions';
+      window.chaseMessages=[];window.chaseListener({command:'capture_chase_activity'},{},()=>{});
+    });
+    await page.waitForFunction(()=>window.chaseMessages.some(m=>m.event==='chase_activity_capture'));
+    const absent=await page.evaluate(()=>window.chaseMessages.find(m=>m.event==='chase_activity_capture').candidate);
+    const {normalizeChaseActivity}=await import('../src/chase-normalize.mjs');
+    assert.equal(normalizeChaseActivity(absent,'fictional').pendingZeroInferred,true);
+    assert.equal(absent.tables[0].columns[0],'date');
+    assert.equal(absent.source.chase.range,'All transactions');
+    assert.ok(absent.source.balances.some(b=>b.type==='last_statement_balance'));
+    await page.evaluate(()=>{
+      window.chaseMessages=[];window.chaseListener({command:'capture_chase_activity'},{},()=>{});
+      setTimeout(()=>document.querySelector('#ACTIVITY-fictional').insertAdjacentHTML('beforebegin',window.pendingFixture),500);
+    });
+    await page.waitForFunction(()=>window.chaseMessages.some(m=>m.event==='chase_activity_capture'));
+    const delayed=await page.evaluate(()=>window.chaseMessages.find(m=>m.event==='chase_activity_capture').candidate);
+    assert.equal(delayed.source.chase.pendingObserved,true);
+    assert.equal(delayed.tables.length,2);
     await page.evaluate(() => document.querySelector("#posted").lastElementChild.remove());
     assert.equal((await capture()).finding, "no_activity_table");
     await page.evaluate(() => {

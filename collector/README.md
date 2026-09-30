@@ -1,5 +1,14 @@
 # Local Budget Collector — controlled Wells pilot and encrypted storage
 
+## September 30 — current release contract
+
+Use [the 0.4.28 reliability checkpoint](../docs/COLLECTOR_RELEASE_0_4_28.md).
+It supersedes the historical version/startup notes below. Start a persistent run
+with `node collector/src/cli.mjs weekly-start <absolute-private-config>` from the
+repository root; inspect it with `collector-status`. QC now checks the manifest,
+worker, bridge and every reader build. Do not recapture completed sources to work
+around an interrupted process. Live work/home acceptance remains pending.
+
 ## Current checkpoint — September 21
 
 **September 22 update:** bridge **0.4.19** adds Wealthfront cash/activity capture.

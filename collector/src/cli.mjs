@@ -5,7 +5,16 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if(command[0]==='weekly-refresh'){
+if(command[0]==='weekly-start'){
+  try{
+    if(command.length>2)throw new Error('INVALID_ARGUMENTS');
+    const {readWeeklyLaunchConfig}=await import('./weekly-refresh.mjs');
+    const {launchWeeklyRefresh}=await import('./weekly-launch.mjs');
+    await launchWeeklyRefresh(command[1]??(await readWeeklyLaunchConfig()).workbookConfig);
+    console.log('Persistent collector started. Closing this terminal does not cancel the run. Use collector-status for progress.');
+  }catch(error){console.error(`Collector not started: ${safeIssue(null,error).code}.`);process.exitCode=1;}
+}
+else if(command[0]==='weekly-refresh'){
   if(command.length>2){console.error('Usage: weekly-refresh [absolute-private-config]');process.exitCode=1;}
   else{
     const controller=new AbortController();const stop=()=>controller.abort();
@@ -31,6 +40,11 @@ else if(command.length===1&&command[0]==='collector-status'){
   // Read only the bridge's deliberately bounded local lifecycle state. This is
   // useful after a Codex/terminal interruption: it never reveals page text,
   // financial data, identifiers, or browser state.
+  try {
+    const {readWeeklyStatus}=await import('./weekly-status.mjs');
+    const v=await readWeeklyStatus();
+    console.log(`Weekly run: ${v.state}${v.source?' · '+v.source:''}${v.code?' · '+v.code:''}.`);
+  }catch{ /* A foreground/first run may have no persistent status yet. */ }
   try {
     const response=await fetch('http://127.0.0.1:43811/v1/status',{signal:AbortSignal.timeout(3000)});
     if(!response.ok)throw new Error('STATUS_UNAVAILABLE');

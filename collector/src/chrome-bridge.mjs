@@ -7,7 +7,9 @@ import {validatePaypalCandidate} from './paypal-normalize.mjs';
 import {validateWealthfrontCandidate} from './wealthfront-normalize.mjs';
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
+const extensionBuild = "0.4.28";
 const events = new Set(["wells_opened", "auth_required", "authenticated_page", "chase_opened", "chase_auth_required", "chase_authenticated_page", "chase_capture_dispatched", "chase_delivery_failed"]);
+for(const source of ['wells','chase','citi','paypal','wealthfront'])events.add(source+'_tab_ambiguous');
 const captureStates = Object.freeze({
   candidate_read: "activity_candidate_captured",
   authentication_controls: "activity_capture_auth_required",
@@ -25,7 +27,7 @@ function response(res, status, origin, body = null) {
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Budget-Collector-Session",
+    "Access-Control-Allow-Headers": "Content-Type, X-Budget-Collector-Session, X-Budget-Collector-Build",
   };
   if (origin) headers["Access-Control-Allow-Origin"] = origin;
   res.writeHead(status, headers);
@@ -66,10 +68,13 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
   let chaseAuthenticated = false;
   let nextPageToken = null;
   let lastChaseCard=null, chaseCaptureDispatched=false, chaseRetryUsed=false, chaseAuthInterrupted=false;
+  const commandSource=command=>command.includes('wells')?'wells':command.includes('chase')?'chase':command.includes('citi')?'citi':command.includes('paypal')?'paypal':command.includes('wealthfront')?'wealthfront':null;
+  let activeSource=commandSource(nextCommand);
   const server = createServer(async (req, res) => {
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
-      if (req.method === "OPTIONS") return response(res, 204, requestOrigin === origin ? origin : null);
+      if (req.method === "OPTIONS") return response(res, 204,
+        extensionOrigin.test(requestOrigin??'')&&(!origin||requestOrigin===origin)?requestOrigin:null);
       if (req.url === "/v1/status") {
         // Deliberately bounded local diagnostic. It is not CORS-enabled and
         // contains no page, account, credential, or financial information.
@@ -99,10 +104,10 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         try {
           const decision=await onPaypalCapture(validatePaypalCandidate(await readJson(req)));
           if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_paypal_financing';
-          lastEvent='paypal_capture_received';onProgress({event:lastEvent});
+          lastEvent='paypal_capture_received';onProgress({event:lastEvent,source:'paypal'});
           return response(res,204,origin);
         } catch {
-          nextCommand='none';lastEvent='paypal_capture_rejected';onProgress({event:lastEvent});
+          nextCommand='none';lastEvent='paypal_capture_rejected';onProgress({event:lastEvent,source:'paypal'});
           return response(res,422,origin);
         }
       }
@@ -112,27 +117,34 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         try {
           const decision=await onWealthfrontCapture(validateWealthfrontCandidate(await readJson(req)));
           if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_wealthfront_cash';
-          lastEvent='wealthfront_capture_received';onProgress({event:lastEvent});
+          lastEvent='wealthfront_capture_received';onProgress({event:lastEvent,source:'wealthfront'});
           return response(res,204,origin);
         } catch {
-          nextCommand='none';lastEvent='wealthfront_capture_rejected';onProgress({event:lastEvent});
+          nextCommand='none';lastEvent='wealthfront_capture_rejected';onProgress({event:lastEvent,source:'wealthfront'});
           return response(res,422,origin);
         }
       }
       if(req.url==='/v1/citi-activity'){
         if(!origin||requestOrigin!==origin||req.headers['x-budget-collector-session']!==session)return response(res,403,null);
         if(typeof onCitiActivityCapture!=='function')return response(res,503,origin);
-        const candidate=validateCitiCandidate(await readJson(req));
-        const decision=await onCitiActivityCapture(candidate);
-        if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_citi_activity';
-        return response(res,204,origin);
+        try{
+          const candidate=validateCitiCandidate(await readJson(req));
+          const decision=await onCitiActivityCapture(candidate);
+          if(decision?.repeat===true&&nextCommand==='none')nextCommand='capture_citi_activity';
+          return response(res,204,origin);
+        }catch{lastEvent='citi_capture_rejected';onProgress({event:lastEvent,source:'citi'});return response(res,422,origin);}
       }
       if (req.url === "/v1/session") {
         if (!extensionOrigin.test(requestOrigin ?? "")) return response(res, 403, null);
+        if(origin&&origin!==requestOrigin)return response(res,403,null);
+        if (req.headers["x-budget-collector-build"] !== extensionBuild) {
+          lastEvent = "extension_build_mismatch"; onProgress({ event: lastEvent });
+          return response(res, 426, null);
+        }
         origin = requestOrigin;
         session = randomBytes(32).toString("hex");
         await onConnected({ origin });
-        return response(res, 200, origin, { version: 1, session });
+        return response(res, 200, origin, { version: 1, build: extensionBuild, session });
       }
       if (req.url === "/v1/progress") {
         if (!origin || requestOrigin !== origin || req.headers["x-budget-collector-session"] !== session) return response(res, 403, null);
@@ -150,13 +162,13 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
           chaseRetryUsed=true;nextCommand=lastChaseCard;lastEvent='chase_navigation_retry';
           onProgress({event:lastEvent});return response(res,204,origin);
         }
-        if (captureAfterAuth && body.event === "authenticated_page" && nextCommand === "none") nextCommand = "capture_wells_activity";
-        if (captureAfterAuth && body.event === "chase_authenticated_page" && nextCommand === "none") nextCommand = "capture_chase_activity";
+        if (captureAfterAuth && activeSource==='wells' && body.event === "authenticated_page" && nextCommand === "none") nextCommand = "capture_wells_activity";
+        if (captureAfterAuth === true && activeSource==='chase' && body.event === "chase_authenticated_page" && nextCommand === "none") nextCommand = "capture_chase_activity";
         // On an already-authenticated Chase tab the content-script state can
         // arrive while its one-shot open command is still being consumed. Queue
         // the safe capture when the matching open acknowledgement arrives too.
-        if (captureAfterAuth && body.event === "chase_opened" && chaseAuthenticated && nextCommand === "none") nextCommand = "capture_chase_activity";
-        onProgress({ event: body.event });
+        if (captureAfterAuth === true && activeSource==='chase' && body.event === "chase_opened" && chaseAuthenticated && nextCommand === "none") nextCommand = "capture_chase_activity";
+        onProgress({ event: body.event, source:body.event.endsWith('_tab_ambiguous')?body.event.split('_')[0]:body.event.startsWith('chase_')?'chase':'wells' });
         return response(res, 204, origin);
       }
       if (req.url === "/v1/activity") {
@@ -169,7 +181,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
           // the failure fixed and non-financial so a weekly run does not turn
           // a rejected source packet into a generic adapter error.
           lastEvent = "activity_capture_rejected";
-          onProgress({ event: lastEvent });
+          onProgress({ event: lastEvent, source:'wells' });
           return response(res, 422, origin);
         }
         // A source table is the only candidate that can contain private activity
@@ -177,7 +189,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         // they are not represented as a successful capture.
         if (candidate.finding === "candidate_read") await onActivityCapture(candidate);
         lastEvent = captureStates[candidate.finding];
-        onProgress({ event: lastEvent });
+        onProgress({ event: lastEvent, source:'wells' });
         return response(res, 204, origin);
       }
       if (req.url === "/v1/chase-activity") {
@@ -201,12 +213,12 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
           }
           catch {
             lastEvent = "chase_evidence_save_failed";
-            onProgress({ event: lastEvent });
+            onProgress({ event: lastEvent, source:'chase' });
             return response(res, 500, origin);
           }
         }
         lastEvent = captureStates[candidate.finding];
-        onProgress({ event: lastEvent });
+        onProgress({ event: lastEvent, source:'chase' });
         return response(res, 204, origin);
       }
       return response(res, 404, requestOrigin === origin ? origin : null);
@@ -231,6 +243,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
       check(commands.has(command) && command !== "none", "INVALID_BRIDGE", "The local bridge command is invalid.");
       check(nextCommand === "none", "BRIDGE_BUSY", "The previous account action is still in progress.");
       nextCommand = command;
+      activeSource=commandSource(command);
     },
     close: () => new Promise(resolve => server.close(resolve)),
   };

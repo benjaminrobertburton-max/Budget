@@ -8,31 +8,34 @@ const fingerprint = configFile => createHash("sha256").update(configFile).digest
 
 function valid(value, sources, configFile) {
   return value && typeof value === "object" && !Array.isArray(value)
-    && Object.keys(value).sort().join(",") === "completed,configFingerprint,version"
-    && value.version === 1 && value.configFingerprint === fingerprint(configFile)
-    && Array.isArray(value.completed) && value.completed.length < sources.length
+    && ((value.version === 1 && Object.keys(value).sort().join(",") === "completed,configFingerprint,version")
+      || (value.version === 2 && Object.keys(value).sort().join(',') === 'completed,configFingerprint,references,version'
+        && value.references && Object.keys(value.references).length === value.completed?.length
+        && value.completed.every(s => /^local:evidence:[a-f0-9-]{36}$/.test(value.references[s]??''))))
+    && value.configFingerprint === fingerprint(configFile)
+    && Array.isArray(value.completed) && value.completed.length <= sources.length
     && value.completed.every((source, index) => source === sources[index]);
 }
 
 // This local checkpoint deliberately excludes account identifiers, browser
-// state, evidence references, transaction data and workbook paths. It only
-// prevents a safe, completed source from being needlessly recollected after an
-// interrupted weekly coordinator.
-export async function readWeeklySession({ privateRoot, configFile, sources }) {
+// state, transaction data and workbook paths. Version 2 pins opaque local
+// encrypted-evidence references so retry cannot substitute a newer test capture.
+// It prevents completed sources from being needlessly recollected after interruption.
+export async function readWeeklySession({ privateRoot, configFile, sources, details = false }) {
   const file = filename(privateRoot);
   try {
     const value = JSON.parse(await fs.readFile(file, "utf8"));
     check(valid(value, sources, configFile), "WEEKLY_SESSION_INVALID", "The local weekly resume checkpoint is invalid.");
-    return [...value.completed];
+    return details ? {completed:[...value.completed],references:value.references??null} : [...value.completed];
   } catch (error) {
-    if (error?.code === "ENOENT") return [];
+    if (error?.code === "ENOENT") return details ? {completed:[],references:{}} : [];
     if (error instanceof CollectionError) throw error;
     throw new CollectionError("WEEKLY_SESSION_INVALID", "The local weekly resume checkpoint is invalid.");
   }
 }
 
-export async function saveWeeklySession({ privateRoot, configFile, sources, completed }) {
-  const value = { version: 1, configFingerprint: fingerprint(configFile), completed: [...completed] };
+export async function saveWeeklySession({ privateRoot, configFile, sources, completed, references }) {
+  const value = { version: references ? 2 : 1, configFingerprint: fingerprint(configFile), completed: [...completed], ...(references?{references}:{}) };
   check(valid(value, sources, configFile), "WEEKLY_SESSION_INVALID", "The local weekly resume checkpoint is invalid.");
   const file = filename(privateRoot);
   const temporary = `${file}.${process.pid}.tmp`;

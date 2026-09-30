@@ -229,7 +229,7 @@ async function formulaScanAndRender(filename,outputRoot,original){
   return {formulaErrors:errors,comparedCells};
 }
 
-export async function runWorkbookIntake(configFile,{protector=windowsProtector(),now=new Date(),apply=false}={}){
+export async function runWorkbookIntake(configFile,{protector=windowsProtector(),now=new Date(),apply=false,evidenceReferences=null}={}){
   const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
   const policy={repositoryRoot};
   check(path.isAbsolute(configFile),'UNSAFE_STORAGE_PATH','The intake configuration must be an absolute private path.');
@@ -244,11 +244,13 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   await assertPrivateDirectory(config.outputRoot,policy);await assertPrivateDirectory(config.privateRoot,policy);
   const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
   const records={};
-  for(const a of intakeAccounts(config.bindings))records[a.key]=await store.latestCapture({source:a.source,product:a.product,suffix:config.bindings[a.key]});
+  for(const a of intakeAccounts(config.bindings))records[a.key]=evidenceReferences
+    ?{reference:evidenceReferences[a.key],record:await store.open(evidenceReferences[a.key])}
+    :await store.latestCapture({source:a.source,product:a.product,suffix:config.bindings[a.key]});
   const intake=prepareWorkbookIntake({records,bindings:config.bindings,now});
   if(Object.hasOwn(config,'paypalPromotions')){
     check(apply,'PAYPAL_DIRECT_IMPORT_REQUIRED','Financing updates use direct workbook import only.');
-    intake.paypal=preparePaypalImport(await store.latestPaypalCapture(),config.paypalPromotions,now);
+    intake.paypal=preparePaypalImport(evidenceReferences?{reference:evidenceReferences.paypal,record:await store.open(evidenceReferences.paypal)}:await store.latestPaypalCapture(),config.paypalPromotions,now);
   }
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
   const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
@@ -257,7 +259,7 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
     const current=await SpreadsheetFile.importXlsx(original);
     const reference=current.worksheets.getItem('Support - Account Snapshots').getRange('B13').values[0][0];
     const prior=typeof reference==='string'&&reference.startsWith('local:evidence:')?await store.open(reference):null;
-    intake.wealthfront=prepareWealthfrontImport(await store.latestWealthfrontCapture(config.wealthfront?.accountId),config.wealthfront,prior,now);
+    intake.wealthfront=prepareWealthfrontImport(evidenceReferences?{reference:evidenceReferences.wealthfront,record:await store.open(evidenceReferences.wealthfront)}:await store.latestWealthfrontCapture(config.wealthfront?.accountId),config.wealthfront,prior,now);
   }
   const direct=apply?await import('./collector_apply.mjs'):null;
   const imported=apply?await direct.buildDirectWorkbook(original,intake):null;
@@ -303,6 +305,12 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
     await fs.rmdir(folder);
     throw error;
   }
+}
+
+export async function readCollectorWorkbookAnchors(bytes,bindings){
+  const wb=await SpreadsheetFile.importXlsx(bytes);
+  const {chaseWorkbookAnchors}=await import('../collector/src/workbook-reconcile.mjs');
+  return chaseWorkbookAnchors(wb.worksheets.getItem('Support - Ledger').getUsedRange().values.slice(4),bindings);
 }
 
 export async function workbookImportCli(configFile){

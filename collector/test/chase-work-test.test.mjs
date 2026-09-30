@@ -131,7 +131,7 @@ test("temporary Chase rejects arbitrary navigation targets before creating files
 });
 async function connect(port) {
   const base = `http://127.0.0.1:${port}`;
-  const sessionResponse = await fetch(base + "/v1/session", {method:"POST",headers:{Origin:origin}});
+  const sessionResponse = await fetch(base + "/v1/session", {method:"POST",headers:{Origin:origin,"X-Budget-Collector-Build":"0.4.28"}});
   const {session} = await sessionResponse.json();
   const headers = {Origin:origin,"X-Budget-Collector-Session":session};
   return { base, headers };

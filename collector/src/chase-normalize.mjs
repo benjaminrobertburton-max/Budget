@@ -86,7 +86,7 @@ export function normalizeChaseActivity(candidate, evidenceRef) {
   if (!sections.has('posted')) issues.add('posted_section_not_observed');
   const balances=[];
   for(const balance of candidate.source.balances){
-    if(!['current_balance','remaining_statement_balance','available_credit'].includes(balance.type)
+    if(!['current_balance','remaining_statement_balance','last_statement_balance','available_credit'].includes(balance.type)
       || balances.some(b=>b.type===balance.type)){issues.add('invalid_balance_evidence');continue;}
     try{balances.push({type:balance.type,sourceAmountMinor:parseMoney(balance.text,'USD'),sourceAmountText:balance.text,evidenceRef});}
     catch{issues.add('invalid_balance_evidence');}
@@ -103,7 +103,9 @@ export function normalizeChaseActivity(candidate, evidenceRef) {
     &&context.pendingObserved===false&&context.pendingHeader===''
     &&context.pendingSummary===''&&!sections.has('pending')
     &&sections.has('posted')&&candidate.tables.length===1
-    &&transactions.length>0&&rejectedRows===0&&issues.size===0&&balances.length===3;
+    &&transactions.length>0&&rejectedRows===0&&issues.size===0
+    &&['current_balance','available_credit'].every(type=>balances.some(b=>b.type===type))
+    &&balances.some(b=>['remaining_statement_balance','last_statement_balance'].includes(b.type));
   if (!sections.has('pending')&&!pendingCountVerified&&!pendingZeroInferred) issues.add('pending_section_not_observed');
   // Inferred zero is accepted under the user's rule, NOT an independently
   // displayed/reconciled source count or total. All other gates remain intact.

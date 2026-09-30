@@ -9,7 +9,7 @@ test('PayPal page readiness delivers one active capture, then expires safely',as
   fetch:async()=>({ok:false}),
   chrome:{alarms:{create(){},onAlarm:{addListener(){}}},
    runtime:{id:'fictional',onStartup:{addListener(){}},onInstalled:{addListener(){}},onMessage:{addListener:f=>listener=f}},
-   tabs:{sendMessage:async(id,m)=>{messages.push(m);return {accepted:true};}}}};
+   tabs:{sendMessage:async(id,m)=>{if(m.command!=='probe_collector_build')messages.push(m);return {accepted:true,build:'0.4.28'};}}}};
  vm.createContext(context);
  vm.runInContext(await readFile(new URL('../chrome-bridge/background.js',import.meta.url),'utf8'),context);
  vm.runInContext("paypalTabId=7;pendingPaypalCapture=true;paypalCaptureDeadline=Date.now()+45000;session='fictional'",context);

@@ -7,7 +7,7 @@ import {validateActivityCandidate} from '../src/activity-probe.mjs';
 async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
   posted = ['Sep 1, 2031','FICTIONAL B','$2.00',''], single = false,
   duplicateHeader = false, headings = ['Date','Description','Amount','Action'], rangeReadyAfter = 0, elapsedMsPerTick = 0,
-  signedOutControl = true } = {}) {
+  signedOutControl = true, accountHeading = true } = {}) {
   const messages=[], listeners=[], timers=[];
   let elapsedTicks=0;
   const visibleText=innerText=>({innerText,getClientRects:()=>[{}]});
@@ -22,7 +22,7 @@ async function captureFixture({ pending = ['Pending','FICTIONAL A','$1.00',''],
     table('ACTIVITY-dataTableId-mds-diy-data-table',posted)];
   const document={documentElement:{},querySelector:()=>null,querySelectorAll:s=>s==='table,[role=table],[role=grid]'?tables:
     s==='a,button,[role=button],[role=link]'?(signedOutControl?[visibleText('Sign out')]:[]):
-    s==='#mds-navigation-bar-exp-heading'?[visibleText('Prime Visa (...1234)')]:
+    s==='#mds-navigation-bar-exp-heading' && accountHeading?[visibleText('Prime Visa (...1234)')]:
     s==='#select-ACTIVITY-header-selector-label' && elapsedTicks>=rangeReadyAfter?[visibleText('Activity since last statement')]:[]};
   const context={document,Date:{now:()=>elapsedTicks*elapsedMsPerTick},getComputedStyle:()=>({visibility:'visible',display:'table-row'}),
     chrome:{runtime:{sendMessage:async m=>{messages.push(m);},onMessage:{addListener:f=>listeners.push(f)}}},
@@ -47,6 +47,11 @@ test('Chase recognizes the visible account heading even without a sign-out contr
   const candidate = await captureFixture({ signedOutControl: false });
   assert.equal(candidate.finding, 'candidate_read');
   assert.equal(candidate.source.chase.product, 'prime_visa');
+});
+
+test('Chase lets a verified activity table win over an ambiguous sign-in state', async () => {
+  const candidate = await captureFixture({ signedOutControl: false, accountHeading: false });
+  assert.equal(candidate.finding, 'candidate_read');
 });
 
 test('Chase missing range stays unknown after the bounded readiness window',async()=>{
@@ -76,6 +81,14 @@ test('Chase does not guess mismatched sortable labels', async () => {
     headings:['Date, not sorted Amount','Description','Amount','Action']});
   assert.equal(candidate.finding,'no_activity_table');
   assert.deepEqual(candidate.tables,[]);
+});
+
+test('Chase recognizes observed most-recent Date header after statement rollover',async()=>{
+  const candidate=await captureFixture({single:true,headings:[
+    'Date, sorted by most recent\nDate','Description, not sorted\nDescription','Amount, not sorted\nAmount','Action']});
+  assert.equal(candidate.finding,'candidate_read');
+  assert.equal(candidate.tables[0].columns[0],'date');
+  assert.equal(candidate.tables[0].headers[0],'Date, sorted by most recent Date');
 });
 
 test('actual Chase content script acknowledges Chrome callbacks and captures both sections', async () => {

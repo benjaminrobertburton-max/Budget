@@ -77,6 +77,14 @@ function completePrime() {
   return c;
 }
 
+test('last statement balance retains its meaning and permits the Chase absent-pending layout',()=>{
+  const c=completePrime();c.source.balances[1]={type:'last_statement_balance',text:'$12.00'};
+  const n=normalizeChaseActivity(c,'fictional');
+  assert.equal(n.pendingZeroInferred,true);
+  assert.equal(n.balances.find(b=>b.type==='last_statement_balance').sourceAmountMinor,1200);
+  assert.equal(n.balances.some(b=>b.type==='remaining_statement_balance'),false);
+});
+
 for(const product of ['prime_visa','sapphire_preferred'])test(`${product} absent-pending layout uses explicit user-approved zero provenance`,()=>{
   const c=completePrime();c.source.chase.product=product;
   const before=structuredClone(c),r=normalizeChaseActivity(c,'fictional');

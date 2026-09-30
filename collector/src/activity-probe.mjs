@@ -19,10 +19,10 @@ const sourceValid = source => (keys(source, ["accountSuffix", "balances", "nextP
   && (source.accountSuffix === null || /^\d{4}$/.test(source.accountSuffix))
   && ["next_enabled", "next_disabled", "next_unavailable", "next_stalled"].includes(source.nextPage)
   && /^[a-f0-9]{8}$/.test(source.pageToken)
-  && Array.isArray(source.balances) && source.balances.length <= 3
+  && Array.isArray(source.balances) && source.balances.length <= (source.chase?4:3)
   && source.balances.every(balance => keys(balance, ["type", "text"])
     && (["available", "ledger", "pending_debits"].includes(balance.type)
-      || source.chase && ['current_balance','remaining_statement_balance','available_credit'].includes(balance.type))
+      || source.chase && ['current_balance','remaining_statement_balance','last_statement_balance','available_credit'].includes(balance.type))
     && boundedText(balance.text));
 
 // Private evidence contract. Neither this object nor its exceptions may be logged.

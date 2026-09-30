@@ -11,6 +11,19 @@ const signature=(date,description,amount)=>JSON.stringify([date,text(description
 const sourceDate=row=>String(row[8]??'').startsWith('collector|')?row[8].split('|')[3]||null:isoDate(row[1]);
 const oldSignature=row=>signature(sourceDate(row),row[2],cents(row[3]));
 
+// Browser paging follows the authoritative workbook, not a previous test's
+// machine-local snapshot. Exact source identity/sign/date are retained.
+export function chaseWorkbookAnchors(ledger,bindings){
+  return Object.fromEntries(['chase_prime','chase_sapphire'].map(key=>{
+    const transactions=ledger.filter(r=>r[0]===LEDGER_ACCOUNTS[key]&&r[4]==='Posted'&&r[12]==='Verified')
+      .map(r=>({state:'posted',sourceDate:sourceDate(r),description:r[2],sourceAmountMinor:cents(r[3])}))
+      .filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.sourceDate??'')&&typeof r.description==='string'&&Number.isSafeInteger(r.sourceAmountMinor))
+      .sort((a,b)=>b.sourceDate.localeCompare(a.sourceDate)).slice(0,3);
+    return [key,transactions.length<3?null:{kind:'chase_normalized_activity',rejectedRows:0,issues:[],transactions,
+      identity:{product:key==='chase_prime'?'prime_visa':'sapphire_preferred',suffix:bindings[key]}}];
+  }));
+}
+
 function classify(description,category,rules,oldRows){
   const exact=rules.filter(r=>text(r[0])===text(description)&&r[1]&&r[2]);
   const past=oldRows.filter(r=>text(r[2])===text(description)&&r[12]==='Verified').map(r=>[null,r[5],r[6]]);
@@ -58,7 +71,11 @@ export function reconcileWorkbookLedger(intake,ledger,rules){
     for(const r of incoming){
       // Inspect all loaded rows above, but do not backfill unrelated old history.
       if(r.state==='posted'&&anchorStart&&r.date<anchorStart
-        &&!acceptedSignatures.has(signature(r.date,r.description,r.expense)))continue;
+        &&!acceptedSignatures.has(signature(r.date,r.description,r.expense))
+        // A formerly pending purchase can post behind the newest anchor. It
+        // is not unrelated old history; the normal exact/ambiguous matching
+        // below must still reconcile it without counting the purchase twice.
+        &&!oldPending.some(x=>text(x.r[2])===text(r.description)&&cents(x.r[3])===r.expense))continue;
       const sig=signature(r.date,r.description,r.expense),group=r.state+'|'+sig;
       const occurrence=(occurrences.get(group)??0)+1;occurrences.set(group,occurrence);
       const hash=createHash('sha256').update(sig).digest('hex').slice(0,20);
@@ -92,6 +109,9 @@ export function reconcileWorkbookLedger(intake,ledger,rules){
     }
     for(const {r,i} of oldPending)if(!used.has(i)){
       rows[i]=[...r];rows[i][4]='Previous pending';rows[i][12]='Superseded';
+      // The superseded row remains historical evidence, but is no longer part
+      // of the active pending snapshot (including replay of the same capture).
+      rows[i][10]=String(r[10]??'')+':superseded';
       rows[i][8]=String(r[8])+'|retired|'+intake.createdAt;
       rows[i][9]=String(r[9]??'')+'\nCollector: absent from the fresh pending snapshot; posting/cancellation not asserted.';retired++;
     }

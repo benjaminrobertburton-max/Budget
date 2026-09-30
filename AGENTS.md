@@ -228,3 +228,11 @@ Until that collector passes its documented shadow-mode and acceptance checks, th
 - GitHub shares software, documentation, and fictional tests. Never sync financial updates as part of an import, payment, or closeout phase.
 - The legacy workbook is `outputs/01a04fdf-3751-72e2-88f1-daf19b8b9d1d/comprehensive_budget.xlsx`. Preserve it until the home-machine migration verifies a private local replacement and backup. Its tracked status does not authorize future financial commits.
 - Render only Start and Tuesday Review for import/payment phases. Render analytical and support sheets only at closeout or when explicitly requested.
+# September 30 collector reliability authority
+
+For collector work, read `docs/COLLECTOR_RELEASE_0_4_28.md` and
+`docs/HOME_MACHINE_COLLECTOR_RUN_REPORT_2026-09-29.md` before historical guidance.
+Use `codex/budget-collector`, preserve private financial state, and prefer the
+persistent `weekly-start` command. Never claim live certification from fictional
+tests; two attended work runs and a same-commit home smoke test are required.
+Do not reset a completed-source checkpoint or repeatedly recapture Wells.

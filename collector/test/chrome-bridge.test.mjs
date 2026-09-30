@@ -4,8 +4,23 @@ import { startChromeBridge } from "../src/chrome-bridge.mjs";
 import { fictionalActivityCandidate } from "../fixtures/activity-candidate.mjs";
 
 const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
+test('initial CORS preflight allows only an extension origin; a stale build cannot obtain commands',async()=>{
+  const bridge=await startChromeBridge({port:0,nextCommand:'open_wells'});
+  try{
+    const url=`http://127.0.0.1:${bridge.port}`;
+    const allowed=await fetch(url+'/v1/session',{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Headers':'X-Budget-Collector-Build'}});
+    assert.equal(allowed.headers.get('access-control-allow-origin'),origin);
+    const denied=await fetch(url+'/v1/session',{method:'OPTIONS',headers:{Origin:'https://example.com'}});
+    assert.equal(denied.headers.get('access-control-allow-origin'),null);
+    assert.equal((await post(bridge.port,'/v1/session',{'X-Budget-Collector-Build':'old'})).status,426);
+    assert.equal(bridge.status().extensionConnected,false);
+    assert.equal((await fetch(url+'/v1/command')).status,403);
+    const paired=await post(bridge.port,'/v1/session');assert.equal(paired.status,200);
+    assert.equal((await post(bridge.port,'/v1/session',{Origin:'chrome-extension://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'})).status,403);
+  }finally{await bridge.close();}
+});
 const post = (port, path, headers = {}, body = "") => fetch(`http://127.0.0.1:${port}${path}`, {
-  method: "POST", headers: { Origin: origin, ...headers }, body,
+  method: "POST", headers: { Origin: origin, "X-Budget-Collector-Build": "0.4.28", ...headers }, body,
 });
 
 test('reload transition permits exactly one same-card navigation retry, not a capture retry',async()=>{
@@ -42,7 +57,7 @@ test("loopback bridge accepts only one Chrome-extension origin and bounded progr
     assert.match(session, /^[a-f0-9]{64}$/);
     assert.equal((await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": "wrong" }, JSON.stringify({ version: 1, event: "wells_opened", tabId: 1 }))).status, 403);
     assert.equal((await post(bridge.port, "/v1/progress", { "X-Budget-Collector-Session": session }, JSON.stringify({ version: 1, event: "authenticated_page", tabId: 1 }))).status, 204);
-    assert.deepEqual(observed, [{ event: "authenticated_page" }]);
+    assert.deepEqual(observed, [{ event: "authenticated_page", source:'wells' }]);
     assert.deepEqual(bridge.status(), { listening: true, extensionConnected: true, lastEvent: "authenticated_page", commandQueued: false });
   } finally { await bridge.close(); }
 });
