@@ -13,6 +13,7 @@ import { normalizePaypalFinancing } from "./paypal-normalize.mjs";
 import { normalizeWealthfrontCash } from "./wealthfront-normalize.mjs";
 import { CollectionError, requireEvidence as check, safeIssue } from "./errors.mjs";
 import { createWeeklySequence } from "./weekly-sequence.mjs";
+import { readWeeklySession, saveWeeklySession, clearWeeklySession } from "./weekly-session.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 const sourceCommand = Object.freeze({
@@ -86,14 +87,23 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
   const privateRoot = defaultPrivateRoot();
   try { await assertPrivateDirectory(privateRoot, { repositoryRoot }); }
   catch { throw new CollectionError("PRIVATE_ROOT_UNAVAILABLE", "The private collector store is unavailable."); }
-  const sequence = createWeeklySequence();
+  let resumed;
+  try { resumed = await readWeeklySession({ privateRoot, configFile, sources: ["wells", "chase_prime", "chase_sapphire", "citi", "paypal", "wealthfront"] }); }
+  catch { throw new CollectionError("WEEKLY_SESSION_INVALID", "The local weekly resume checkpoint is invalid."); }
+  const sequence = createWeeklySequence(undefined, resumed);
   let store;
   try { store = await openPrivateEvidenceStore({ root: privateRoot, repositoryRoot }); }
   catch { throw new CollectionError("PRIVATE_STORE_UNAVAILABLE", "The private collector store is unavailable."); }
   let bridge, settle;
   const completion = new Promise((resolve, reject) => { settle = { resolve, reject }; });
-  const next = source => {
+  const next = async source => {
     const following = sequence.complete(source);
+    // The final completion goes directly into the already fail-closed import
+    // gate.  Persist only a resumable prefix, never a finished run.
+    if (following) {
+      try { await saveWeeklySession({ privateRoot, configFile, sources: ["wells", "chase_prime", "chase_sapphire", "citi", "paypal", "wealthfront"], completed: sequence.status().completed }); }
+      catch { return block(source, "WEEKLY_SESSION_SAVE_FAILED"); }
+    }
     onStatus({ state: sequence.status().state, source, next: following });
     if (following) bridge.queue(sourceCommand[following]); else settle.resolve();
   };
@@ -104,7 +114,7 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
   const capturedAt = () => new Date().toISOString();
   try {
     try { bridge = await startBridge({
-      nextCommand: sourceCommand.wells,
+      nextCommand: sourceCommand[sequence.current()],
       captureAfterAuth: true,
       onProgress: value => {
         const source = sequence.current();
@@ -129,7 +139,7 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
           try { await store.save({ source: "wells", capturedAt: at, payload: reconcileWeeklyWells(normalized, prior) }); }
           catch { return block("wells", "WELLS_RECONCILED_SAVE_FAILED"); }
         }
-        next("wells");
+        await next("wells");
       },
       onChaseActivityCapture: async candidate => {
         const source = sequence.current();
@@ -144,23 +154,23 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
         if (decision.action === "load_more") return { nextPageToken: candidate.source.pageToken };
         if (!['baseline_only', 'stop'].includes(decision.action)) return block(source, "CHASE_RECONCILIATION_BLOCKED");
         await store.save({ source: "chase", capturedAt: at, payload: { kind: "chase_anchor_snapshot", identity: normalized.identity, normalized } });
-        next(source);
+        await next(source);
       },
       onCitiActivityCapture: async candidate => {
         if (sequence.current() !== "citi") return;
         const normalized = normalizeCitiActivity(candidate, "pending:citi");
         if (!normalized.coverageVerified) return block("citi", "CITI_RECONCILIATION_BLOCKED");
-        await store.save({ source: "citi", capturedAt: capturedAt(), payload: candidate }); next("citi");
+        await store.save({ source: "citi", capturedAt: capturedAt(), payload: candidate }); await next("citi");
       },
       onPaypalCapture: async candidate => {
         if (sequence.current() !== "paypal") return;
         if (!normalizePaypalFinancing(candidate).coverageVerified) return block("paypal", "PAYPAL_RECONCILIATION_BLOCKED");
-        await store.save({ source: "paypal", capturedAt: capturedAt(), payload: candidate }); next("paypal");
+        await store.save({ source: "paypal", capturedAt: capturedAt(), payload: candidate }); await next("paypal");
       },
       onWealthfrontCapture: async candidate => {
         if (sequence.current() !== "wealthfront") return;
         if (!normalizeWealthfrontCash(candidate).activityCaptured) return block("wealthfront", "WEALTHFRONT_RECONCILIATION_BLOCKED");
-        await store.save({ source: "wealthfront", capturedAt: capturedAt(), payload: candidate }); next("wealthfront");
+        await store.save({ source: "wealthfront", capturedAt: capturedAt(), payload: candidate }); await next("wealthfront");
       },
     }); }
     catch { throw new CollectionError("LOCAL_BRIDGE_UNAVAILABLE", "The local collector bridge could not start."); }
@@ -171,6 +181,7 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
     const apply = importWorkbook ?? (async file => (await import("../../work/collector_workbook.mjs")).runWorkbookIntake(file, { apply: true }));
     const result = await apply(configFile);
     sequence.imported(); onStatus({ state: "complete" });
+    await clearWeeklySession({ privateRoot });
     openResult(result.output);
     return { status: "complete", output: result.output, backup: result.backup, completedSources: sequence.status().completed };
   } catch (error) {

@@ -93,6 +93,16 @@ rows, browser storage, or credentials. A local operator can use that status to
 decide whether to resume the existing source tab or safely stop the owned
 collector process before a new launch.
 
+The weekly coordinator also persists a small local resume checkpoint after
+each successfully accepted source. It contains only a fixed source-name prefix
+and a hash tied to the local launch configuration—not financial values,
+evidence references, account identifiers, browser state, or workbook paths.
+If an attended run is interrupted, restart the same weekly refresh with the
+same private configuration: it resumes at the next source rather than asking
+for Wells again. The checkpoint is cleared only after the workbook import
+finishes successfully. A malformed, mismatched, or out-of-order checkpoint
+fails closed and requires diagnosis rather than silently skipping a source.
+
 Before the next home run: sync `codex/budget-collector`, reload the unpacked
 extension so its displayed version is `0.4.21`, keep the private workbook and
 configuration outside Git/cloud storage, and verify collector QC before launch.

@@ -20,3 +20,10 @@ test("weekly sequence rejects out-of-order capture and stays fail-closed", () =>
   assert.equal(sequence.status().state, "blocked");
   assert.throws(() => sequence.beginImport(), { code: "SEQUENCE_INCOMPLETE" });
 });
+
+test("weekly sequence resumes at the first source not safely completed", () => {
+  const sequence = createWeeklySequence(WEEKLY_SOURCES, ["wells"]);
+  assert.equal(sequence.current(), "chase_prime");
+  assert.deepEqual(sequence.status().completed, ["wells"]);
+  assert.throws(() => createWeeklySequence(WEEKLY_SOURCES, ["chase_prime"]), { code: "INVALID_SEQUENCE" });
+});

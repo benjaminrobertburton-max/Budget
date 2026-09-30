@@ -5,12 +5,15 @@ import { requireEvidence as check } from "./errors.mjs";
 // data—so progress can be shown without leaking financial information.
 export const WEEKLY_SOURCES = Object.freeze(["wells", "chase_prime", "chase_sapphire", "citi", "paypal", "wealthfront"]);
 
-export function createWeeklySequence(sources = WEEKLY_SOURCES) {
+export function createWeeklySequence(sources = WEEKLY_SOURCES, completed = []) {
   check(Array.isArray(sources) && sources.length > 0 && sources.every(value => typeof value === "string"),
     "INVALID_SEQUENCE", "The weekly source sequence is invalid.");
-  let index = 0;
+  check(Array.isArray(completed) && completed.length < sources.length
+    && completed.every((source, index) => source === sources[index]),
+  "INVALID_SEQUENCE", "The weekly source resume state is invalid.");
+  let index = completed.length;
   let state = "collecting";
-  const finished = new Set();
+  const finished = new Set(completed);
   const current = () => state === "collecting" ? sources[index] : null;
   return Object.freeze({
     current,
