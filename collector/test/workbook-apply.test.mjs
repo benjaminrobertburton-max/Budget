@@ -230,13 +230,14 @@ test('direct private save backs up the exact original and updates the configured
   assert.equal((await fs.readdir(config.outputRoot)).length,1);
 });
 
-test('Citi encrypted evidence updates ledger, balances, due date, source checks and accepted anchors',async t=>{
+for(const incremental of [false,true])test(`Citi ${incremental?'incremental':'full-period'} encrypted evidence updates ledger, balances, due date, source checks and accepted anchors`,async t=>{
   const root=await tempDirectory(t),protector=fixtureProtector();
   const wb=await SpreadsheetFile.importXlsx(await baseline());
   const ledger=wb.worksheets.getItem('Support - Ledger');
   ledger.getRange('A10:M11').values=[
     ['Citi',new Date('2031-09-07'),'FICTIONAL SHOP',12,'Posted','Shopping','Include',null,'citi-old1','Keep user note','old','Posted','Verified'],
     ['Citi',new Date('2031-09-06'),'FICTIONAL REFUND',-2,'Posted','Shopping','Include',null,'citi-old2','','old','Posted','Verified']];
+  if(incremental)ledger.getRange('A12:M12').values=[['Citi',new Date('2031-09-05'),'FICTIONAL THIRD',1,'Posted','Shopping','Include',null,'citi-old3','','old','Posted','Verified']];
   wb.worksheets.getItem('Support - Debt Detail').getRange('A7:D7').values=[['Citi card',999,99,new Date('2031-09-01')]];
   wb.worksheets.getItem('Support - Rules').getRange('A6:C6').values=[['FICTIONAL PENDING','Shopping','Include']];
   wb.worksheets.getItem('1. Start').getRange('F9').values=[['Citi AAdvantage']];
@@ -245,6 +246,10 @@ test('Citi encrypted evidence updates ledger, balances, due date, source checks 
   await fs.writeFile(config.baseWorkbook,base);const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(config));
   const records=intakeRecords();records.citi={reference:`local:evidence:${randomUUID()}`,record:{version:1,kind:'budget-collector-source-evidence',source:'citi',capturedAt:INTAKE_NOW.toISOString(),payload:fictionalCiti()}};
   records.citi.record.payload.minimumDue='$7.25';
+  if(incremental){
+    records.citi.record.payload.rows.push({date:'Sep 5, 2031',description:'FICTIONAL THIRD',amount:'$1.00',state:'posted'});
+    records.citi.record.payload.postedTotal='$100.00';records.citi.record.payload.postedPage={rowCount:3,hasMore:true};
+  }
   const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
   for(const {record} of Object.values(records))await store.save(record);
   const result=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
@@ -253,8 +258,16 @@ test('Citi encrypted evidence updates ledger, balances, due date, source checks 
   assert.equal(value(after,'Support - Debt Detail','B7'),15);assert.equal(value(after,'Support - Debt Detail','C7'),7.25);
   assert.equal(value(after,'Support - Debt Detail','D7'),(Date.parse('2031-10-01')-Date.UTC(1899,11,30))/86400000);
   assert.equal(value(after,'Support - Account Snapshots','I16'),'Verified');
-  assert.equal(value(after,'Support - Account Snapshots','D16'),3);assert.equal(value(after,'Support - Account Snapshots','F16'),15);
+  assert.equal(value(after,'Support - Account Snapshots','D16'),incremental?4:3);assert.equal(value(after,'Support - Account Snapshots','F16'),incremental?16:15);
   assert.match(value(after,'1. Start','G9'),/2031-09-07/);assert.equal(value(after,'6. History','J5'),3);
+  if(incremental){
+    const again=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});assert.equal(again.added,0);
+    const replay=await fs.readFile(config.baseWorkbook);
+    records.citi.record.payload.rows[1].description='FICTIONAL CHANGED ANCHOR';
+    await store.save(records.citi.record);
+    await assert.rejects(runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true}),{code:'INTAKE_CAPTURE_FAILED'});
+    assert.deepEqual(await fs.readFile(config.baseWorkbook),replay);return;
+  }
   const data=prepareWorkbookIntake({records,bindings:config.bindings,now:INTAKE_NOW});
   const replay=await buildDirectWorkbook(saved,data);assert.equal(replay.added,0);
   const c=records.citi.record.payload;c.rows[0].state='posted';c.pendingTotal='$0.00';c.postedTotal='$15.00';

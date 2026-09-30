@@ -109,7 +109,7 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
       }else if(bank==='chase'){
         const n=normalizeChaseActivity(c,saved.reference);
         check(n.identity?.product===product&&n.identity?.suffix===config.bindings[source]&&n.issues.length===0,'RESUME_EVIDENCE_INVALID','Saved Chase evidence needs review.');
-      }else if(source==='citi')check(normalizeCitiActivity(c,saved.reference).coverageVerified,'RESUME_EVIDENCE_INVALID','Saved Citi evidence needs review.');
+      }else if(source==='citi')check(normalizeCitiActivity(c,saved.reference,{acceptedAnchors:context.workbookAnchors?.citi}).coverageVerified,'RESUME_EVIDENCE_INVALID','Saved Citi evidence needs review.');
       else if(source==='paypal')check(normalizePaypalFinancing(c).coverageVerified,'RESUME_EVIDENCE_INVALID','Saved financing evidence needs review.');
       else check(c.accountId===config.wealthfront.accountId&&normalizeWealthfrontCash(c).activityCaptured,'RESUME_EVIDENCE_INVALID','Saved cash evidence needs review.');
       references[source]=saved.reference;
@@ -198,8 +198,8 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
         const expectedProduct = source === 'chase_prime' ? 'prime_visa' : 'sapphire_preferred';
         if (normalized.identity?.product !== expectedProduct || normalized.identity?.suffix!==config.bindings[source]) return block(source, "CHASE_IDENTITY_BLOCKED");
         if(!chasePlans.has(source)){
-          const prior=context.chaseAnchors
-            ?context.chaseAnchors[source]
+          const prior=context.workbookAnchors
+            ?context.workbookAnchors[source]
             :(await store.latestPayload({source:'chase',kind:'chase_anchor_snapshot',identity:normalized.identity}))?.normalized??null;
           chasePlans.set(source,createChaseAnchorSession(prior,{expectedProduct}));
         }
@@ -212,7 +212,7 @@ export async function runWeeklyRefresh({ configFile, signal, timeoutMs = 12 * 60
       }),
       onCitiActivityCapture: serial(async candidate => {
         if (sequence.current() !== "citi") return;
-        const normalized = normalizeCitiActivity(candidate, "pending:citi");
+        const normalized = normalizeCitiActivity(candidate, "pending:citi",{acceptedAnchors:context.workbookAnchors?.citi});
         if (!normalized.coverageVerified) return block("citi", "CITI_RECONCILIATION_BLOCKED");
         const reference=await store.save({ source: "citi", capturedAt: capturedAt(), payload: candidate }); await next("citi",reference);
       }),

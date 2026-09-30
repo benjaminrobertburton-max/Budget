@@ -89,13 +89,13 @@ export async function weeklyPreflight(configFile,{protector=windowsProtector(),c
     }
     const sealed=await protector.sealMany([{probe:'fictional preflight'}]);
     check((await protector.openMany(sealed))[0]?.probe==='fictional preflight','PROTECTION_FAILED','Local encryption check failed.');
-    const chaseAnchors=checkRuntime?await (await import('../../work/collector_workbook.mjs')).readCollectorWorkbookAnchors(workbookBytes,config.bindings):undefined;
+    const workbookAnchors=checkRuntime?await (await import('../../work/collector_workbook.mjs')).readCollectorWorkbookAnchors(workbookBytes,config.bindings):undefined;
     const fingerprint=createHash('sha256').update(configBytes).update(workbookHash).digest('hex');
     const assertUnchanged=async()=>{
       check((await fs.readFile(configFile)).equals(configBytes)
         &&createHash('sha256').update(await fs.readFile(config.baseWorkbook)).digest('hex')===workbookHash,
         'WORKBOOK_CHANGED','The private workbook or configuration changed during collection.');
     };
-    return {config,privateRoot:config.privateRoot,sessionKey:configFile+'\0'+fingerprint,release,protector,workbookHash,chaseAnchors,assertUnchanged};
+    return {config,privateRoot:config.privateRoot,sessionKey:configFile+'\0'+fingerprint,release,protector,workbookHash,workbookAnchors,assertUnchanged};
   }catch(error){await release();throw error;}
 }

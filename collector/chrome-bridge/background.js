@@ -4,7 +4,7 @@
 // tab, Chrome launch, or external web message is used. Read-only navigation
 // uses short-lived tab-scoped debugger clicks, never a remote debugging port.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
-const COLLECTOR_BUILD = "0.4.28";
+const COLLECTOR_BUILD = "0.4.29";
 const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
 const CHASE_SIGN_ON = "https://www.chase.com/";
 const INSTITUTION_START = Object.freeze({

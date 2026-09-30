@@ -247,13 +247,14 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   for(const a of intakeAccounts(config.bindings))records[a.key]=evidenceReferences
     ?{reference:evidenceReferences[a.key],record:await store.open(evidenceReferences[a.key])}
     :await store.latestCapture({source:a.source,product:a.product,suffix:config.bindings[a.key]});
-  const intake=prepareWorkbookIntake({records,bindings:config.bindings,now});
+  const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
+  const acceptedAnchors=await readCollectorWorkbookAnchors(original,config.bindings);
+  const intake=prepareWorkbookIntake({records,bindings:config.bindings,now,acceptedAnchors});
   if(Object.hasOwn(config,'paypalPromotions')){
     check(apply,'PAYPAL_DIRECT_IMPORT_REQUIRED','Financing updates use direct workbook import only.');
     intake.paypal=preparePaypalImport(evidenceReferences?{reference:evidenceReferences.paypal,record:await store.open(evidenceReferences.paypal)}:await store.latestPaypalCapture(),config.paypalPromotions,now);
   }
   check(intake.accounts.some(a=>a.capturedAt),'INTAKE_EMPTY','No fresh bound account captures were found. Nothing was written.');
-  const original=await fs.readFile(config.baseWorkbook),originalHash=sha(original);
   if(Object.hasOwn(config,'wealthfront')){
     check(apply,'WEALTHFRONT_DIRECT_REQUIRED','Cash updates use direct import only.');
     const current=await SpreadsheetFile.importXlsx(original);
@@ -309,8 +310,9 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
 
 export async function readCollectorWorkbookAnchors(bytes,bindings){
   const wb=await SpreadsheetFile.importXlsx(bytes);
-  const {chaseWorkbookAnchors}=await import('../collector/src/workbook-reconcile.mjs');
-  return chaseWorkbookAnchors(wb.worksheets.getItem('Support - Ledger').getUsedRange().values.slice(4),bindings);
+  const {chaseWorkbookAnchors,citiWorkbookAnchors}=await import('../collector/src/workbook-reconcile.mjs');
+  const ledger=wb.worksheets.getItem('Support - Ledger').getUsedRange().values.slice(4);
+  return {...chaseWorkbookAnchors(ledger,bindings),citi:citiWorkbookAnchors(ledger,bindings)};
 }
 
 export async function workbookImportCli(configFile){

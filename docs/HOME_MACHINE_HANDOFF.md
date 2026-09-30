@@ -2,7 +2,7 @@
 
 ## September 30 — current engineering checkpoint
 
-Read [Collector 0.4.28](COLLECTOR_RELEASE_0_4_28.md) first, then
+Read [Collector 0.4.29](COLLECTOR_RELEASE_0_4_29.md) first, then
 [the September 29 home incident report](HOME_MACHINE_COLLECTOR_RUN_REPORT_2026-09-29.md).
 That release document supersedes historical version, launch and retry instructions
 below. Use `codex/budget-collector`. Preserve the private authoritative workbook

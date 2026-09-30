@@ -42,6 +42,8 @@ function readCitiPage() {
     result.rows.push({date:text(cells[1]),description:text(cells[2]),amount:text(cells[4]),state:row.classList.contains('pending')?'pending':'posted'});
     if(result.rows.length>=500){result.issues.push('row_limit');break;}
   }
+  const more=all('button').filter(n=>!n.disabled&&text(n)==='Load More Transactions');
+  result.postedPage={rowCount:[...table.querySelectorAll('tr.transaction-row:not(.pending)')].filter(visible).length,hasMore:more.length===1};
   result.finding='captured';return result;
 }
 
@@ -55,7 +57,7 @@ function revealCitiFilters(candidate){
 }
 
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.28';
+  const COLLECTOR_BUILD='0.4.29';
   let busy=false;
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((message,sender,reply)=>{

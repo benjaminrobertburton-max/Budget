@@ -2,7 +2,7 @@
 
 ## September 30 — current release contract
 
-Use [the 0.4.28 reliability checkpoint](../docs/COLLECTOR_RELEASE_0_4_28.md).
+Use [the 0.4.29 reliability checkpoint](../docs/COLLECTOR_RELEASE_0_4_29.md).
 It supersedes the historical version/startup notes below. Start a persistent run
 with `node collector/src/cli.mjs weekly-start <absolute-private-config>` from the
 repository root; inspect it with `collector-status`. QC now checks the manifest,

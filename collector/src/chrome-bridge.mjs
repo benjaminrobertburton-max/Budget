@@ -7,7 +7,7 @@ import {validatePaypalCandidate} from './paypal-normalize.mjs';
 import {validateWealthfrontCandidate} from './wealthfront-normalize.mjs';
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
-const extensionBuild = "0.4.28";
+const extensionBuild = "0.4.29";
 const events = new Set(["wells_opened", "auth_required", "authenticated_page", "chase_opened", "chase_auth_required", "chase_authenticated_page", "chase_capture_dispatched", "chase_delivery_failed"]);
 for(const source of ['wells','chase','citi','paypal','wealthfront'])events.add(source+'_tab_ambiguous');
 const captureStates = Object.freeze({

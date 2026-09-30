@@ -24,6 +24,15 @@ export function chaseWorkbookAnchors(ledger,bindings){
   }));
 }
 
+export function citiWorkbookAnchors(ledger,bindings){
+  if(!bindings.citi)return null;
+  const transactions=ledger.filter(r=>r[0]===LEDGER_ACCOUNTS.citi&&r[4]==='Posted'&&r[12]==='Verified')
+    .map(r=>({state:'posted',sourceDate:sourceDate(r),description:r[2],sourceAmountMinor:cents(r[3])}))
+    .filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.sourceDate??'')&&typeof r.description==='string'&&Number.isSafeInteger(r.sourceAmountMinor))
+    .sort((a,b)=>b.sourceDate.localeCompare(a.sourceDate)).slice(0,3);
+  return {identity:{product:'aadvantage',suffix:bindings.citi},transactions};
+}
+
 function classify(description,category,rules,oldRows){
   const exact=rules.filter(r=>text(r[0])===text(description)&&r[1]&&r[2]);
   const past=oldRows.filter(r=>text(r[2])===text(description)&&r[12]==='Verified').map(r=>[null,r[5],r[6]]);

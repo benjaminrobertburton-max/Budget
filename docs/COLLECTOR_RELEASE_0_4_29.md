@@ -1,4 +1,4 @@
-# Collector 0.4.28: reliability checkpoint
+# Collector 0.4.29: reliability checkpoint
 
 This document supersedes conflicting historical launch/version/retry directions
 in the collector README and home handoff. Use `codex/budget-collector`, not only
@@ -7,6 +7,18 @@ proved causes. Do not copy work-machine private configuration or DPAPI evidence
 onto the home machine.
 
 ## What changed
+
+- User-approved Citi incremental verification: when the source explicitly shows
+  Load More Transactions, its full-period posted total is retained separately.
+  A partial first page can pass only with clean source fields/filters/rows,
+  complete pending total reconciliation, matching visible posted count, and all
+  three exact accepted workbook anchors (including duplicate occurrences).
+  The global posted total is NOT labeled matched. Missing anchors/counts, wrong
+  identity, malformed totals, or pending discrepancies still block. Coordinator,
+  resume and final import independently use the authoritative workbook anchors;
+  no development capture becomes accepted history. No older page is loaded when
+  the accepted anchors are already present. This is verification logic only,
+  not a change to household calculations or source amounts.
 
 - User-requested sequential site opening: just before each institution's capture,
   reuse its one existing tab without changing its URL, or open its official entry
@@ -43,7 +55,7 @@ onto the home machine.
   options. No desktop app/executable is installed. It acknowledges startup over
   IPC and writes bounded local status. Duplicate owners are refused; a provably
   dead lock owner can be recovered without killing any process.
-- Manifest, worker, all five readers and bridge must agree on 0.4.28. QC checks
+- Manifest, worker, all five readers and bridge must agree on 0.4.29. QC checks
   each literal. The worker probes reader build **before** sending a capture and
   reloads only the requested tab, at most once per session. Extension installation
   no longer reloads every bank tab. Pairing also rejects a second extension origin.
@@ -60,7 +72,7 @@ onto the home machine.
 1. Inspect local changes, sync this branch without overwriting private financial
    work, and run `node collector/src/cli.mjs collector-qc` from the repository.
 2. Load the extension from **that checkout's** `collector/chrome-bridge` folder.
-   The installed manifest must show 0.4.28. A shared Chrome account is not proof
+   The installed manifest must show 0.4.29. A shared Chrome account is not proof
    that unpacked extension files match. Reload only when the version check proves
    it necessary. Do not copy cookies, sessions, credentials or browser profiles.
 3. Keep the authoritative local XLSX, exact backup, import configuration, evidence
@@ -99,7 +111,10 @@ On this work machine, the full fictional suite passed 372/372 before the
 sequential-site-opening addition. After that addition, 32 focused tab-opening,
 bridge, lifecycle and coordinator tests passed with build 0.4.28. The real-Chrome
 fictional Chase test also passed the observed sorted-header and delayed-pending
-cases. These are software checks, not complete live import certification.
+cases. The subsequent Citi change passed 8 focused tests including actual Chrome,
+encrypted source-to-XLSX import, exact backup, zero-new-row replay, rejected changed
+anchors and formula checks, plus 12 coordinator/intake/anchor checks. These are
+software checks, not complete live import certification.
 
 Non-live tests cover six-source coordination, interruption after Wells, final
 import retry, mismatched identity, duplicate ownership, stale reader refusal,
@@ -113,7 +128,11 @@ capture exposed the statement-period/header defects above. In 0.4.27, both Chase
 cards passed capture/anchor checks automatically. The sequence then reached Citi;
 Citi, PayPal and Wealthfront tabs were absent. The timeout preserved Wells and both
 Chase receipts and left the workbook unchanged. This prompted the explicit user
-request for sequential missing-site opening in 0.4.28. Required next: two attended
+request for sequential missing-site opening in 0.4.28. Its retry found Citi's
+pending total and all three workbook anchors matched, but the full-period posted
+total differed from the visible first page, with Load More Transactions present.
+The user explicitly approved the scoped 0.4.29 repair described above. No private
+workbook update has yet been published. Required next: two attended
 work-machine passes with the exact release, then one home smoke test at the same
 Git commit. Verify account coverage/anchors, no unintended panel loops, no duplicate
 rows on replay, no workbook mutation before reconciliation, and zero saved formula

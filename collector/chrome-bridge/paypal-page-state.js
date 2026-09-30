@@ -52,7 +52,7 @@ async function capturePaypalFinancing(){
   out.finding='captured';return out;
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.28';
+  const COLLECTOR_BUILD='0.4.29';
   let busy=false;
   const pageInstance=Math.random().toString(36).slice(2,14);
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});

@@ -22,7 +22,7 @@ export function validateIntakeBindings(bindings){
 // evidence instead of trusting persisted summaries, staged rows or ready flags.
 // Missing dates and classifications remain missing. All current pending stays
 // separate; no ledger mutation, inferred posting date or payment completion.
-export function prepareWorkbookIntake({records,bindings,now=new Date()}){
+export function prepareWorkbookIntake({records,bindings,now=new Date(),acceptedAnchors={}}){
   validateIntakeBindings(bindings);
   check(now instanceof Date&&Number.isFinite(now.getTime())&&records&&typeof records==='object'
     &&Object.keys(records).every(k=>intakeAccounts(bindings).some(a=>a.key===k)),
@@ -42,14 +42,14 @@ export function prepareWorkbookIntake({records,bindings,now=new Date()}){
       'INVALID_CAPTURE_TIME','Collector evidence has an invalid or future capture timestamp.');
     const candidate=record.payload;
     if(account.source==='citi'){
-      const n=normalizeCitiActivity(candidate,reference);
+      const n=normalizeCitiActivity(candidate,reference,{acceptedAnchors:acceptedAnchors.citi});
       check(n.identity?.suffix===bindings.citi,'INTAKE_ACCOUNT_MISMATCH','Citi does not match its private workbook binding.');
       check(n.coverageVerified,'INTAKE_CAPTURE_FAILED','Citi source totals, filters or required fields are not verified.');
       const types={currentBalance:'current_balance',availableCredit:'available_credit',statementBalance:'statement_balance',minimumDue:'minimum_due'};
       accounts.push({...base,capturedAt:record.capturedAt,evidenceRef:reference,
         balances:n.balances.map(b=>({type:types[b.type],amountMinor:b.amountMinor})),
         posted:n.transactions.filter(r=>r.state==='posted').length,pending:n.transactions.filter(r=>r.state==='pending').length,
-        pendingBasis:'Citi signed posted and pending totals matched',issues:[],status:'Captured — not imported',
+        pendingBasis:n.postedBasis==='accepted_workbook_overlap'?'Citi pending total matched; posted workbook anchors matched':'Citi signed posted and pending totals matched',issues:[],status:'Captured — not imported',
         bankPaymentStatus:'requirements_captured',dueDate:n.dueDate});
       for(const r of n.transactions)rows.push({account:account.label,state:r.state,date:r.sourceDate,description:r.description,
         amountMinor:r.sourceAmountMinor,sourceCategory:null,evidenceRef:r.evidenceRef,note:'Source date; posting date not asserted'});

@@ -59,7 +59,7 @@ async function captureWealthfrontCash(){
   return c;
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.28';
+  const COLLECTOR_BUILD='0.4.29';
   let busy=false;const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   const pageInstance=Math.random().toString(36).slice(2,14);
   chrome.runtime.onMessage.addListener((m,s,reply)=>{

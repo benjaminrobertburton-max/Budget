@@ -3,19 +3,21 @@ import {validDate} from './contracts.mjs';
 import {requireEvidence as check} from './errors.mjs';
 const fields=['identity','range','transactionFilter','memberFilter','currentBalance','availableCredit','statementBalance','minimumDue','dueDate','pendingTotal','postedTotal'];
 export function validateCitiCandidate(c){
-  check(c&&Object.keys(c).sort().join(',')===['version','kind','finding',...fields,'rows','issues'].sort().join(',')
+  check(c&&Object.keys(c).filter(k=>k!=='postedPage').sort().join(',')===['version','kind','finding',...fields,'rows','issues'].sort().join(',')
     &&c.version===1&&c.kind==='citi_activity'&&['not_ready','auth_required','page_limit','captured'].includes(c.finding)
     &&fields.every(k=>typeof c[k]==='string'&&c[k].length<=700)
     &&Array.isArray(c.issues)&&c.issues.length<=500&&c.issues.every(s=>['unsupported_headers','unrecognized_row','unsupported_row','row_limit'].includes(s))
     &&Array.isArray(c.rows)&&c.rows.length<=500&&c.rows.every(r=>r&&Object.keys(r).sort().join(',')==='amount,date,description,state'
-      &&['posted','pending'].includes(r.state)&&['amount','date','description'].every(k=>typeof r[k]==='string'&&r[k].length<=700)),
+      &&['posted','pending'].includes(r.state)&&['amount','date','description'].every(k=>typeof r[k]==='string'&&r[k].length<=700))
+    &&(!Object.hasOwn(c,'postedPage')||c.postedPage&&Object.keys(c.postedPage).sort().join(',')==='hasMore,rowCount'
+      &&typeof c.postedPage.hasMore==='boolean'&&Number.isInteger(c.postedPage.rowCount)&&c.postedPage.rowCount>=0&&c.postedPage.rowCount<=500),
     'CITI_SOURCE_INVALID','Citi source contract failed; no private details logged.');
   return c;
 }
 const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function date(s){const m=/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2}), (\d{4})$/.exec(s);
   const d=m?`${m[3]}-${String(months.indexOf(m[1])+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`:null;return validDate(d)?d:null;}
-export function normalizeCitiActivity(candidate,evidenceRef){
+export function normalizeCitiActivity(candidate,evidenceRef,{acceptedAnchors=null}={}){
   const c=validateCitiCandidate(candidate),issues=new Set(c.issues),transactions=[],balances=[];
   if(c.finding!=='captured')issues.add(c.finding);
   const identity=/^Citi®\/AAdvantage® Platinum Select® World Elite Mastercard® - (\d{4})$/.exec(c.identity);
@@ -32,18 +34,37 @@ export function normalizeCitiActivity(candidate,evidenceRef){
     catch{issues.add('invalid_row');}
   }
   const totals={};
+  let postedTotalParsed=false;
   for(const state of ['posted','pending']){
     try{const expected=parseMoney(c[state+'Total'],'USD'),actual=transactions.filter(r=>r.state===state).reduce((s,r)=>s+r.sourceAmountMinor,0);
+      if(state==='posted')postedTotalParsed=true;
       totals[state]=Number.isSafeInteger(actual)&&actual===expected&&transactions.length===c.rows.length;
     }catch{totals[state]=false;}
     if(!totals[state])issues.add(state+'_total_unverified');
   }
+  // Explicit September 30 approval: a full-period posted total is not the sum
+  // of a partial first page. Keep totals.posted false; establish incremental
+  // coverage ONLY against the authoritative workbook, never a prior test read.
+  const posted=transactions.filter(r=>r.state==='posted');
+  const key=r=>JSON.stringify([r.sourceDate,r.description,r.sourceAmountMinor]);
+  const counts=new Map();for(const r of posted)counts.set(key(r),(counts.get(key(r))??0)+1);
+  const anchorRows=acceptedAnchors?.transactions;
+  const anchorIdentity=identity&&acceptedAnchors?.identity?.product==='aadvantage'&&acceptedAnchors.identity.suffix===identity[1];
+  let anchorMatch=!!anchorIdentity&&Array.isArray(anchorRows)&&anchorRows.length===3;
+  if(anchorMatch)for(const r of anchorRows){const k=key(r),n=counts.get(k)??0;if(!n){anchorMatch=false;break;}counts.set(k,n-1);}
+  const incremental=postedTotalParsed&&c.postedPage?.hasMore===true&&c.postedPage.rowCount===posted.length
+    &&Number.isSafeInteger(posted.reduce((sum,r)=>sum+r.sourceAmountMinor,0))
+    &&transactions.length===c.rows.length&&totals.pending&&anchorMatch
+    &&[...issues].every(i=>i==='posted_total_unverified');
+  if(incremental)issues.delete('posted_total_unverified');
+  if(c.postedPage&&c.postedPage.rowCount!==posted.length)issues.add('posted_count_mismatch');
+  const postedBasis=incremental?'accepted_workbook_overlap':totals.posted?'full_period_total_matched':'unverified';
   return {kind:'citi_normalized_activity',identity:identity?{product:'aadvantage',suffix:identity[1]}:null,range:c.range,
-    transactions,balances,dueDate,totals,issues:[...issues],coverageVerified:issues.size===0,workbookReady:false};
+    transactions,balances,dueDate,totals,postedBasis,issues:[...issues],coverageVerified:issues.size===0,workbookReady:false};
 }
 export function citiSummary(n){return {accountIdentified:!!n.identity,postedRows:n.transactions.filter(r=>r.state==='posted').length,
   pendingRows:n.transactions.filter(r=>r.state==='pending').length,balances:n.balances.map(b=>b.type),dueDateVerified:!!n.dueDate,
-  totals:n.totals,issues:n.issues,coverageVerified:n.coverageVerified,workbookReady:false};}
+  totals:n.totals,postedBasis:n.postedBasis,issues:n.issues,coverageVerified:n.coverageVerified,workbookReady:false};}
 export function citiOverlap(current,prior){
   if(!current.coverageVerified)return {status:'blocked',reason:'source_checks',overlapVerified:false};
   if(!prior)return {status:'baseline_only',reason:'first_page_requires_acceptance',overlapVerified:false};

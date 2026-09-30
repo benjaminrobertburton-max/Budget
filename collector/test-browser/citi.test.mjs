@@ -29,6 +29,20 @@ test('Citi real content reader in Chrome excludes hidden copies, detects missing
       assert.equal(await page.evaluate(()=>revealCitiFilters(readCitiPage())),false);
       await page.evaluate(()=>{const t=document.querySelector('table').cloneNode(true);t.style.display='none';document.body.append(t);});
       assert.equal(normalizeCitiActivity(await capture(),'fictional').transactions.length,3);
+      // Fictional partial first-page layout observed in Citi; no older-page click.
+      await page.evaluate(()=>{
+        const t=document.querySelector('table.transaction-table');
+        const row=t.querySelector('tr.transaction-row:not(.pending)').cloneNode(true);
+        row.children[1].textContent='Sep 5, 2031';row.children[2].textContent='FICTIONAL THIRD';row.children[4].textContent='$1.00';t.append(row);
+        t.querySelector('tr.total-header:not(.pending) .total-title:last-child').textContent='$100.00';
+        const more=document.createElement('button');more.textContent='Load More Transactions';
+        more.addEventListener('click',()=>{throw Error('Must not page with anchors present');});document.body.append(more);
+      });
+      const partial=await capture(),parsed=normalizeCitiActivity(partial,'fictional');
+      assert.deepEqual(partial.postedPage,{rowCount:3,hasMore:true});
+      const acceptedAnchors={identity:parsed.identity,transactions:parsed.transactions.filter(r=>r.state==='posted')};
+      assert.equal(normalizeCitiActivity(partial,'fictional',{acceptedAnchors}).coverageVerified,true);
+      assert.equal(parsed.coverageVerified,false);
       await page.evaluate(()=>document.querySelector('tr.pending.total-header').remove());
       assert.equal(normalizeCitiActivity(await capture(),'fictional').coverageVerified,false);
       await page.evaluate(()=>{const p=document.createElement('input');p.type='password';document.body.append(p);});

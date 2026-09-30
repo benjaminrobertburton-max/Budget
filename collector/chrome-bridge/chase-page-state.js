@@ -4,7 +4,7 @@
 // encrypted evidence store. This is deliberately separate from Wells because
 // their activity layouts and coverage controls are not interchangeable.
 (() => {
-  const COLLECTOR_BUILD = "0.4.28";
+  const COLLECTOR_BUILD = "0.4.29";
   let previous = null;
   let captureAttempts = 0;
   let captureTimer = null;

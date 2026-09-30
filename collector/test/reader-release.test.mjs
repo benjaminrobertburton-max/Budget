@@ -11,7 +11,7 @@ test('stale readers receive no capture command and only one same-tab reload',asy
   vm.createContext(context);vm.runInContext(await readFile(new URL('../chrome-bridge/background.js',import.meta.url),'utf8'),context);
   await vm.runInContext('deliverPaypalCapture(7)',context);await vm.runInContext('deliverPaypalCapture(7)',context);
   assert.deepEqual(reloads,[7]);assert.ok(commands.every(c=>c==='probe_collector_build'));
-  build='0.4.28';await vm.runInContext('deliverPaypalCapture(7)',context);await vm.runInContext('deliverPaypalCapture(7)',context);
+  build='0.4.29';await vm.runInContext('deliverPaypalCapture(7)',context);await vm.runInContext('deliverPaypalCapture(7)',context);
   assert.equal(commands.filter(c=>c==='capture_paypal_financing').length,1);
   assert.deepEqual(reloads,[7]);
 });
