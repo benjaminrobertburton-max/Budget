@@ -2,7 +2,7 @@
 // read only after the local collector sends a bounded capture command, and then
 // goes directly to the encrypted local evidence boundary.
 (() => {
-  const COLLECTOR_BUILD = "0.4.30";
+  const COLLECTOR_BUILD = "0.4.32";
   let previous = null;
   let readinessAttempts = 0;
   let readinessTimer = null;
@@ -10,6 +10,7 @@
   let captureTimer = null;
   let pageTurnTimer = null;
   let checkingNavigationStarted = false;
+  let captureRequest=null;
   const visible = node => node.getClientRects().length > 0
     && getComputedStyle(node).visibility !== "hidden" && getComputedStyle(node).display !== "none";
   // Wells has used both ordinary DOM and open web-component roots for the
@@ -34,9 +35,11 @@
   const hasShadowRoots = () => roots().some(root => root !== document && root.host);
   const currentState = () => {
     const controls = deepQueryAll("input");
-    return controls.some(input => visible(input) && !input.disabled
+    if(controls.some(input => visible(input) && !input.disabled
       && (input.type === "password" || /^(username|current-password|new-password|one-time-code)$/.test(input.autocomplete)))
-      ? "auth_required" : "authenticated_page";
+      )return "auth_required";
+    const signedIn=deepQueryAll('a,button,[role=link],[role=button]').some(n=>visible(n)&&/^(sign (off|out)|everyday checking)\b/i.test(n.innerText||''));
+    return signedIn||hasActivityTable()?"authenticated_page":"auth_required";
   };
   const rowCells = row => [...row.querySelectorAll("th,td,[role=cell],[role=columnheader]")]
     .filter(cell => !cell.closest("tr,[role=row]") || cell.closest("tr,[role=row]") === row);
@@ -123,7 +126,10 @@
       const labels = { "available balance": "available", "current posted balance": "ledger", "pending withdrawals/debits": "pending_debits" };
       const balances = [];
       const sourceMoney = value => {
-        const matches = value.match(/(?:^|\s)(?:\$|USD\s*)?\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?=\s|$)/g) || [];
+        // Adjacent inline labels need not contain a separating space. Preserve
+        // the full displayed sign; never turn an overdraft into positive cash.
+        const tagged=value.match(/\(?[+\-\u2212]?(?:\$|USD\s*)[+\-\u2212]?\s*\d[\d,]*(?:\.\d{1,2})?(?![\d.,])\)?/g);
+        const matches=tagged??value.match(/(?:^|\s)[+\-\u2212]?\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?=\s|$)/g)??[];
         return matches.length === 1 ? matches[0].trim() : "";
       };
       // The production Wells summary uses semantic links and divs in some
@@ -174,16 +180,17 @@
   const captureAfterPageTurn = (previousToken, attempts = 0) => {
     const candidate = capture();
     if (candidate?.finding === "candidate_read" && candidate.source.pageToken !== previousToken) {
-      chrome.runtime.sendMessage({ event: "activity_capture", candidate }); return;
+      chrome.runtime.sendMessage({ event: "activity_capture", candidate,requestId:captureRequest }); return;
     }
     if (attempts >= 150) {
       if (candidate?.source) candidate.source.nextPage = "next_stalled";
-      if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
+      if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate,requestId:captureRequest });
       return;
     }
     pageTurnTimer = setTimeout(() => captureAfterPageTurn(previousToken, attempts + 1), 200);
   };
   const captureWhenReady = () => {
+    if(globalThis.budgetCollectorRequest&&globalThis.budgetCollectorRequest!==captureRequest)return;
     if (currentState() === "auth_required") return;
     if (!hasActivityTable() && captureAttempts < 150) {
       captureAttempts++;
@@ -192,13 +199,15 @@
     }
     captureAttempts = 0;
     const candidate = capture();
-    if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate });
+    if (candidate) chrome.runtime.sendMessage({ event: "activity_capture", candidate,requestId:captureRequest });
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if(message?.command==="probe_collector_build"){sendResponse({accepted:true,build:COLLECTOR_BUILD});return;}
     if (message?.command === "probe_wells_state") { sendResponse({ accepted: true, build: COLLECTOR_BUILD }); previous = null; checkingNavigationStarted = false; report(); return; }
     if (message?.command !== "capture_wells_activity") return;
     sendResponse({ accepted: true, build: COLLECTOR_BUILD });
+    captureRequest=message.requestId??null;
+    if(captureTimer!==null){clearTimeout(captureTimer);captureTimer=null;}
     captureAttempts = 0;
     captureWhenReady();
   });

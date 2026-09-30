@@ -27,6 +27,7 @@ export async function acquireWeeklyLock(root, {pid=process.pid, alive=value=>{
         await fs.unlink(filename);
       };
     }catch(error){
+      if(['EPERM','EACCES'].includes(error.code))throw new CollectionError('PRIVATE_STORAGE_PERMISSION_DENIED','Permit access to the configured private collector directory.');
       if(error.code!=='EEXIST')throw error;
       await assertRegularFile(filename,1024);
       let value;try{value=JSON.parse(await fs.readFile(filename,'utf8'));}catch{}
@@ -90,10 +91,11 @@ export async function weeklyPreflight(configFile,{protector=windowsProtector(),c
     const sealed=await protector.sealMany([{probe:'fictional preflight'}]);
     check((await protector.openMany(sealed))[0]?.probe==='fictional preflight','PROTECTION_FAILED','Local encryption check failed.');
     const workbookAnchors=checkRuntime?await (await import('../../work/collector_workbook.mjs')).readCollectorWorkbookAnchors(workbookBytes,config.bindings):undefined;
+    let wealthfrontPrior;
     if(checkRuntime){
       const {openPrivateEvidenceStore}=await import('./private-evidence-store.mjs');
       const {resolveWealthfrontPrior}=await import('../../work/wealthfront_checkpoint.mjs');
-      await resolveWealthfrontPrior(workbookBytes,config.wealthfront,
+      wealthfrontPrior=await resolveWealthfrontPrior(workbookBytes,config.wealthfront,
         await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector}));
     }
     const fingerprint=createHash('sha256').update(configBytes).update(workbookHash).digest('hex');
@@ -102,6 +104,6 @@ export async function weeklyPreflight(configFile,{protector=windowsProtector(),c
         &&createHash('sha256').update(await fs.readFile(config.baseWorkbook)).digest('hex')===workbookHash,
         'WORKBOOK_CHANGED','The private workbook or configuration changed during collection.');
     };
-    return {config,privateRoot:config.privateRoot,sessionKey:configFile+'\0'+fingerprint,release,protector,workbookHash,workbookAnchors,assertUnchanged};
+    return {config,privateRoot:config.privateRoot,sessionKey:configFile+'\0'+fingerprint,release,protector,workbookHash,workbookAnchors,wealthfrontPrior,assertUnchanged};
   }catch(error){await release();throw error;}
 }

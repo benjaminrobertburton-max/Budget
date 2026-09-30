@@ -230,7 +230,7 @@ async function formulaScanAndRender(filename,outputRoot,original){
   return {formulaErrors:errors,comparedCells};
 }
 
-export async function runWorkbookIntake(configFile,{protector=windowsProtector(),now=new Date(),apply=false,evidenceReferences=null}={}){
+export async function runWorkbookIntake(configFile,{protector=windowsProtector(),now=new Date(),apply=false,validateOnly=false,evidenceReferences=null}={}){
   const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
   const policy={repositoryRoot};
   check(path.isAbsolute(configFile),'UNSAFE_STORAGE_PATH','The intake configuration must be an absolute private path.');
@@ -264,6 +264,12 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
   const direct=apply?await import('./collector_apply.mjs'):null;
   const imported=apply?await direct.buildDirectWorkbook(original,intake):null;
   const bytes=imported?.bytes??await buildCollectorWorkbook(original,intake);
+  if(validateOnly){
+    check(apply,'VALIDATION_MODE_REQUIRED','Validation requires the direct import checks.');
+    check(sha(await fs.readFile(config.baseWorkbook))===originalHash,'WORKBOOK_CHANGED','The workbook changed during validation.');
+    return {status:'validated',output:null,backup:null,checks:imported.checks,accounts:intake.accounts.length,
+      rows:imported.rows,added:imported.added,promoted:imported.promoted,retired:imported.retired};
+  }
   await fs.mkdir(config.outputRoot,{recursive:true,mode:0o700});await assertPrivateDirectory(config.outputRoot,policy);
   const folder=await fs.mkdtemp(path.join(config.outputRoot,'intake-'));
   const pending=path.join(folder,'review.partial.xlsx'),output=path.join(folder,'budget_collector_review.xlsx');
@@ -309,9 +315,9 @@ export async function runWorkbookIntake(configFile,{protector=windowsProtector()
 
 export async function readCollectorWorkbookAnchors(bytes,bindings){
   const wb=await SpreadsheetFile.importXlsx(bytes);
-  const {chaseWorkbookAnchors,citiWorkbookAnchors}=await import('../collector/src/workbook-reconcile.mjs');
+  const {chaseWorkbookAnchors,citiWorkbookAnchors,wellsWorkbookAnchors}=await import('../collector/src/workbook-reconcile.mjs');
   const ledger=wb.worksheets.getItem('Support - Ledger').getUsedRange().values.slice(4);
-  return {...chaseWorkbookAnchors(ledger,bindings),citi:citiWorkbookAnchors(ledger,bindings)};
+  return {...chaseWorkbookAnchors(ledger,bindings),citi:citiWorkbookAnchors(ledger,bindings),wells:wellsWorkbookAnchors(ledger,bindings)};
 }
 
 export async function workbookImportCli(configFile){

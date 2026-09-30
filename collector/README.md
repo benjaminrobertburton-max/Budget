@@ -2,12 +2,15 @@
 
 ## September 30 — current release contract
 
-Use [the 0.4.30 reliability checkpoint](../docs/COLLECTOR_RELEASE_0_4_30.md).
+Use [the 0.4.32 reliability checkpoint](../docs/COLLECTOR_RELEASE_0_4_32.md).
 It supersedes the historical version/startup notes below. Start a persistent run
 with `node collector/src/cli.mjs weekly-start <absolute-private-config>` from the
 repository root; inspect it with `collector-status`. QC now checks the manifest,
 worker, bridge and every reader build. Do not recapture completed sources to work
-around an interrupted process. Live work/home acceptance remains pending.
+around an interrupted process. `weekly-test` validates a full import without
+publishing; `collector-diagnose` replays encrypted receipts without visiting banks.
+Read the release's live/home acceptance status; automated checks alone do not
+certify a home run or hands-off authentication.
 
 ## Current checkpoint — September 21
 

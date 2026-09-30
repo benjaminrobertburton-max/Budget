@@ -1,9 +1,14 @@
-# Local weekly budget runbook — screenshot fallback only
+# Local weekly budget runbook — collector first, screenshots as fallback
 
 **September 30 collector checkpoint:** before a collector run, read
-`docs/COLLECTOR_RELEASE_0_4_30.md` and the September 29 home incident report.
+`docs/COLLECTOR_RELEASE_0_4_32.md` (Routine operation). Read the September 29 home
+incident report only when investigating that incident, not on every weekly run.
 Use the private authoritative workbook and the existing local import configuration.
 `weekly-start` survives its terminal closing and resumes saved source receipts.
+`weekly-test` exercises collection and import validation without changing the
+workbook. `collector-diagnose` replays local evidence without new bank captures.
+Reload extension **0.4.32** after syncing. See the current release's explicit
+fresh-run/home-acceptance limits; a successful software check is not certification.
 Do not run the dated builder below or replace the private workbook from Git.
 Software validation does not replace the two attended work passes and home smoke
 test. Manual Discover/Capital One, Wells-only CUTX evidence, and excluded RBC scope

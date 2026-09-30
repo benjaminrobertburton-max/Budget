@@ -58,18 +58,20 @@ async function capturePaypalFinancing(){
   out.finding='captured';return out;
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.30';
+  const COLLECTOR_BUILD='0.4.32';
   let busy=false;
   const pageInstance=Math.random().toString(36).slice(2,14);
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((m,s,reply)=>{
     if(m?.command==='probe_collector_build'){reply({accepted:true,build:COLLECTOR_BUILD});return;}
     if(m?.command!=='capture_paypal_financing')return;reply({accepted:true,build:COLLECTOR_BUILD});if(busy)return;busy=true;
+    const requestId=m.requestId??null;
     paypalNavigationRequested=new Set();
     const start=Date.now();
-    const attempt=async()=>{let candidate;try{candidate=await capturePaypalFinancing();}catch{candidate={version:1,kind:'paypal_financing',finding:'blocked',sections:[],rows:[]};}
+    const attempt=async()=>{if(globalThis.budgetCollectorRequest&&globalThis.budgetCollectorRequest!==requestId){busy=false;return;}
+      let candidate;try{candidate=await capturePaypalFinancing();}catch{candidate={version:1,kind:'paypal_financing',finding:'blocked',sections:[],rows:[]};}
       if(candidate.finding==='not_ready'&&Date.now()-start<30000){setTimeout(attempt,350);return;}
-      busy=false;void send({event:'paypal_financing_capture',candidate});};void attempt();
+      busy=false;void send({event:'paypal_financing_capture',candidate,requestId});};void attempt();
   });
   // One ready notice per document. A navigation creates a new content-script
   // instance; recurring heartbeats previously re-opened promotion panels while

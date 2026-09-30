@@ -7,7 +7,7 @@ import { validDate } from './contracts.mjs';
 export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { hasPriorAnchor = false } = {}) {
   validateActivityCandidate(candidate);
   const transactions = [], nonTransactionRefs = [], issues = new Set();
-  const balances = [];
+  const balances = [], rowIssues = [];
   let pendingEmpty = false;
   const sections = new Set();
   if (candidate.tables.length !== 1) issues.add('ambiguous_table');
@@ -27,14 +27,20 @@ export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { has
       }
       // Observed Wells pending subheading, not a transaction or an empty section.
       if (section === 'pending' && nonempty.length === 1
-        && /^Authorized Transactions Opens a dialog Note: Debit card transaction amounts may change\.$/.test(nonempty[0])) continue;
+        && /^Authorized Transactions(?:\s*-)? Opens a dialog Note: Debit card transaction amounts may change\.?$/i.test(nonempty[0])) continue;
+      if (section === 'pending' && nonempty.length === 1
+        && /^Received for Processing Opens a dialog$/i.test(nonempty[0])) continue;
       if (nonempty.length === 1 && /^No pending transactions to view\.?$/i.test(nonempty[0])) {
         if (section !== 'pending') issues.add('misplaced_empty_pending');
         else pendingEmpty = true;
         continue;
       }
       if (!section) { issues.add('missing_section'); continue; }
-      if (row.length !== columns.length) { issues.add('unrecognized_row'); continue; }
+      if (row.length !== columns.length) {
+        issues.add('unrecognized_row');
+        rowIssues.push({table:ti,row:ri,code:'unrecognized_row',expected:columns.length,actual:row.length});
+        continue;
+      }
       try {
         const dateText = row[index('date')].trim();
         if (/^Totals$/i.test(dateText) && !row[index('description')].trim()) {
@@ -82,12 +88,12 @@ export function normalizeWellsActivity(candidate, evidenceRef, capturedAt, { has
   if (candidate.source.nextPage !== 'next_disabled' && !hasPriorAnchor) issues.add(candidate.source.nextPage === 'next_stalled' ? 'pagination_stalled' : 'pagination_anchor_required');
   return { version: 1, kind: 'wells_normalized_activity', transactions, nonTransactionRefs, balances,
     accountSuffix: candidate.source.accountSuffix, nextPage: candidate.source.nextPage,
-    pendingEmpty, issues: [...issues], workbookReady: false,
+    pendingEmpty, issues: [...issues], rowIssues, workbookReady: false,
     remainingGates: ['history_reconciliation', 'workbook_mapping'] };
 }
 
 function transactionKey(row) {
-  return `${row.state}\u0000${row.effectiveDate}\u0000${row.amountMinor}\u0000${row.description}`;
+  return `${row.state}\u0000${row.effectiveDate}\u0000${row.amountMinor}\u0000${String(row.description).trim().replace(/\s+/g,' ').toUpperCase()}`;
 }
 
 // Compare only encrypted local evidence. The three newest prior posted rows are
@@ -99,7 +105,7 @@ export function reconcileWellsOverlap(current, prior) {
   if (!prior || prior.kind !== 'wells_normalized_activity') return block('missing_prior_anchor');
   if (prior.accountSuffix !== current.accountSuffix) return block('anchor_account_mismatch');
   const anchors = prior.transactions.filter(row => row.state === 'posted').slice(0, 3);
-  if (anchors.length < 3) return block('insufficient_prior_anchor');
+  if (anchors.length < (prior.acceptedWorkbook ? 1 : 3)) return block('insufficient_prior_anchor');
   const available = new Map();
   for (const row of current.transactions) available.set(transactionKey(row), (available.get(transactionKey(row)) ?? 0) + 1);
   for (const row of anchors) {

@@ -7,9 +7,10 @@ import {validatePaypalCandidate} from './paypal-normalize.mjs';
 import {validateWealthfrontCandidate} from './wealthfront-normalize.mjs';
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
-const extensionBuild = "0.4.30";
+const extensionBuild = "0.4.32";
 const events = new Set(["wells_opened", "auth_required", "authenticated_page", "chase_opened", "chase_auth_required", "chase_authenticated_page", "chase_capture_dispatched", "chase_delivery_failed"]);
 for(const source of ['wells','chase','citi','paypal','wealthfront'])events.add(source+'_tab_ambiguous');
+for(const source of ['wells','chase','citi','paypal','wealthfront'])for(const state of ['auth_required','authenticated_page','reader_unavailable','navigation_blocked'])events.add(source+'_'+state);
 const captureStates = Object.freeze({
   candidate_read: "activity_candidate_captured",
   authentication_controls: "activity_capture_auth_required",
@@ -27,7 +28,7 @@ function response(res, status, origin, body = null) {
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Budget-Collector-Session, X-Budget-Collector-Build",
+    "Access-Control-Allow-Headers": "Content-Type, X-Budget-Collector-Session, X-Budget-Collector-Build, X-Budget-Collector-Request",
   };
   if (origin) headers["Access-Control-Allow-Origin"] = origin;
   res.writeHead(status, headers);
@@ -57,7 +58,7 @@ function validProgress(value) {
     && (value.tabId === null || Number.isInteger(value.tabId) && value.tabId > 0);
 }
 
-export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null, onChaseActivityCapture = null, onCitiActivityCapture = null, onPaypalCapture = null, onWealthfrontCapture = null } = {}) {
+export async function startChromeBridge({ port = 43811, nextCommand = "none", captureAfterAuth = false, requireRequestId = false, onProgress = () => {}, onConnected = () => {}, onActivityCapture = null, onChaseActivityCapture = null, onCitiActivityCapture = null, onPaypalCapture = null, onWealthfrontCapture = null } = {}) {
   check(Number.isInteger(port) && port >= 0 && port <= 65535, "INVALID_BRIDGE", "The local bridge port is invalid.");
   check(commands.has(nextCommand), "INVALID_BRIDGE", "The local bridge command is invalid.");
   check(onActivityCapture === null || typeof onActivityCapture === "function", "INVALID_BRIDGE", "The local capture handler is invalid.");
@@ -70,6 +71,7 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
   let lastChaseCard=null, chaseCaptureDispatched=false, chaseRetryUsed=false, chaseAuthInterrupted=false;
   const commandSource=command=>command.includes('wells')?'wells':command.includes('chase')?'chase':command.includes('citi')?'citi':command.includes('paypal')?'paypal':command.includes('wealthfront')?'wealthfront':null;
   let activeSource=commandSource(nextCommand);
+  let requestId=randomBytes(16).toString('hex');
   const server = createServer(async (req, res) => {
     const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : null;
     try {
@@ -95,9 +97,13 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         }
         nextCommand = "none"; // One-shot command: a later retry never opens a second Wells tab.
         const pageToken=nextPageToken; nextPageToken=null;
-        return response(res, 200, origin, { version: 1, command, ...(command==='capture_chase_more'?{pageToken}:{}) });
+        return response(res, 200, origin, { version: 1, command, ...(requireRequestId?{requestId}:{}), ...(command==='capture_chase_more'?{pageToken}:{}) });
       }
       if (req.method !== "POST") return response(res, 405, requestOrigin === origin ? origin : null);
+      // A delayed response from a previous card/source cannot satisfy the next
+      // command, even when both cards live in the same browser tab.
+      if(req.url!=='/v1/session'&&requireRequestId&&req.headers['x-budget-collector-request']!==requestId)
+        return response(res,409,requestOrigin===origin?origin:null);
       if(req.url==='/v1/paypal-financing'){
         if(!origin||requestOrigin!==origin||req.headers['x-budget-collector-session']!==session)return response(res,403,null);
         if(typeof onPaypalCapture!=='function')return response(res,503,origin);
@@ -168,7 +174,8 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
         // arrive while its one-shot open command is still being consumed. Queue
         // the safe capture when the matching open acknowledgement arrives too.
         if (captureAfterAuth === true && activeSource==='chase' && body.event === "chase_opened" && chaseAuthenticated && nextCommand === "none") nextCommand = "capture_chase_activity";
-        onProgress({ event: body.event, source:body.event.endsWith('_tab_ambiguous')?body.event.split('_')[0]:body.event.startsWith('chase_')?'chase':'wells' });
+        const source=['wells','chase','citi','paypal','wealthfront'].find(s=>body.event.startsWith(s+'_'))??'wells';
+        onProgress({ event: body.event, source });
         return response(res, 204, origin);
       }
       if (req.url === "/v1/activity") {
@@ -239,11 +246,13 @@ export async function startChromeBridge({ port = 43811, nextCommand = "none", ca
     // one-command-at-a-time boundary: a capture must finish before another
     // institution can be requested, and a stale extension cannot accumulate a
     // queue of bank actions.
-    queue: command => {
+    queue: (command,{replace=false}={}) => {
       check(commands.has(command) && command !== "none", "INVALID_BRIDGE", "The local bridge command is invalid.");
-      check(nextCommand === "none", "BRIDGE_BUSY", "The previous account action is still in progress.");
+      check(nextCommand === "none" || replace, "BRIDGE_BUSY", "The previous account action is still in progress.");
       nextCommand = command;
       activeSource=commandSource(command);
+      requestId=randomBytes(16).toString('hex');nextPageToken=null;
+      lastChaseCard=null;chaseCaptureDispatched=false;chaseRetryUsed=false;chaseAuthInterrupted=false;
     },
     close: () => new Promise(resolve => server.close(resolve)),
   };

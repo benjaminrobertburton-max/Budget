@@ -9,25 +9,33 @@ export function createWeeklySequence(sources = WEEKLY_SOURCES, completed = []) {
   check(Array.isArray(sources) && sources.length > 0 && sources.every(value => typeof value === "string"),
     "INVALID_SEQUENCE", "The weekly source sequence is invalid.");
   check(Array.isArray(completed) && completed.length <= sources.length
-    && completed.every((source, index) => source === sources[index]),
+    && new Set(completed).size===completed.length&&completed.every(source=>sources.includes(source)),
   "INVALID_SEQUENCE", "The weekly source resume state is invalid.");
-  let index = completed.length;
-  let state = index === sources.length ? "ready_to_import" : "collecting";
+  const remaining=sources.filter(source=>!completed.includes(source));
+  let index = 0;
+  let state = remaining.length===0 ? "ready_to_import" : "collecting";
+  const failed=new Set();
   const finished = new Set(completed);
-  const current = () => state === "collecting" ? sources[index] : null;
+  const current = () => state === "collecting" ? remaining[index] : null;
   return Object.freeze({
     current,
-    status: () => ({ state, current: current(), completed: [...finished] }),
+    status: () => ({ state, current: current(), completed: sources.filter(s=>finished.has(s)) }),
     complete(source) {
       check(state === "collecting" && current() === source, "SEQUENCE_ORDER", "A source completed outside the approved refresh order.");
       finished.add(source);
       index += 1;
-      if (index === sources.length) state = "ready_to_import";
+      if (index === remaining.length) state = failed.size?'blocked':"ready_to_import";
       return current();
     },
     block(source) {
       check(state === "collecting" && current() === source, "SEQUENCE_ORDER", "A source failed outside the approved refresh order.");
       state = "blocked";
+    },
+    defer(source){
+      check(state==='collecting'&&current()===source,'SEQUENCE_ORDER','Only the active source can be deferred.');
+      failed.add(source);index++;
+      if(index===remaining.length)state='blocked';
+      return current();
     },
     cancel() { if (state === "collecting") state = "cancelled"; },
     beginImport() {

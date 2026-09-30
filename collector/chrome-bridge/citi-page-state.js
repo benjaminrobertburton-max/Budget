@@ -57,21 +57,23 @@ function revealCitiFilters(candidate){
 }
 
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.30';
+  const COLLECTOR_BUILD='0.4.32';
   let busy=false;
   const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   chrome.runtime.onMessage.addListener((message,sender,reply)=>{
     if(message?.command==='probe_collector_build'){reply({accepted:true,build:COLLECTOR_BUILD});return;}
     if(message?.command!=='capture_citi_activity')return;
     reply({accepted:true,build:COLLECTOR_BUILD});if(busy)return;busy=true;
+    const requestId=message.requestId??null;
     const started=Date.now();
     let expanded=false;
     const attempt=()=>{
+      if(globalThis.budgetCollectorRequest&&globalThis.budgetCollectorRequest!==requestId){busy=false;return;}
       const candidate=readCitiPage();
       if(!expanded&&revealCitiFilters(candidate)){expanded=true;setTimeout(attempt,350);return;}
       const ready=candidate.finding==='captured'&&candidate.identity&&candidate.currentBalance&&candidate.minimumDue&&candidate.pendingTotal&&candidate.postedTotal&&candidate.transactionFilter&&candidate.memberFilter;
       if(ready||candidate.finding==='auth_required'||Date.now()-started>=30000){
-        busy=false;void send({event:'citi_activity_capture',candidate});
+        busy=false;void send({event:'citi_activity_capture',candidate,requestId});
       }else setTimeout(attempt,350);
     };attempt();
   });

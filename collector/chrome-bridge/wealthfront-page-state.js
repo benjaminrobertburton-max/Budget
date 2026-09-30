@@ -59,14 +59,16 @@ async function captureWealthfrontCash(){
   return c;
 }
 if(typeof chrome!=='undefined'&&chrome.runtime){
-  const COLLECTOR_BUILD='0.4.30';
+  const COLLECTOR_BUILD='0.4.32';
   let busy=false;const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
   const pageInstance=Math.random().toString(36).slice(2,14);
   chrome.runtime.onMessage.addListener((m,s,reply)=>{
     if(m?.command==='probe_collector_build'){reply({accepted:true,build:COLLECTOR_BUILD});return;}
     if(m?.command!=='capture_wealthfront_cash')return;reply({accepted:true,build:COLLECTOR_BUILD});if(busy)return;busy=true;const start=Date.now();
-    const attempt=async()=>{let candidate;try{candidate=await captureWealthfrontCash();}catch{candidate={version:1,kind:'wealthfront_cash',finding:'blocked',accountId:'',title:'',total:'',available:'',unavailable:'',pending:'',rows:[]};}
+    const requestId=m.requestId??null;wealthfrontAccountNavigationRequested=false;
+    const attempt=async()=>{if(globalThis.budgetCollectorRequest&&globalThis.budgetCollectorRequest!==requestId){busy=false;return;}
+      let candidate;try{candidate=await captureWealthfrontCash();}catch{candidate={version:1,kind:'wealthfront_cash',finding:'blocked',accountId:'',title:'',total:'',available:'',unavailable:'',pending:'',rows:[]};}
       if(candidate.finding==='not_ready'&&Date.now()-start<30000){setTimeout(attempt,350);return;}
-      busy=false;void send({event:'wealthfront_cash_capture',candidate});};void attempt();
+      busy=false;void send({event:'wealthfront_cash_capture',candidate,requestId});};void attempt();
   });void send({event:'wealthfront_page_ready',pageInstance});
 }

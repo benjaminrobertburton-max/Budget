@@ -11,7 +11,7 @@ async function fixture(initial=[]){
     tabs:{query:async()=>tabs,create:async o=>{created.push(o);const t={id:123,status:'loading'};tabs.push(t);return t;},
       sendMessage:async()=>assert.fail('Opening must not start capture'),reload:async()=>assert.fail('Opening must not reload')},
   }};
-  vm.createContext(context);vm.runInContext(await readFile(new URL('../chrome-bridge/background.js',import.meta.url),'utf8'),context);
+  context.setInterval=()=>{};vm.createContext(context);vm.runInContext(await readFile(new URL('../chrome-bridge/background.js',import.meta.url),'utf8'),context);
   context.recordEvent=x=>sent.push(x);vm.runInContext('send=async(path,body)=>{recordEvent(body.event);return true;}',context);
   return {context,created,sent};
 }

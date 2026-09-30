@@ -25,6 +25,10 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
     await assertPrivateDirectory(root, policy);
     await assertPrivateDirectory(evidence, policy);
   }
+  // A run may query the same encrypted receipts for six sources. Keep decoded
+  // records in this store instance only, rechecking file metadata on each use.
+  // No plaintext index or cross-run cache is written to disk.
+  const cache=new Map();
 
   return Object.freeze({
     async save({ source, capturedAt, payload }) {
@@ -51,11 +55,14 @@ export async function openPrivateEvidenceStore({ root, repositoryRoot, cloudRoot
       const id = reference.slice("local:evidence:".length);
       const filename = path.join(evidence, `${id}.enc`);
       await verify();
-      await assertRegularFile(filename, MAX_RECORD_BYTES * 2);
+      const stat=await assertRegularFile(filename, MAX_RECORD_BYTES * 2);
+      const signature=`${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`;
+      if(cache.get(reference)?.signature===signature)return structuredClone(cache.get(reference).record);
       const [record] = await protector.openMany([await fs.readFile(filename)]);
       check(record?.version === 1 && record.kind === "budget-collector-source-evidence"
         && ["wells", "chase", "citi", "paypal", "wealthfront"].includes(record.source) && typeof record.capturedAt === "string" && record.payload,
       "INVALID_EVIDENCE", "The private evidence record is invalid.");
+      cache.set(reference,{signature,record:structuredClone(record)});
       return structuredClone(record);
     },
     async latestWealthfrontCapture(accountId) {

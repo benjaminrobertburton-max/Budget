@@ -4,8 +4,9 @@ import {CollectionError,requireEvidence as check} from './errors.mjs';
 
 // No executable/desktop app is installed. This is the existing Node collector,
 // detached from the conversational terminal, with a bounded IPC startup check.
-export async function launchWeeklyRefresh(configFile,{spawnProcess=spawn}={}){
-  const child=spawnProcess(process.execPath,[fileURLToPath(new URL('./weekly-worker.mjs',import.meta.url)),configFile],{
+export async function launchWeeklyRefresh(configFile,{spawnProcess=spawn,mode='import'}={}){
+  check(['import','test'].includes(mode),'INVALID_RUN_MODE','Choose import or test.');
+  const child=spawnProcess(process.execPath,[fileURLToPath(new URL('./weekly-worker.mjs',import.meta.url)),configFile,mode],{
     detached:true,windowsHide:true,shell:false,stdio:['ignore','ignore','ignore','ipc'],
   });
   return new Promise((resolve,reject)=>{

@@ -12,7 +12,7 @@ import {tempDirectory,fixtureProtector,repositoryRoot} from './store-helpers.mjs
 
 async function setup(t){
   const privateRoot=await tempDirectory(t),configFile=path.join(privateRoot,'config.json'),protector=fixtureProtector();
-  const config={bindings:{...INTAKE_BINDINGS,citi:'4444'},wealthfront:{accountId:'FICTIONAL-CASH'}};
+  const config={bindings:{...INTAKE_BINDINGS,citi:'1234'},wealthfront:{accountId:'FICTIONAL-CASH'}};
   const records=intakeRecords();
   const candidates={...Object.fromEntries(Object.entries(records).map(([k,v])=>[k,v.record.payload])),citi:fictionalCiti(),paypal:fictionalPaypal(),
     wealthfront:{version:1,kind:'wealthfront_cash',finding:'captured',accountId:'FICTIONAL-CASH',title:'Individual Cash Account',
@@ -65,9 +65,27 @@ test('failed final import retains all six receipts and retries import without op
   assert.equal(f.imports,1);
 });
 
-test('wrong Chase account blocks before import and preserves Wells checkpoint',async t=>{
+test('wrong Chase account prevents import but preserves all other verified sources',async t=>{
   const f=await setup(t);f.candidates.chase_prime.source.accountSuffix='9999';
-  await assert.rejects(runWeeklyRefresh({...f.options,startBridge:fakeBridge(f)}),{code:'CHASE_IDENTITY_BLOCKED'});
+  await assert.rejects(runWeeklyRefresh({...f.options,startBridge:fakeBridge(f)}),{code:'SOURCES_INCOMPLETE'});
   assert.equal(f.imports,0);assert.equal(f.released,1);
-  assert.deepEqual(await readWeeklySession({privateRoot:f.privateRoot,configFile:f.configFile,sources:WEEKLY_SOURCES}),['wells']);
+  assert.deepEqual(await readWeeklySession({privateRoot:f.privateRoot,configFile:f.configFile,sources:WEEKLY_SOURCES}),WEEKLY_SOURCES.filter(s=>s!=='chase_prime'));
+});
+test('test mode validates once and preserves receipts for a no-recapture import',async t=>{
+  const f=await setup(t);let checked=0;
+  const result=await runWeeklyRefresh({...f.options,mode:'test',startBridge:fakeBridge(f),importWorkbook:async(file,o)=>{
+    assert.equal(o.validateOnly,true);checked++;return {output:null,backup:null};
+  }});
+  assert.equal(result.status,'validated');assert.equal(checked,1);assert.equal(f.imports,0);
+  await runWeeklyRefresh({...f.options,startBridge:()=>assert.fail('validated receipts should be reused')});
+  assert.equal(f.imports,1);
+});
+test('failed source retries alone; status preserves structural reason without source text',async t=>{
+  const f=await setup(t),original=structuredClone(f.candidates.wells),seen=[],statuses=[];
+  f.candidates.wells.tables[0].rows.push(['FICTIONAL SECRET UNKNOWN ROW']);
+  await assert.rejects(runWeeklyRefresh({...f.options,startBridge:fakeBridge(f),onStatus:s=>statuses.push(s)}),{code:'SOURCES_INCOMPLETE'});
+  const last=statuses.at(-1);assert.equal(last.source,'wells');assert.equal(last.outcomes.wells.code,'WELLS_ROW_VALIDATION_FAILED');
+  assert.ok(last.elapsedMs>=0);assert.doesNotMatch(JSON.stringify(last),/FICTIONAL SECRET/);
+  f.candidates.wells=original;
+  await runWeeklyRefresh({...f.options,startBridge:fakeBridge(f,{seen})});assert.deepEqual(seen,['wells']);
 });

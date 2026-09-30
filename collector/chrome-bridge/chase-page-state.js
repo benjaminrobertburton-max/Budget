@@ -4,7 +4,7 @@
 // encrypted evidence store. This is deliberately separate from Wells because
 // their activity layouts and coverage controls are not interchangeable.
 (() => {
-  const COLLECTOR_BUILD = "0.4.30";
+  const COLLECTOR_BUILD = "0.4.32";
   let previous = null;
   let captureAttempts = 0;
   let captureTimer = null;
@@ -198,10 +198,11 @@
     try{return captureBody();}finally{captureRoots=null;}
   };
   const captureWhenReady = () => {
+    if(globalThis.budgetCollectorRequest&&globalThis.budgetCollectorRequest!==captureRequest){captureActive=false;return;}
     const candidate = hasActivityTable() ? capture() : null;
     if (!candidate && currentState() === "chase_auth_required") {
       captureActive=false;
-      chrome.runtime.sendMessage({event:'chase_activity_capture',candidate:capture()}).catch(()=>{});return;
+      chrome.runtime.sendMessage({event:'chase_activity_capture',candidate:capture(),requestId:captureRequest}).catch(()=>{});return;
     }
     // Absent pending is unknown. Wait through the existing bounded render
     // window for its independently loaded section and account/range context;
@@ -216,8 +217,9 @@
     }
     captureAttempts = 0;
     captureActive=false;
-    chrome.runtime.sendMessage({ event: "chase_activity_capture", candidate:candidate??capture() }).catch(() => {});
+    chrome.runtime.sendMessage({ event: "chase_activity_capture", candidate:candidate??capture(),requestId:captureRequest }).catch(() => {});
   };
+  let captureRequest=null;
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if(message?.command==="probe_collector_build"){sendResponse({accepted:true,build:COLLECTOR_BUILD});return;}
     if(message?.command==='check_chase_more') {
@@ -228,7 +230,9 @@
     if (message?.command === "probe_chase_state") { sendResponse({ accepted: true, build: COLLECTOR_BUILD }); previous = null; report(); return; }
     if (message?.command !== "capture_chase_activity") return;
     sendResponse({ accepted: true, build: COLLECTOR_BUILD });
-    if(captureActive)return;
+    if(captureActive&&captureRequest===(message.requestId??null))return;
+    if(captureTimer!==null){clearTimeout(captureTimer);captureTimer=null;}
+    captureRequest=message.requestId??null;
     captureActive=true;stableToken=null;stableSince=Date.now();
     afterPageToken=/^[a-f0-9]{8}$/.test(message.afterPageToken??'')?message.afterPageToken:null;
     captureDeadline=Date.now()+30000;

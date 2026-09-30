@@ -2,20 +2,27 @@
 
 ## September 30 — current engineering checkpoint
 
-Read [Collector 0.4.30](COLLECTOR_RELEASE_0_4_30.md) first, then
-[the September 29 home incident report](HOME_MACHINE_COLLECTOR_RUN_REPORT_2026-09-29.md).
+Read [Collector 0.4.32](COLLECTOR_RELEASE_0_4_32.md), especially Routine operation.
+The [September 29 home incident report](HOME_MACHINE_COLLECTOR_RUN_REPORT_2026-09-29.md)
+is retained as incident evidence, not required reading for each weekly launch.
 That release document supersedes historical version, launch and retry instructions
 below. Use `codex/budget-collector`. Preserve the private authoritative workbook
-and accepted Wells checkpoint. Non-live validation is not live certification:
-two work-machine passes and a same-commit home smoke test remain required.
+and accepted workbook anchors. Reload the unpacked extension to **0.4.32** after
+syncing. Use `weekly-test` before the first home publication. It keeps local
+encrypted receipts but leaves the workbook byte-for-byte unchanged; successful
+receipts can be reused by `weekly-start`. If authentication is unavailable, report
+that separately from a parsing failure. One fresh work-machine six-source capture
+and full workbook validation passed. The fresh repeat stopped at Wells sign-in;
+repeat completion and a same-commit home smoke test remain required. No private
+workbook was changed during this release's tests.
 
-**Newest portability checkpoint:** today's private workbook import completed,
+**Prior portability checkpoint (financial working point unchanged by 0.4.32):** the private workbook import completed,
 and its accepted Wealthfront anchors now travel inside the XLSX. Use the newly
 provided workbook plus the latest collector branch; Git alone does not carry the
-financial working point. Read the release document's **Portable workbook handoff**
+financial working point. Read the 0.4.30 release document's **Portable workbook handoff**
 section for home paths/bindings, preflight, legacy migration and acceptance. Do not
-copy work-machine encrypted evidence or reset accepted anchors. Extension 0.4.30
-is unchanged; the portability update does not require another extension reload.
+copy work-machine encrypted evidence or reset accepted anchors. The current
+0.4.32 software release does require the extension reload described above.
 
 ## September 21 — work-machine development resumes (current authority)
 

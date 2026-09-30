@@ -13,6 +13,18 @@ const LEDGER='Support - Ledger',HISTORY='6. History',CASH='Support - Account Sna
 const WEEKLY_FULL_BALANCE_CARDS=new Set(['chase_sapphire','chase_prime','citi']);
 const col=n=>String.fromCharCode(65+n);
 const errorValue=v=>typeof v==='string'&&/^#(?:REF!|DIV\/0!|VALUE!|NAME\?|N\/A|NUM!|NULL!|SPILL!|CALC!)/.test(v);
+// XLSX date cells may be returned as Date objects after import, but as Excel
+// serial numbers after recalculation. Compare their values, not JS types.
+export function sameWorkbookValue(actual,expected,date1904=false){
+  const numeric=value=>{
+    if(!(value instanceof Date))return value;
+    const time=value.getTime();if(!Number.isFinite(time))return NaN;
+    const serial=(time-Date.UTC(date1904?1904:1899,date1904?0:11,date1904?1:31))/86400000;
+    return serial+(!date1904&&time>=Date.UTC(1900,2,1)?1:0);
+  };
+  const a=numeric(actual),e=numeric(expected);
+  return a===e||(typeof a==='number'&&typeof e==='number'&&Number.isFinite(a)&&Number.isFinite(e)&&Math.abs(a-e)<1e-9);
+}
 function reviewTuesday(createdAt){
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(createdAt));
   const date=new Date(day+'T00:00:00Z');date.setUTCDate(date.getUTCDate()-(date.getUTCDay()+5)%7);
@@ -270,11 +282,14 @@ export async function buildDirectWorkbook(original,intake){
   let bytes=await mergeCells(original,await workbookBytes(wb),patches);
   if(intake.wealthfront)bytes=await embedWealthfrontCheckpoint(bytes,makeWealthfrontCheckpoint(intake.wealthfront));
   const saved=await SpreadsheetFile.importXlsx(bytes);saved.recalculate();
+  const savedZip=await JSZip.loadAsync(bytes);
+  const workbookProperties=X.child(X.root(X.xml(await savedZip.file('xl/workbook.xml').async('string')),'workbook'),'workbookPr');
+  const date1904=['1','true'].includes(workbookProperties?.attributes?.date1904);
   for(const name of names){
     const actual=saved.worksheets.getItem(name).getUsedRange().values,expected=sheet(name).getUsedRange().values;
     for(let r=0;r<Math.max(actual.length,expected.length);r++)for(let c=0;c<Math.max(actual[r]?.length??0,expected[r]?.length??0);c++){
       const a=actual[r]?.[c]??null,e=expected[r]?.[c]??null;
-      const same=a===e||(typeof a==='number'&&typeof e==='number'&&Number.isFinite(a)&&Number.isFinite(e)&&Math.abs(a-e)<1e-9);
+      const same=sameWorkbookValue(a,e,date1904);
       check(same,'WORKBOOK_EXPORT_CHANGED',`Saved value differs at ${name}!${col(c)}${r+1} (${typeof a}/${typeof e}).`);
     }
   }

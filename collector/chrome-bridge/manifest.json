@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Budget Collector Bridge",
-  "version": "0.4.30",
+  "version": "0.4.32",
   "description": "Local, read-only Wells, Chase, Citi, PayPal financing and Wealthfront connection.",
   "permissions": ["tabs", "alarms", "debugger", "webNavigation"],
   "host_permissions": [
@@ -17,28 +17,28 @@
     "type": "module"
   },
   "content_scripts": [
-    {"matches":["https://www.wealthfront.com/*"],"js":["wealthfront-page-state.js"],"run_at":"document_idle","all_frames":false},
+    {"matches":["https://www.wealthfront.com/*"],"js":["account-readiness.js","wealthfront-page-state.js"],"run_at":"document_idle","all_frames":false},
     {
       "matches": ["https://www.paypal.com/*"],
-      "js": ["paypal-page-state.js"],
+      "js": ["account-readiness.js", "paypal-page-state.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["https://*.citi.com/*"],
-      "js": ["citi-page-state.js"],
+      "js": ["account-readiness.js", "citi-page-state.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["https://*.wellsfargo.com/*"],
-      "js": ["wells-page-state.js"],
+      "js": ["account-readiness.js", "wells-page-state.js"],
       "run_at": "document_idle",
       "all_frames": true
     },
     {
       "matches": ["https://*.chase.com/*"],
-      "js": ["chase-page-state.js"],
+      "js": ["account-readiness.js", "chase-page-state.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

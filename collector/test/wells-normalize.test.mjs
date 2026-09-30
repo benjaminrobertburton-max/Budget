@@ -10,6 +10,16 @@ function candidate(rows) {
       headers:['','Date','Description','Deposits/Credits','Withdrawals/Debits','Ending Daily Balance'],rows,issues:[]}]};
 }
 const base = [['Pending Transactions'],['No pending transactions to view.'],['Posted Transactions']];
+test('observed Wells pending help headings are recognized exactly, never arbitrary one-cell activity',()=>{
+  const rows=[['Pending Transactions'],['Received for Processing Opens a dialog'],
+    ['AUTHORIZED TRANSACTIONS Opens a dialog Note: Debit card transaction amounts may change.'],
+    ['','04/08/2031','FICTIONAL PENDING','','$7',''],['Posted Transactions'],['','04/07/2031','FICTIONAL POSTED','','$2','']];
+  assert.deepEqual(normalizeWellsActivity(candidate(rows),'fictional','2031-04-09T00:00:00Z').issues,[]);
+  rows[1]=['Unrecognized pending amount $7'];
+  const r=normalizeWellsActivity(candidate(rows),'fictional','2031-04-09T00:00:00Z');
+  assert.deepEqual(r.rowIssues,[{table:0,row:1,code:'unrecognized_row',expected:6,actual:1}]);
+  assert.equal(r.transactions.length,2);
+});
 test('Wells help labels retain pending rows and totals cover pending plus posted',()=>{
  const rows=[['Pending Transactions - Opens a dialog'],
  ['Authorized Transactions Opens a dialog Note: Debit card transaction amounts may change.'],

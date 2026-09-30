@@ -5,12 +5,20 @@ import { safeIssue } from "./errors.mjs";
 import { fileURLToPath } from "node:url";
 
 const command = process.argv.slice(2);
-if(command[0]==='weekly-start'){
+if(command[0]==='collector-diagnose'){
+  try{
+    if(command.length>2)throw new Error('INVALID_ARGUMENTS');
+    const {readWeeklyLaunchConfig}=await import('./weekly-refresh.mjs');
+    const {diagnoseCollector}=await import('./collector-diagnose.mjs');
+    console.log(JSON.stringify(await diagnoseCollector(command[1]??(await readWeeklyLaunchConfig()).workbookConfig),null,2));
+  }catch(error){console.error(`Diagnostic blocked: ${safeIssue(null,error).code}.`);process.exitCode=1;}
+}
+else if(['weekly-start','weekly-test'].includes(command[0])){
   try{
     if(command.length>2)throw new Error('INVALID_ARGUMENTS');
     const {readWeeklyLaunchConfig}=await import('./weekly-refresh.mjs');
     const {launchWeeklyRefresh}=await import('./weekly-launch.mjs');
-    await launchWeeklyRefresh(command[1]??(await readWeeklyLaunchConfig()).workbookConfig);
+    await launchWeeklyRefresh(command[1]??(await readWeeklyLaunchConfig()).workbookConfig,{mode:command[0]==='weekly-test'?'test':'import'});
     console.log('Persistent collector started. Closing this terminal does not cancel the run. Use collector-status for progress.');
   }catch(error){console.error(`Collector not started: ${safeIssue(null,error).code}.`);process.exitCode=1;}
 }
@@ -31,7 +39,7 @@ else if(command[0]==='weekly-refresh'){
         const label=event.source?` · ${event.source.replaceAll('_',' ')}`:'';
         console.log(`Refresh ${event.state}${label}${event.code?` · ${event.code}`:''}`);
       }});
-      console.log(`Refresh complete. Private backup created and workbook opened locally. ${result.completedSources.length} sources collected.`);
+      console.log(`Refresh complete. Private backup created and configured workbook saved. ${result.completedSources.length} sources collected. Open the configured workbook in the viewer.`);
     }catch(error){const issue=safeIssue(null,error);console.error(`Refresh stopped: ${issue.code}. The workbook was not partially updated.`);process.exitCode=1;}
     finally{process.removeListener('SIGINT',stop);process.removeListener('SIGTERM',stop);}
   }
@@ -44,6 +52,8 @@ else if(command.length===1&&command[0]==='collector-status'){
     const {readWeeklyStatus}=await import('./weekly-status.mjs');
     const v=await readWeeklyStatus();
     console.log(`Weekly run: ${v.state}${v.source?' · '+v.source:''}${v.code?' · '+v.code:''}.`);
+    if(v.startedAt)console.log(`Started: ${v.startedAt}; elapsed: ${Math.round(v.elapsedMs/1000)}s; mode: ${v.mode}.`);
+    for(const [source,outcome] of Object.entries(v.outcomes??{}))console.log(`${source}: ${outcome.state}${outcome.reused?' · saved session receipt':''}${outcome.code?' · '+outcome.code:''}${outcome.issues?.length?' · '+outcome.issues.join(', '):''}${outcome.rowIssues?.length?' · structural rows '+outcome.rowIssues.map(r=>r.row).join(','):''}`);
   }catch{ /* A foreground/first run may have no persistent status yet. */ }
   try {
     const response=await fetch('http://127.0.0.1:43811/v1/status',{signal:AbortSignal.timeout(3000)});

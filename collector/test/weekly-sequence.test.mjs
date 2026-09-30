@@ -25,5 +25,6 @@ test("weekly sequence resumes at the first source not safely completed", () => {
   const sequence = createWeeklySequence(WEEKLY_SOURCES, ["wells"]);
   assert.equal(sequence.current(), "chase_prime");
   assert.deepEqual(sequence.status().completed, ["wells"]);
-  assert.throws(() => createWeeklySequence(WEEKLY_SOURCES, ["chase_prime"]), { code: "INVALID_SEQUENCE" });
+  assert.equal(createWeeklySequence(WEEKLY_SOURCES, ["chase_prime"]).current(), 'wells');
+  assert.throws(() => createWeeklySequence(WEEKLY_SOURCES, ["unknown"]), { code: "INVALID_SEQUENCE" });
 });

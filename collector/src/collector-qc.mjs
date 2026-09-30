@@ -5,6 +5,7 @@ const required = Object.freeze([
   ["bridge manifest", "chrome-bridge/manifest.json"],
   ["bridge worker", "chrome-bridge/background.js"],
   ["bridge server", "src/chrome-bridge.mjs"],
+  ["account readiness gate", "chrome-bridge/account-readiness.js"],
   ["Wells page reader", "chrome-bridge/wells-page-state.js"],
   ["Chase page reader", "chrome-bridge/chase-page-state.js"],
   ["Citi page reader", "chrome-bridge/citi-page-state.js"],
@@ -35,8 +36,8 @@ export async function runCollectorQc({ repositoryRoot }) {
       }
       if (manifest.externally_connectable) fail("no visible trigger route", "externally_connectable is still configured");
       else pass("no visible trigger route", "no externally-connectable localhost page");
-      if (manifest.version === "0.4.30") pass("extension version", "0.4.30 build-verified reader lifecycle");
-      else fail("extension version", `expected 0.4.30, found ${String(manifest.version)}`);
+      if (manifest.version === "0.4.32") pass("extension version", "0.4.32 build-verified reader lifecycle");
+      else fail("extension version", `expected 0.4.32, found ${String(manifest.version)}`);
       for(const id of ['bridge worker','bridge server','Wells page reader','Chase page reader','Citi page reader','PayPal financing reader','Wealthfront reader']){
         const build=/(?:COLLECTOR_BUILD|extensionBuild)\s*=\s*["']([^"']+)["']/.exec(files[id]??'')?.[1];
         if(build===manifest.version)pass(`${id} build`, 'matches manifest');
@@ -46,6 +47,8 @@ export async function runCollectorQc({ repositoryRoot }) {
       else fail("frame command delivery", "webNavigation permission is missing");
       if (manifest.content_scripts?.some(script => script.all_frames === true)) pass("child-frame reader coverage", "Wells activity frames receive the reader");
       else fail("child-frame reader coverage", "content script is not enabled for Wells frames");
+      if(manifest.content_scripts?.every(s=>s.js?.[0]==='account-readiness.js'))pass('shared account readiness','every bank checks authentication before capture');
+      else fail('shared account readiness','a bank is missing the readiness gate');
     } catch { fail("manifest JSON", "manifest is not valid JSON"); }
   }
   if (files["Chase page reader"]) {

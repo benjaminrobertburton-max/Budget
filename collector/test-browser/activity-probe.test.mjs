@@ -7,6 +7,30 @@ import { startPilotInScope } from "../src/pilot-session.mjs";
 import { readActivityCandidate, activitySummary, validateActivityCandidate } from "../src/activity-probe.mjs";
 import { repositoryRoot, tempDirectory } from "../test/store-helpers.mjs";
 import { windowsProtector } from "../src/protection.mjs";
+import {normalizeWellsActivity} from '../src/wells-normalize.mjs';
+
+test('actual Wells extension reads the table at different zoom levels and rejects logged-out pages',async t=>{
+  await fixture(t,async({page})=>{
+    const html='<button>Sign Off</button><span>Account ending in 1234</span>'
+      +'<div><span>Available balance</span><span>-$100.00</span></div><div><span>Current posted balance</span><span>$100.00</span></div>'
+      +'<button disabled>Next</button><table><tr><th></th><th>Date</th><th>Description</th><th>Deposits/Credits</th><th>Withdrawals/Debits</th><th>Ending Daily Balance</th></tr>'
+      +'<tr><td colspan="6">Pending Transactions</td></tr><tr><td colspan="6">Received for Processing Opens a dialog</td></tr>'
+      +'<tr><td colspan="6">AUTHORIZED TRANSACTIONS Opens a dialog Note: Debit card transaction amounts may change.</td></tr>'
+      +'<tr><td></td><td>04/08/2031</td><td>FICTIONAL PENDING</td><td></td><td>$7.00</td><td></td></tr>'
+      +'<tr><td colspan="6">Posted Transactions</td></tr><tr><td></td><td>04/07/2031</td><td>FICTIONAL POSTED</td><td></td><td>$2.00</td><td></td></tr></table>';
+    await page.setContent(html);
+    await page.evaluate(()=>{window.messages=[];window.listeners=[];window.chrome={runtime:{sendMessage:async m=>messages.push(m),onMessage:{addListener:f=>listeners.push(f)}}};});
+    await page.evaluate(await fs.readFile(new URL('../chrome-bridge/wells-page-state.js',import.meta.url),'utf8'));
+    for(const zoom of [0.75,1,1.25]){
+      const c=await page.evaluate(zoom=>{document.body.style.zoom=zoom;messages=[];listeners.forEach(f=>f({command:'capture_wells_activity',requestId:'fixture'},null,()=>{}));return messages.find(m=>m.event==='activity_capture')?.candidate;},zoom);
+      const result=normalizeWellsActivity(c,'fictional','2031-04-09T00:00:00Z');assert.deepEqual(result.issues,[]);assert.equal(result.transactions.length,2);
+      assert.equal(result.balances.find(b=>b.type==='available').amountMinor,-10000);
+    }
+    await page.setContent('<h1>Welcome. Please sign in.</h1>');
+    await page.evaluate(()=>{messages=[];listeners.forEach(f=>f({command:'probe_wells_state'},null,()=>{}));});
+    assert.equal(await page.evaluate(()=>messages.some(m=>m.event==='auth_required')),true);
+  });
+});
 
 async function fixture(t, task) {
   const parent = path.join(await tempDirectory(t), "activity");

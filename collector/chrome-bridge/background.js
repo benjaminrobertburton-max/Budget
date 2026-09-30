@@ -1,10 +1,10 @@
 // This bridge talks only to the loopback collector and reviewed bank sources. It never reads,
-// fills, submits, stores, or transmits credentials, cookies, form values, or
+// fills, stores, or transmits credentials, cookies, form values, or
 // browser storage. Chrome's own alarm wakes the installed extension; no helper
 // tab, Chrome launch, or external web message is used. Read-only navigation
 // uses short-lived tab-scoped debugger clicks, never a remote debugging port.
 const LOCAL_BRIDGE = "http://127.0.0.1:43811";
-const COLLECTOR_BUILD = "0.4.30";
+const COLLECTOR_BUILD = "0.4.32";
 const WELLS_SIGN_ON = "https://connect.secure.wellsfargo.com/auth/login/present?origin=cob";
 const CHASE_SIGN_ON = "https://www.chase.com/";
 const INSTITUTION_START = Object.freeze({
@@ -32,22 +32,24 @@ let chaseMoreToken = null;
 let chaseAfterToken = null;
 const checkingNavigation = new Set();
 const readerReloads = new Set();
+let activeRequest=null,activeBank=null,waitingCommand=null,authBusy=false,authClicks=0;
+const commandBank=c=>['wells','chase','citi','paypal','wealthfront'].find(s=>c.includes(s));
 async function readerCommand(tabId,message,options={frameId:0}) {
   const probe=await chrome.tabs.sendMessage(tabId,{command:'probe_collector_build'},options).catch(()=>null);
   if(probe?.accepted!==true||probe.build!==COLLECTOR_BUILD)return {accepted:false};
-  return chrome.tabs.sendMessage(tabId,message,options);
+  return chrome.tabs.sendMessage(tabId,{...message,requestId:activeRequest},options);
 }
 async function reloadReaderOnce(tabId){
   if(readerReloads.has(tabId))return false;
   readerReloads.add(tabId);await chrome.tabs.reload(tabId).catch(()=>{});return true;
 }
 
-async function send(path, body) {
+async function send(path, body, requestId=activeRequest) {
   if (!session) return false;
   try {
     const response = await fetch(`${LOCAL_BRIDGE}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Budget-Collector-Session": session },
+      headers: { "Content-Type": "application/json", "X-Budget-Collector-Session": session, ...(requestId?{'X-Budget-Collector-Request':requestId}:{}) },
       body: JSON.stringify(body), cache: "no-store",
     });
     if (response.status === 403) session = null;
@@ -65,6 +67,9 @@ async function startSession() {
     const body = await response.json();
     if (!body || body.build !== COLLECTOR_BUILD || typeof body.session !== "string" || !/^[a-f0-9]{64}$/.test(body.session)) return false;
     session = body.session;
+    activeRequest=null;activeBank=null;waitingCommand=null;authClicks=0;
+    wellsTabId=null;chaseTabId=null;citiTabId=null;paypalTabId=null;wealthfrontTabId=null;
+    paypalPageInstance=null;wealthfrontPageInstance=null;checkingNavigation.clear();
     readerReloads.clear();citiReloaded=false;paypalReloaded=false;wealthfrontReloaded=false;chaseReloadAttempted=false;
     pendingCitiCapture=false;pendingPaypalCapture=false;paypalCaptureInFlight=false;
     pendingWealthfrontCapture=false;wealthfrontCaptureInFlight=false;pendingChaseCapture=false;
@@ -81,6 +86,12 @@ async function nextCommand() {
     if (response.status === 403) { session = null; return "none"; }
     if (!response.ok) return "none";
     const body = await response.json();
+    if(body?.command!=='none'&&typeof body.requestId==='string'&&body.requestId!==activeRequest){
+      activeRequest=body.requestId;activeBank=commandBank(body.command);waitingCommand=null;authClicks=0;
+      pendingPaypalCapture=false;paypalCaptureInFlight=false;pendingWealthfrontCapture=false;wealthfrontCaptureInFlight=false;
+      pendingCitiCapture=false;pendingChaseCapture=false;
+    }
+    if(body?.command&&body.command!=='none')activeBank=commandBank(body.command);
     if (body?.version===1 && body.command==='capture_chase_more' && /^[a-f0-9]{8}$/.test(body.pageToken)) {
       chaseMoreToken=body.pageToken; return body.command;
     }
@@ -92,7 +103,7 @@ async function nextCommand() {
 async function probe(tabId) {
   if (!Number.isInteger(tabId)) return false;
   wellsTabId = tabId;
-  const delivered = await chrome.tabs.sendMessage(tabId, { command: "probe_wells_state" })
+  const delivered = await readerCommand(tabId, { command: "probe_wells_state" })
     .then(response => response?.accepted === true && response.build === COLLECTOR_BUILD)
     .catch(() => false);
   // An already-open Wells tab can predate an extension update. Reloading that
@@ -112,6 +123,42 @@ async function openInstitutionTab(source){
   return Number.isInteger(tab?.id)?tab:null;
 }
 
+async function prepareAccount(command){
+  const source=commandBank(command),request=activeRequest;
+  if(!source)return true;
+  const tab=await openInstitutionTab(source);if(!tab){waitingCommand=null;return false;}
+  if(source==='wells')wellsTabId=tab.id;
+  if(source==='chase')chaseTabId=tab.id;
+  if(source==='citi')citiTabId=tab.id;
+  if(source==='paypal')paypalTabId=tab.id;
+  if(source==='wealthfront')wealthfrontTabId=tab.id;
+  waitingCommand=command;
+  if(tab.status==='loading')return false;
+  const state=await chrome.tabs.sendMessage(tab.id,{command:'prepare_collector_account',requestId:request},{frameId:0}).catch(()=>null);
+  if(request!==activeRequest)return false;
+  if(!state?.accepted){
+    if(!await reloadReaderOnce(tab.id)){waitingCommand=null;await send('/v1/progress',{version:1,event:source+'_reader_unavailable',tabId:tab.id});}
+    return false;
+  }
+  if(state.state==='authenticated'){
+    waitingCommand=null;await send('/v1/progress',{version:1,event:source+'_authenticated_page',tabId:tab.id});return true;
+  }
+  if(state.state==='click'&&authClicks<3){
+    const r=state.rect;
+    if(!['open_sign_in','autofill_submit'].includes(state.action)||!Array.isArray(r)||r.length!==4||!r.every(Number.isFinite)||r[2]<2||r[3]<2)return false;
+    const target={tabId:tab.id};authClicks++;
+    try{
+      await chrome.debugger.attach(target,'1.3');
+      const x=r[0]+r[2]/2,y=r[1]+r[3]/2;
+      await chrome.debugger.sendCommand(target,'Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});
+      await chrome.debugger.sendCommand(target,'Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});
+    }catch{await send('/v1/progress',{version:1,event:source+'_navigation_blocked',tabId:tab.id});waitingCommand=null;}
+    finally{await chrome.debugger.detach(target).catch(()=>{});}
+  }
+  if(state.state==='auth_required'||state.state==='click')await send('/v1/progress',{version:1,event:source+'_auth_required',tabId:tab.id});
+  return false;
+}
+
 async function openOrReuseWells() {
   const tab=await openInstitutionTab('wells');if(!tab)return;
   wellsTabId=tab.id;
@@ -123,7 +170,7 @@ async function openOrReuseChase() {
   const tab=await openInstitutionTab('chase');if(!tab){chaseTabId=null;return;}
   chaseTabId=tab.id;
   if(tab.status!=='loading'){
-    const delivered = await chrome.tabs.sendMessage(tab.id, { command: "probe_chase_state" })
+    const delivered = await readerCommand(tab.id, { command: "probe_chase_state" })
       .then(response => response?.accepted === true && response.build === COLLECTOR_BUILD).catch(() => false);
     if (!delivered) await reloadReaderOnce(tab.id);
   }
@@ -213,8 +260,8 @@ async function navigateChaseAccount(tabId, label) {
   const target = { tabId };
   try {
     await chrome.debugger.attach(target, "1.3");
-    const completed=[];
-    for(let attempt=0;attempt<60;attempt++){
+    const completed=[],deadline=Date.now()+30000;
+    for(let attempt=0;attempt<60&&Date.now()<deadline;attempt++){
       const response=await chrome.debugger.sendCommand(target,'Runtime.evaluate',{returnByValue:true,
         expression:`(${chaseNavigationStep.toString()})(${JSON.stringify(label)},${JSON.stringify(completed)})`});
       const step=response?.result?.value;
@@ -284,6 +331,17 @@ async function loadMoreChase(tabId,pageToken) {
   finally{await chrome.debugger.detach(target).catch(()=>{});}
 }
 
+function checkingNavigationStep(){
+  const roots=[document],matches=[];
+  for(let i=0;i<roots.length&&i<64;i++)for(const n of roots[i].querySelectorAll('*')){
+    if(n.shadowRoot)roots.push(n.shadowRoot);
+    if(n.matches('a,button,[role=link],[role=button]')&&n.getClientRects().length&&!n.disabled
+      &&getComputedStyle(n).visibility!=='hidden'&&/^\s*everyday checking\b/i.test(n.innerText||''))matches.push(n);
+  }
+  if(matches.length!==1)return null;
+  matches[0].scrollIntoView({block:'center'});const r=matches[0].getBoundingClientRect();return [r.x,r.y,r.width,r.height];
+}
+
 async function navigateChecking(tabId) {
   if (!Number.isInteger(tabId) || checkingNavigation.has(tabId)) return;
   checkingNavigation.add(tabId);
@@ -294,7 +352,7 @@ async function navigateChecking(tabId) {
     // text, URL, account identifier, balance, cookie, or form value is read.
     const response = await chrome.debugger.sendCommand(target, "Runtime.evaluate", {
       returnByValue: true,
-      expression: `(() => { const a = [...document.querySelectorAll('a,button,[role="link"],[role="button"]')].find(x => /^\\s*everyday checking\\b/i.test(x.innerText || '')); if (!a) return null; const r = a.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`,
+      expression: `(${checkingNavigationStep.toString()})()`,
     });
     const rect = response?.result?.value;
     if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(value => typeof value === "number" && Number.isFinite(value)) || rect[2] < 2 || rect[3] < 2) return;
@@ -339,7 +397,9 @@ async function pollCommand() {
   pollInFlight = true;
   try {
     if (!await startSession()) return;
-      const command = await nextCommand();
+      const queued = await nextCommand();
+      const command=queued==='none'?(waitingCommand??'none'):queued;
+      if(command!=='none'&&!await prepareAccount(command))return;
       if(command==='capture_wealthfront_cash'){
         const tab=await openInstitutionTab('wealthfront');
         if(tab){
@@ -393,25 +453,36 @@ chrome.runtime.onStartup.addListener(() => void pollCommand());
 // No blanket bank-tab reload on installation. Probe only the requested reader
 // and recover that same tab once, within a connected collector session.
 chrome.runtime.onInstalled.addListener(() => { void pollCommand(); });
+// Short bounded polling only while a run is connected; the MV3 alarm remains
+// the cold-start path. No bank is opened when the local runner is absent.
+setInterval(()=>{if(session&&!authBusy){authBusy=true;void pollCommand().finally(()=>{authBusy=false;});}},2000);
 
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message !== "object" || sender.id !== chrome.runtime.id) return;
   const tabId = Number.isInteger(sender.tab?.id) ? sender.tab.id : null;
+  const eventBank=message.event?.startsWith('chase_')?'chase':message.event?.startsWith('citi_')?'citi'
+    :message.event?.startsWith('paypal_')?'paypal':message.event?.startsWith('wealthfront_')?'wealthfront':'wells';
+  const isCapture=['activity_capture','chase_activity_capture','citi_activity_capture','paypal_financing_capture','wealthfront_cash_capture'].includes(message.event);
+  if(isCapture&&(eventBank!==activeBank||activeRequest&&message.requestId!==activeRequest))return;
+  if(isCapture&&(message.candidate?.finding==='authentication_controls'||message.candidate?.finding==='auth_required'||message.candidate?.stage==='authentication')){
+    waitingCommand={wells:'open_wells',chase:'capture_chase_activity',citi:'capture_citi_activity',paypal:'capture_paypal_financing',wealthfront:'capture_wealthfront_cash'}[eventBank];
+    void send('/v1/progress',{version:1,event:eventBank+'_auth_required',tabId});return;
+  }
   if(message.event==='wealthfront_page_ready'){
     const newDocument=typeof message.pageInstance==='string'&&message.pageInstance!==wealthfrontPageInstance;
     if(typeof message.pageInstance==='string')wealthfrontPageInstance=message.pageInstance;
-    if(tabId===wealthfrontTabId&&(pendingWealthfrontCapture||(wealthfrontCaptureInFlight&&newDocument))){
+    if(activeBank==='wealthfront'&&tabId===wealthfrontTabId&&(pendingWealthfrontCapture||(wealthfrontCaptureInFlight&&newDocument))){
       // A fresh document after the one permitted account-navigation attempt
       // needs one delivery; ordinary page heartbeats are no longer emitted.
       if(newDocument)wealthfrontCaptureInFlight=false;
-      void deliverWealthfrontCapture(tabId);
+      waitingCommand='capture_wealthfront_cash';void pollCommand();
     }
     else void pollCommand();return;
   }
   if(message.event==='wealthfront_cash_capture'){
     if(session&&tabId===wealthfrontTabId&&sender.frameId===0&&/^https:\/\/www\.wealthfront\.com\//.test(sender.url||'')&&message.candidate){
       pendingWealthfrontCapture=false;wealthfrontCaptureInFlight=false;
-      void send('/v1/wealthfront-cash',message.candidate).then(()=>pollCommand());
+      void send('/v1/wealthfront-cash',message.candidate,message.requestId).then(()=>pollCommand());
     }
     return;
   }
@@ -419,39 +490,37 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     if(pendingPaypalCapture&&Date.now()>=paypalCaptureDeadline)pendingPaypalCapture=false;
     const newDocument=typeof message.pageInstance==='string'&&message.pageInstance!==paypalPageInstance;
     if(typeof message.pageInstance==='string')paypalPageInstance=message.pageInstance;
-    if(tabId===paypalTabId&&sender.frameId===0&&(pendingPaypalCapture||(paypalCaptureInFlight&&newDocument))){
+    if(activeBank==='paypal'&&tabId===paypalTabId&&sender.frameId===0&&(pendingPaypalCapture||(paypalCaptureInFlight&&newDocument))){
       if(newDocument)paypalCaptureInFlight=false;
-      void deliverPaypalCapture(tabId);
+      waitingCommand='capture_paypal_financing';void pollCommand();
     }
     else void pollCommand();return;
   }
   if(message.event==='paypal_financing_capture'){
     if(session&&tabId===paypalTabId&&sender.frameId===0&&/^https:\/\/www\.paypal\.com\//.test(sender.url||'')&&message.candidate){
       pendingPaypalCapture=false;paypalCaptureInFlight=false;
-      void send('/v1/paypal-financing',message.candidate).then(()=>pollCommand());
+      void send('/v1/paypal-financing',message.candidate,message.requestId).then(()=>pollCommand());
     }
     return;
   }
   if(message.event==='citi_page_ready'){
-    if(tabId===citiTabId&&pendingCitiCapture){
-      pendingCitiCapture=false;
-      void readerCommand(tabId,{command:'capture_citi_activity'},{frameId:0}).catch(()=>{});
+    if(activeBank==='citi'&&tabId===citiTabId&&pendingCitiCapture){
+      waitingCommand='capture_citi_activity';void pollCommand();
     }else void pollCommand();
     return;
   }
   if(message.event==='citi_activity_capture'){
     if(session&&tabId===citiTabId&&sender.frameId===0&&/^https:\/\/([a-z0-9-]+\.)*citi\.com\//i.test(sender.url||'')&&message.candidate)
-      void send('/v1/citi-activity',message.candidate).then(()=>pollCommand());
+      void send('/v1/citi-activity',message.candidate,message.requestId).then(()=>pollCommand());
     return;
   }
   if (message.event === "collector_page_ready") { void pollCommand(); return; }
   if (message.event === "chase_page_ready") {
-    if (tabId === chaseTabId && pendingChaseCapture) void deliverChaseCapture(tabId);
+    if (activeBank==='chase'&&tabId === chaseTabId && pendingChaseCapture) {waitingCommand='capture_chase_activity';void pollCommand();}
     else void pollCommand();
     return;
   }
-  if (message.event === "checking_navigation_required" && tabId !== null) {
-    wellsTabId = tabId;
+  if (message.event === "checking_navigation_required" && tabId === wellsTabId && activeBank==='wells') {
     void navigateChecking(tabId);
     return;
   }
@@ -465,28 +534,27 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     // whenever it includes the locally saved prior-import anchor. A later
     // anchor-aware command may call navigateNextActivityPage only if that anchor
     // is absent; never sweep account history merely because Next is available.
-    void send("/v1/activity", message.candidate);
+    void send("/v1/activity", message.candidate,message.requestId).then(()=>pollCommand());
     return;
   }
   if (message.event === "chase_activity_capture" && tabId === chaseTabId && message.candidate) {
     // Chase discovery needs an explicit fixed no-table outcome on the account
     // dashboard. Unlike Wells, its current reader has no known child-frame
     // table contract to wait for; later frame candidates can still supersede it.
-    void send("/v1/chase-activity", message.candidate);
+    void send("/v1/chase-activity", message.candidate,message.requestId).then(()=>pollCommand());
     return;
   }
   // Authentication/navigation status belongs to the top document. Activity
   // candidates may legitimately come from a Wells child frame.
   if (sender.frameId !== undefined && sender.frameId !== 0) return;
   if (!['auth_required', 'authenticated_page', 'chase_auth_required', 'chase_authenticated_page'].includes(message.event)) return;
+  if(eventBank!==activeBank||(eventBank==='wells'?tabId!==wellsTabId:tabId!==chaseTabId))return;
   if (message.event.startsWith('chase_')) {
-    chaseTabId = tabId;
     void send("/v1/progress", { version: 1, event: message.event, tabId }).then(sent => {
       if (sent) void pollCommand();
     });
     return;
   }
-  wellsTabId = tabId;
   void send("/v1/progress", { version: 1, event: message.event, tabId }).then(sent => {
     if (sent) void pollCommand();
   });

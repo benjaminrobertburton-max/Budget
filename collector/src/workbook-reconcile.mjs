@@ -33,6 +33,14 @@ export function citiWorkbookAnchors(ledger,bindings){
   return {identity:{product:'aadvantage',suffix:bindings.citi},transactions};
 }
 
+export function wellsWorkbookAnchors(ledger,bindings){
+  const transactions=ledger.filter(r=>r[0]===LEDGER_ACCOUNTS.wells&&r[4]==='Posted'&&r[12]==='Verified')
+    .map(r=>({state:'posted',effectiveDate:sourceDate(r),description:r[2],amountMinor:-cents(r[3])}))
+    .filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.effectiveDate??'')&&typeof r.description==='string'&&Number.isSafeInteger(r.amountMinor))
+    .sort((a,b)=>b.effectiveDate.localeCompare(a.effectiveDate)).slice(0,3);
+  return transactions.length?{kind:'wells_normalized_activity',acceptedWorkbook:true,accountSuffix:bindings.wells,transactions}:null;
+}
+
 function amountScoped(rule,description,amount){
   // A private workbook may use "[amount 26.50-27.50] EXXON" to distinguish
   // an otherwise identical merchant. The personal amounts stay in that

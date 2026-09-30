@@ -8,11 +8,11 @@ async function worker({accepted=true,rectangle=[0,0,100,30],steps=null}={}) {
   const context={Set,Number,JSON,Array,RegExp,fetch:async()=>({ok:false}),setTimeout:f=>steps?f():timers.push(f),
     chrome:{alarms:{create(){},onAlarm:{addListener(){}}},
       runtime:{onStartup:{addListener(){}},onInstalled:{addListener(){}},onMessage:{addListener(){}}},
-      tabs:{sendMessage:async(tab,message)=>{calls.push({type:'message',message});return {accepted,build:'0.4.30'};},reload:async()=>{}},
+      tabs:{sendMessage:async(tab,message)=>{calls.push({type:'message',message});return {accepted,build:'0.4.32'};},reload:async()=>{}},
       webNavigation:{getAllFrames:async()=>[{frameId:0}]},debugger:{
         attach:async()=>calls.push({type:'attach'}),detach:async()=>calls.push({type:'detach'}),
         sendCommand:async(target,command,args)=>{calls.push({type:command,args});return {result:{value:steps&&command==='Runtime.evaluate'?steps.shift():rectangle}};}}}};
-  vm.createContext(context);
+  context.setInterval=()=>{};vm.createContext(context);
   vm.runInContext(await readFile(new URL('../chrome-bridge/background.js',import.meta.url),'utf8'),context);
   return {context,calls};
 }

@@ -4,6 +4,21 @@ import { startChromeBridge } from "../src/chrome-bridge.mjs";
 import { fictionalActivityCandidate } from "../fixtures/activity-candidate.mjs";
 
 const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
+test('weekly bridge binds replies to a source request and rejects late same-bank replies',async()=>{
+  let captures=0;const bridge=await startChromeBridge({port:0,nextCommand:'open_chase_prime',requireRequestId:true,onChaseActivityCapture:()=>captures++});
+  try{
+    const {session}=await(await post(bridge.port,'/v1/session')).json();
+    const headers={'X-Budget-Collector-Session':session};
+    const command=async()=>await(await fetch(`http://127.0.0.1:${bridge.port}/v1/command`,{headers})).json();
+    const old=await command();bridge.queue('open_chase_sapphire',{replace:true});const current=await command();
+    assert.notEqual(current.requestId,old.requestId);
+    const packet=JSON.stringify({version:1,event:'chase_authenticated_page',tabId:7});
+    assert.equal((await post(bridge.port,'/v1/progress',{...headers,'X-Budget-Collector-Request':old.requestId},packet)).status,409);
+    assert.equal((await post(bridge.port,'/v1/chase-activity',{...headers,'X-Budget-Collector-Request':old.requestId},'{}')).status,409);
+    assert.equal((await post(bridge.port,'/v1/progress',{...headers,'X-Budget-Collector-Request':current.requestId},packet)).status,204);
+    assert.equal(captures,0);
+  }finally{await bridge.close();}
+});
 test('initial CORS preflight allows only an extension origin; a stale build cannot obtain commands',async()=>{
   const bridge=await startChromeBridge({port:0,nextCommand:'open_wells'});
   try{
@@ -20,7 +35,7 @@ test('initial CORS preflight allows only an extension origin; a stale build cann
   }finally{await bridge.close();}
 });
 const post = (port, path, headers = {}, body = "") => fetch(`http://127.0.0.1:${port}${path}`, {
-  method: "POST", headers: { Origin: origin, "X-Budget-Collector-Build": "0.4.30", ...headers }, body,
+  method: "POST", headers: { Origin: origin, "X-Budget-Collector-Build": "0.4.32", ...headers }, body,
 });
 
 test('reload transition permits exactly one same-card navigation retry, not a capture retry',async()=>{

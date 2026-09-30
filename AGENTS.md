@@ -1,5 +1,21 @@
 # Budget workbook operating rules
 
+## Current collector entry point — September 30, release 0.4.32
+
+For routine collector runs, read the short **Routine operation** section in
+`docs/COLLECTOR_RELEASE_0_4_32.md` first. It supersedes older operational directions
+below and in older handovers. Use the deterministic weekly runner and one compact
+status report; do not repeat the historical R&D, inspect whole bank pages, or
+rebuild the workbook as a normal launch step. Read incident/code detail only for
+the specific reported failure. `weekly-test` validates without workbook writes;
+`weekly-start` publishes only when all six sources and workbook checks pass.
+Preserve private workbook/configuration/evidence, accepted anchors, manual account
+scope, and the user's no-expiry policy. Source failures preserve other completed
+sources. A resumed receipt is not a new live capture. Reload extension 0.4.32 after
+sync. One fresh six-source capture and full receipt-to-workbook validation passed;
+the fresh repeat is blocked on Wells sign-in. Home acceptance is still pending.
+Read the release checkpoint; do not overstate test coverage.
+
 The user has a five-hour usage limit. Weekly imports must be completed in one session.
 
 ## Collector transition

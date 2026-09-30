@@ -6,7 +6,7 @@ import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import {fictionalWorkbook} from '../../work/collector_workbook_fixture.mjs';
 import {workbookBytes} from '../../work/workbook_bytes.mjs';
-import {buildDirectWorkbook} from '../../work/collector_apply.mjs';
+import {buildDirectWorkbook,sameWorkbookValue} from '../../work/collector_apply.mjs';
 import {runWorkbookIntake,workbookXml as X} from '../../work/collector_workbook.mjs';
 import {prepareWorkbookIntake} from '../src/workbook-intake.mjs';
 import {reconcileWorkbookLedger,serialDate} from '../src/workbook-reconcile.mjs';
@@ -24,6 +24,17 @@ const {SpreadsheetFile}=await import(pathToFileURL(require.resolve('@oai/artifac
 const intake=records=>prepareWorkbookIntake({records,bindings:INTAKE_BINDINGS,now:INTAKE_NOW});
 const value=(wb,name,cell)=>wb.worksheets.getItem(name).getRange(cell).values[0][0];
 
+test('export checks compare equivalent date representations without accepting changed dates or blanks',()=>{
+  const date=new Date('2031-10-01T00:00:00Z'),serial=serialDate('2031-10-01');
+  assert.ok(sameWorkbookValue(date,serial));assert.ok(sameWorkbookValue(serial,date));
+  assert.ok(sameWorkbookValue(date,new Date(date)));
+  assert.ok(sameWorkbookValue(date,serial-1462,true));
+  assert.ok(sameWorkbookValue(new Date('1900-01-01T00:00:00Z'),1));
+  assert.ok(sameWorkbookValue(new Date('1900-03-01T00:00:00Z'),61));
+  for(const other of [null,serial+1,serial-1,String(serial),new Date('invalid')])assert.equal(sameWorkbookValue(date,other),false);
+  assert.equal(sameWorkbookValue(12,13),false);assert.equal(sameWorkbookValue(null,0),false);
+});
+
 test('failed formula check reports local cell locations and still refuses publication',async()=>{
   const wb=await SpreadsheetFile.importXlsx(await baseline());
   wb.worksheets.getItem('4. Money Plan').getRange('B30').formulas=[['=1/0']];
@@ -40,6 +51,8 @@ test('current Start dashboard keeps numeric plan formulas and warns before payme
   const wb=await SpreadsheetFile.importXlsx(await baseline()),start=wb.worksheets.getItem('1. Start');
   start.getRange('B5').formulas=[["='Support - Account Snapshots'!F5"]];
   start.getRange('B7').formulas=[['=SUM(20,30)']];start.getRange('B8').values=[[10]];
+  wb.worksheets.getItem('5. Savings & Debt').getRange('B34').formulas=[["=DATE(YEAR('2. Tuesday Review'!B28),MONTH('2. Tuesday Review'!B28)+1,1)"]];
+  wb.worksheets.getItem('5. Savings & Debt').getRange('B34').setNumberFormat('mmm d, yyyy');
   start.getRange('B17').formulas=[['=ROUND(B5+B8-B7,2)']];wb.recalculate();
   const base=await workbookBytes(wb),first=await buildDirectWorkbook(base,intake(intakeRecords()));
   assert.equal(first.checks.formulaErrors,0);
@@ -300,6 +313,10 @@ test('direct private save backs up the exact original and updates the configured
   await fs.writeFile(config.baseWorkbook,base);const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(config));
   const store=await openPrivateEvidenceStore({root:config.privateRoot,repositoryRoot,protector});
   for(const {record} of Object.values(intakeRecords()))await store.save(record);
+  const dry=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true,validateOnly:true});
+  assert.equal(dry.status,'validated');assert.equal(dry.output,null);assert.equal(dry.checks.formulaErrors,0);
+  assert.deepEqual(await fs.readFile(config.baseWorkbook),base,'non-publishing test must leave exact workbook bytes intact');
+  await assert.rejects(fs.stat(config.outputRoot),{code:'ENOENT'});
   const result=await runWorkbookIntake(file,{protector,now:INTAKE_NOW,apply:true});
   assert.equal(result.status,'ledger_updated');assert.equal(result.output,config.baseWorkbook);
   assert.deepEqual(await fs.readFile(result.backup),base);assert.notDeepEqual(await fs.readFile(config.baseWorkbook),base);
