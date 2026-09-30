@@ -258,10 +258,9 @@ resolution:
 | Night light | Off | Off |
 | HDR | On | Status not shown in the provided capture |
 
-Chrome site zoom was not captured and remains an important missing comparison
-point.  Record it separately for Citi, PayPal, and Wealthfront.  The display
-information is diagnostic context only; it must not be treated as proof that a
-responsive-layout difference is the root cause.
+Chrome site zoom is confirmed at **100%** for Citi, PayPal, and Wealthfront.
+The display information is diagnostic context only; it must not be treated as
+proof that a responsive-layout difference is the root cause.
 
 ## Recommended other-machine repair sequence
 
