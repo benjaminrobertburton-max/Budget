@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import JSZip from 'jszip';
-import {Workbook,SpreadsheetFile} from '@oai/artifact-tool';
+import {Workbook,SpreadsheetFile,FileBlob} from '@oai/artifact-tool';
 import {workbookXml as X} from './collector_workbook.mjs';
 import {defaultPrivateRoot,assertPrivateDirectory,assertRegularFile} from '../collector/src/private-paths.mjs';
 import {openPrivateEvidenceStore} from '../collector/src/private-evidence-store.mjs';
@@ -24,6 +24,84 @@ export function monthlyDue(review,day){
   let due=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),day));
   if(due<d)due=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,day));
   return due.toISOString().slice(0,10);
+}
+
+// Minimum steady weekly amount satisfying every cumulative deadline, assuming
+// payments are directed to the earliest outstanding deadlines first.
+export function applyLevelPayoff(wb){
+  const s=wb.worksheets.getItem('Bills & Settings'),p=wb.worksheets.getItem('Pay This Week');
+  const promos=[];
+  for(let row=36;row<200;row++){
+    const values=s.getRange(`A${row}:C${row}`).values[0];
+    if(typeof values[1]!=='number'||typeof values[2]!=='number')break;
+    promos.push(values);
+  }
+  if(!promos.length)throw new Error('No promotion balances and deadlines found');
+  promos.sort((a,b)=>a[2]-b[2]);
+  const last=35+promos.length,rate=last+6,header=last+8,firstTier=header+1;
+  const deadlines=[...new Set(promos.map(p=>p[2]))],lastTier=header+deadlines.length;
+  s.getRange(`A36:C${last}`).values=promos;
+  s.getRange('E35').values=[["This week's target"]];
+  s.getRange(`A${rate}`).values=[['Steady weekly payment']];
+  s.getRange(`B${rate}`).formulas=[[`=MIN(SUM(B36:B${last}),MAX(E${firstTier}:E${lastTier}))`]];
+  s.getRange(`A${header}:E${header}`).values=[['Deadline tier','Tier balance','Cumulative owed','Paydays left','Weekly floor']];
+  for(let i=0;i<deadlines.length;i++){
+    const row=firstTier+i;
+    s.getRange(`A${row}`).values=[[deadlines[i]]];
+    s.getRange(`B${row}`).formulas=[[`=SUMIFS($B$36:$B$${last},$C$36:$C$${last},A${row})`]];
+    s.getRange(`C${row}`).formulas=[[`=SUM(B$${firstTier}:B${row})`]];
+    s.getRange(`D${row}`).formulas=[[`=MAX(1,ROUNDUP((A${row}-$B$4)/7,0))`]];
+    s.getRange(`E${row}`).formulas=[[`=ROUNDUP(ROUND(C${row}/D${row},10),2)`]];
+  }
+  for(let row=36;row<=last;row++){
+    s.getRange(`D${row}`).formulas=[[`=MAX(1,ROUNDUP((C${row}-$B$4)/7,0))`]];
+    s.getRange(`E${row}`).formulas=[[`=MIN(B${row},MAX(0,$B$${rate}${row===36?'':`-SUM($B$36:B${row-1})`}))`]];
+  }
+  s.getRange(`E${last+1}`).formulas=[[`=SUM(E36:E${last})`]];
+  s.getRange('F36').values=[["Targets only; confirm PayPal's payment allocation."]];
+  s.getRange('F38').values=[['Refresh remaining balances at the next import.']];
+  s.getRange(`F${rate}`).values=[['Lowest steady amount that covers every deadline.']];
+  s.getRange(`F${firstTier}`).values=[['Pay earlier deadlines first; carry excess forward.']];
+  s.getRange(`F${firstTier+1}`).values=[['Assumes no new charges and on-time weekly payments.']];
+  s.getRange(`F${firstTier+2}`).values=[['The statement minimum still applies.']];
+  s.getRange(`A${rate}:F${lastTier}`).format={font:{name:'Arial',size:11,color:'#24364B'},rowHeight:29,verticalAlignment:'center'};
+  s.getRange(`A${header}:E${header}`).format={fill:'#193657',font:{bold:true,color:'#FFFFFF'},wrapText:true,rowHeight:35};
+  s.getRange(`A${firstTier}:A${lastTier}`).setNumberFormat('mmm d, yyyy');
+  for(const range of [`B${rate}`,`B${firstTier}:C${lastTier}`,`E${firstTier}:E${lastTier}`])s.getRange(range).setNumberFormat('$#,##0.00 ;($#,##0.00);$0.00 ');
+  s.getRange(`A${rate}:B${rate}`).format={fill:'#EAF0F6',font:{bold:true}};
+  p.getRange('F16').values=[['Steady weekly payment; earliest promo deadlines first.']];
+  p.getRange('C11:C20').dataValidation={rule:{type:'list',values:['To do','Scheduled','Done','Not needed']}};
+  for(const row of [18,19]){
+    p.getRange(`C${row}`).values=[['Scheduled']];
+    p.getRange(`F${row}`).values=[['Not paid yet. Cash reserved for the automatic transfer.']];
+  }
+  wb.recalculate();
+  return {lastRow:lastTier+1,weekly:p.getRange('B16').values[0][0],rent:p.getRange('B20').values[0][0]};
+}
+
+export async function updatePayoffWorkbook(filename){
+  const repositoryRoot=fileURLToPath(new URL('../',import.meta.url)),policy={repositoryRoot};
+  await assertPrivateDirectory(path.dirname(filename),policy);await assertRegularFile(filename,40*1024*1024);
+  const original=await fs.readFile(filename),wb=await SpreadsheetFile.importXlsx(await FileBlob.load(filename));
+  const result=applyLevelPayoff(wb);
+  for(const name of ['Pay This Week','Bills & Settings'])for(const row of wb.worksheets.getItem(name).getUsedRange().values)for(const v of row)
+    if(typeof v==='string'&&/^#(REF!|VALUE!|DIV\/0!|NAME\?|N\/A|NUM!)/.test(v))throw new Error('Formula error '+v);
+  const backup=filename+'.before-level-payoff-'+randomUUID()+'.xlsx';await fs.writeFile(backup,original,{flag:'wx'});
+  for(const sheet of ['Pay This Week','Bills & Settings']){
+    const preview=await wb.render({sheetName:sheet,range:sheet==='Pay This Week'?'A1:F34':`A1:F${result.lastRow}`,scale:1,format:'png'});
+    await fs.writeFile(path.join(path.dirname(filename),sheet==='Pay This Week'?'pay-this-week.png':'bills-settings.png'),new Uint8Array(await preview.arrayBuffer()));
+  }
+  const temporary=filename+'.'+randomUUID()+'.xlsx';await(await SpreadsheetFile.exportXlsx(wb)).save(temporary);
+  if(!(await fs.readFile(filename)).equals(original))throw new Error('Workbook changed during update');
+  await fs.rename(temporary,filename);
+  const receiptFile=filename+'.import.json';
+  const receipt=await fs.readFile(receiptFile,'utf8').then(JSON.parse,e=>{if(e.code==='ENOENT')return null;throw e;});
+  if(receipt){
+    receipt.totals.paypal=result.weekly;receipt.totals.rent=result.rent;
+    receipt.adjustment={kind:'level-payoff-earliest-deadline-first',backup,automaticStatuses:'Scheduled'};
+    await fs.writeFile(receiptFile,JSON.stringify(receipt,null,2));
+  }
+  return {...result,filename,backup};
 }
 const text=n=>(n?.elements??[]).map(e=>e.type==='text'?e.text:text(e)).join('');
 async function readWorkbook(filename){
@@ -232,7 +310,7 @@ export async function buildBillPay(options){
   pay.getRange('F1:F58').format.columnWidth=57;pay.getRange('F11:F33').format.wrapText=true;
   pay.getRange('E1:E58').format.columnWidth=3;
   for(const s of [pay,settings])s.getRange('A2:F2').format.borders={bottom:{style:'thin',color:'#A6B8CA'}};
-  wb.recalculate();
+  const payoff=applyLevelPayoff(wb);
   const initialDate=settings.getRange('B4').values[0][0];
   cell(settings,'B4',serial('2026-11-24'));wb.recalculate();
   if(pay.getRange('B17').values[0][0]!==round(config[4][1]))throw new Error('Car due-week amount must equal the monthly payment');
@@ -246,7 +324,7 @@ export async function buildBillPay(options){
   const backupFolder=path.join(root,'backups');await fs.mkdir(backupFolder,{recursive:true});
   const backup=path.join(backupFolder,`before-bill-pay-${randomUUID()}.xlsx`);await fs.writeFile(backup,original,{flag:'wx'});
   for(const s of [pay,settings]){
-    const preview=await wb.render({sheetName:s.name,range:s===pay?'A1:F34':`A1:F${last+5}`,scale:1,format:'png'});
+    const preview=await wb.render({sheetName:s.name,range:s===pay?'A1:F34':`A1:F${payoff.lastRow}`,scale:1,format:'png'});
     await fs.writeFile(path.join(folder,s===pay?'pay-this-week.png':'bills-settings.png'),new Uint8Array(await preview.arrayBuffer()));
   }
   const temporary=path.join(folder,'.bill-pay-'+randomUUID()+'.xlsx');
@@ -260,6 +338,6 @@ export async function buildBillPay(options){
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const args={};for(let i=2;i<process.argv.length;i+=2)args[process.argv[i].replace(/^--/,'')]=process.argv[i+1];
-  const report=await buildBillPay({base:args.base,date:args.date,captureDate:args['capture-date'],output:args.output,root:args.root,discover:args.discover,capitalOne:args['capital-one']});
+  const report=args.update?await updatePayoffWorkbook(args.update):await buildBillPay({base:args.base,date:args.date,captureDate:args['capture-date'],output:args.output,root:args.root,discover:args.discover,capitalOne:args['capital-one']});
   console.log(JSON.stringify(report,null,2));
 }

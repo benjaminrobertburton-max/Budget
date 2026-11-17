@@ -40,8 +40,8 @@ capture dates in the workbook. Privacy and encryption are unchanged.
 - Keep Fidelity and tuition. This week's captured corresponding Wells debits
   reduce the amount still reserved. A recurring tuition debit differing by at
   most five cents updates that schedule; larger changes require an explicit edit.
-- Automatic rows say Done only for the manual-action checklist. They do not assert
-  bank settlement. Keep their not-yet-reflected cash reserved.
+- Automatic Fidelity and tuition rows say Scheduled when not paid. Do not label
+  them Done merely because automatic. Keep their not-yet-reflected cash reserved.
 - Weekly car funding is monthly / 4, rounded to cents. Skip it in the Tuesday–Monday
   week containing the 26th; display the full payment from the car reserve instead.
   The reserve balance is not captured: confirm sufficient reserve in that week.
@@ -50,11 +50,19 @@ capture dates in the workbook. Privacy and encryption are unchanged.
   capped at the existing maximum. Do not borrow savings to fund a rent contribution.
 - Calculate one net Wealthfront-to-Wells top-up only when required. A calculated
   transfer is a proposed action, not an executed bank transfer.
-- User approved weekly PayPal payments toward each promo deadline. Divide each
-  remaining balance by the number of review Tuesdays strictly before its deadline,
-  with at least one payment, and round to cents. Refresh next week from actual
-  remaining balances. Already-captured current-week repayments reduce the new
-  payment. PayPal minimum is not captured; enter it if greater than this schedule.
+- User selected the lowest level weekly PayPal payment, targeting earliest
+  deadlines first. Group promotions by deadline; divide cumulative balances due
+  through each deadline by review Tuesdays strictly before that date (at least
+  one), round up to cents, and use the highest resulting weekly requirement.
+  Do not sum each promotion's independent weekly rate or wait to start the later
+  debts until the prior deadline. Show the deadline tiers and this week's proposed
+  allocation. Refresh from remaining balances each week; no assumed payment history.
+  Already-captured current-week repayments reduce the new payment. The statement
+  minimum still applies and is not captured.
+  Targets do not control bank allocation: PayPal's terms allow discretion for the
+  minimum and generally prioritize higher APR balances for excess payments, with
+  promotional exceptions. Confirm allocation to the planned promotions.
+  Source: https://www.paypal.com/us/digital-wallet/ppcterms (Payment Allocation).
 - Personal safe cash is excluded. Canceled cruise and general savings stay removed.
 - Canada bills remain a month-end/27th reminder, not an inferred current Wells debit.
   Confirm necessary funding in their due week. Other direct bills have a visible
@@ -63,6 +71,11 @@ capture dates in the workbook. Privacy and encryption are unchanged.
 Changing Done statuses tracks actions; it does not rewrite the captured opening
 cash or recalculate the initial rent allocation. That avoids using money from an
 already-planned payment twice. A new collection requires a new checklist.
+
+For the authorized in-place transition from the initial simplified workbook to
+level PayPal payments and Scheduled automatic statuses, use
+`node work/build_bill_pay.mjs --update <absolute-private-workbook.xlsx>`.
+It makes an exact backup and preserves other payment statuses and captured inputs.
 
 ## Home handoff and limits
 
