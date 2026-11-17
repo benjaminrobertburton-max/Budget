@@ -1,5 +1,19 @@
 # Budget workbook operating rules
 
+## Current workflow — November 17: weekly bill payment only
+
+The user's latest instruction supersedes the history, categorization, anchor and
+reconciliation requirements below for the active workbook. Read
+`docs/BILL_PAY_WORKFLOW.md` first. The working file now has two tabs: Pay This Week
+and Bills & Settings. Import saved current balances with `work/build_bill_pay.mjs`.
+Do not launch the dated legacy builder or ledger-gated weekly publisher for this
+workflow. Do not require transaction history or complete statement tables to use
+an unambiguous captured balance. Preserve the previous workbook separately.
+Missing amounts must still remain missing, never invented or called zero.
+Financial files, receipts and settings stay private; Git carries code/docs only.
+The old collector readers remain unchanged. This change is a balance-only workbook
+import, not proof that all bank navigation or home-machine collection is fixed.
+
 ## Current collector entry point — September 30, release 0.4.32
 
 For routine collector runs, read the short **Routine operation** section in

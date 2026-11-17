@@ -1,5 +1,15 @@
 # Collector home-machine handoff and release checklist
 
+## Latest direction — November 17: bills only
+
+The user replaced the comprehensive budget workflow with a two-tab bill-payment
+workbook. Read `docs/BILL_PAY_WORKFLOW.md` before the older handover below.
+Sync the collector branch and transfer the new private weekly-bills XLSX separately.
+Use `work/build_bill_pay.mjs` to import saved balances; do not require history,
+categorization or anchor reconciliation and do not use the old ledger publisher.
+Keep the old workbook as a backup. The bank readers were not changed or certified
+on the home machine by this workbook simplification.
+
 ## Home resume — read this first (September 30)
 
 **Transfer scope:** software and this handover are delivered through GitHub,

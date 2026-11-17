@@ -1,5 +1,13 @@
 # Local weekly budget runbook — collector first, screenshots as fallback
 
+## Active workflow: bill payment only (November 17)
+
+Use `docs/BILL_PAY_WORKFLOW.md` and `work/build_bill_pay.mjs`. The user retired
+spending analysis, history and reconciliation from the active workbook. Import
+saved balances, retain the original privately, and show the two-tab payment file.
+The older instructions below describe the retired comprehensive workflow; do not
+apply its history/anchor publication gates to the new bill-payment workbook.
+
 **September 30 collector checkpoint:** before a collector run, read
 `docs/COLLECTOR_RELEASE_0_4_32.md` (Routine operation). Read the September 29 home
 incident report only when investigating that incident, not on every weekly run.
